@@ -30,6 +30,14 @@ summary(full.model)
 
 
 
+
+
+
+
+
+#####################
+
+
 complete$Pf3 <- complete$PfPR2/100
 
 x<-seq(10, 40, by=0.2); y<-sapply(x, r0t)
@@ -39,30 +47,30 @@ tempfit2 <- function(t) {full.model$coefficients['temp',]*t + full.model$coeffic
 x<-seq(10, 40, by=0.2); y<-sapply(x, tempfit2)
 tempdf2 <- data.frame(temp=x,response=y)
 
-ggthemr("fresh")
+#ggthemr("fresh")
 theme_set(theme_classic())  # not run gg
 
 
 g1 <- ggplot(complete, aes(temp, Pf3)) + #geom_point(col='light grey') + 
-  geom_smooth() + ylab('P. falciparum prevalence') + 
-  xlab('Temperature') + theme_classic()  + 
+  geom_smooth(col='turquoise3', lwd=1.2, fill='paleturquoise2', alpha=0.5) + ylab('P. falciparum prevalence') + 
+  xlab('Temperature') + theme_classic2()  + 
   theme(text = element_text(size=13)) + 
-  labs(title = 'Observed prevalence model', subtitle='African dataset (1900-2010)')
+  labs(title = 'Observed prevalence model', subtitle='African dataset (1900-2010)'); g1
 
-g2 <- ggplot(tempdf2,aes(temp,response)) + geom_line(lwd=1.3) + 
+g2 <- ggplot(tempdf2,aes(temp,response)) + geom_line(col='turquoise3', lwd=1.2) + 
   ylab('Prevalence predicted') + xlab('Temperature') + 
-  theme(text = element_text(size=13)) + 
+  theme(text = element_text(size=13)) + theme_classic2()  + 
   labs(title='Full econometric model', subtitle='At ADM1 level (1900-2010)')
 
-g3 <- ggplot(tempdf,aes(temp,response)) + geom_line(lwd=1.3) + 
+g3 <- ggplot(tempdf,aes(temp,response)) + geom_line(col='turquoise3', lwd=1.3) + 
   ylab('Estimated R0') + xlab('Temperature')  + 
-  theme(text = element_text(size=13)) + 
+  theme(text = element_text(size=13)) + theme_classic2()  + 
   labs(title = 'Predicted R0', subtitle='Based on laboratory experiments') 
 
 g4 <- ggplot(complete, aes(R0, Pf3)) + # geom_point(col='light grey') + 
   geom_smooth() + ylab('Observed prevalence of P. falciparum') + 
   xlab('Estimated scaled R0 based on temp.') + theme_classic()  + 
-  theme(text = element_text(size=13)) + 
+  theme(text = element_text(size=13)) + theme_classic2()  + 
   labs(title = 'Observed prevalence model', subtitle='Using R0 estimator') 
 
 plot_grid(g1, g2, g3, g4)
