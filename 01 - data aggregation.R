@@ -1,10 +1,13 @@
 
+### SETUP
+
 library(ncdf4)
 library(raster)
 library(rgdal)
 library(sp)
 library(velox)
 
+# Some basic functions that do important work below
 
 swirl <- function(input.raster) {
   input.raster <- flip(t(input.raster),direction='y')
@@ -31,30 +34,33 @@ r0t <- function(T, na.rm=TRUE) {
   return(R0/87.13333) # that's the max
 }
 
-nct <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/tmp/cru_ts4.03.1901.2018.tmp.dat.nc/cru_ts4.03.1901.2018.tmp.dat.nc")
-
-g <- ncvar_get(nct, 'tmp')
-
-#############
-
+# Some old code that made the Africa shapefile:
 #setwd('C:/Users/cjcar/Dropbox/continents/gadm28_adm0')
 #cont <- readOGR('gadm28_adm0.shp')
 #setwd('C:/Users/cjcar/Dropbox/continents/World')
 #cont2 <- readOGR('gadm28_adm1.shp')
-
 #cont3 <- cont2[cont2$NAME_0 %in% unique(cont$NAME_ENGLI[cont$UNREGION2=='Africa']),]
-
 #writeOGR(cont3, 
 #         dsn='C:/Users/cjcar/Dropbox/MalariaAttribution/Data',
 #         layer='AfricaADM1',
 #         driver='ESRI Shapefile')
+
+# Read in Africa
 
 setwd('C:/Users/cjcar/Dropbox/MalariaAttribution/Data')
 cont <- readOGR('AfricaADM1.shp')
 month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
 
 
-########################### R0
+### PULL OUT RELEVANT VARIABLES
+
+# Extract temperature and R0 variables
+
+
+# Read in temperature 
+nct <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/tmp/cru_ts4.03.1901.2018.tmp.dat.nc/cru_ts4.03.1901.2018.tmp.dat.nc")
+
+g <- ncvar_get(nct, 'tmp')
 
 for (i in 1:1416) {
   r <- swirl(raster(g[,,i]))
@@ -83,6 +89,7 @@ for (i in 1:1416) {
 
 ####################
 
+# Extract precipitation
 
 ncp <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/pr/cru_ts4.03.1901.2018.pre.dat.nc/cru_ts4.03.1901.2018.pre.dat.nc")
 g <- ncvar_get(ncp, 'pre')
@@ -104,13 +111,7 @@ for (i in 1:1416) {
   print(i)
 }
 
-
-
-
-
-
-
-############
+### PREVALENCE
 
 prev<- read.csv('./dataverse_files/00 Africa 1900-2015 SSA PR database (260617).csv')
 prev <- SpatialPointsDataFrame(coords=prev[,c('Long','Lat')], data=prev[,c('MM','YY','Pf','PfPR2.10')])
@@ -120,6 +121,8 @@ overtest <- over(cont, prev, returnList = TRUE)
 
 library(tidyr)
 library(dplyr)
+
+# Assign a date to each set of prevalence estimates averaged for a given shapefile poly
 
 for (i in 1:1416) {
   mon <- i%%12
@@ -141,7 +144,9 @@ for (i in 1:1416) {
   print(i)
 }
 
-###########
+### Basic GAM checks
+
+# This builds a little dataframe for doing some graphic checks, it isn't used further on really
 
 first <- data.frame(R0 = cont$Jan.1900.R0,
                     Pf = cont$Jan.1900.Pf,
@@ -165,24 +170,45 @@ for (i in 2:1416) {
   print(i)
 }
 
-write.csv(first, 'backup.csv')
+setwd("C:/Users/cjcar/Dropbox/MalariaAttribution/Dataframe backups")
+write.csv(first, 'unformatted-backup.csv')
+write.csv(data.frame(cont@data), 'shapefile-backup.csv')
 
-complete <- first[complete.cases(first),]
-colnames(complete) <- c('R0',"Pf","Pf2","temp","temp2","ppt","ppt2")
+firstcomplete <- first[firstcomplete.cases(first),]
+colnames(firstcomplete) <- c('R0',"Pf","Pf2","temp","temp2","ppt","ppt2")
 
 library(ggplot2)
 
-complete$Pf3 <- complete$Pf2/100
-ggplot(complete, aes(R0, Pf3)) + geom_point(col='light grey') + 
+# Some basic data check plots
+
+firstcomplete$Pf3 <- firstcomplete$Pf2/100
+ggplot(firstcomplete, aes(R0, Pf3)) + geom_point(col='light grey') + 
   geom_smooth(col='red') + ylab('Observed prevalence of P. falciparum') + 
   xlab('Estimated scaled R0 based on temp.') + theme_classic() 
 
-
-ggplot(complete, aes(temp, Pf3)) + #geom_point(col='light grey') + 
+ggplot(firstcomplete, aes(temp, Pf3)) + #geom_point(col='light grey') + 
   geom_smooth(col='red') + ylab('Observed prevalence of P. falciparum') + 
   xlab('Temperature') + theme_classic() 
 
-ggplot(complete, aes(ppt, Pf3)) + #geom_point(col='light grey') + 
+ggplot(firstcomplete, aes(ppt, Pf3)) + #geom_point(col='light grey') + 
   geom_smooth(col='red') + ylab('Observed prevalence of P. falciparum') + 
   xlab('Precipitation') + theme_classic() 
 
+
+### Save out data backups
+
+# Reconstitute the spatial data frame, "cont", without running the previous script
+setwd('C:/Users/cjcar/Dropbox/MalariaAttribution')
+cont <- readOGR('./Data/AfricaADM1.shp')
+cont@data <- read.csv('./Dataframe backups/shapefile-backup.csv')
+
+# Pull out the dataframe, remove all extraneous metadata, make a dataset
+contdf <- cont@data
+contdf <- contdf[,-c(1,3:16)]
+contdf <- melt(contdf, id='OBJECTID')
+
+#Separate the time component back out and save out
+dffix <- separate(contdf,  variable, into=c('month','year','var'), sep='\\.')
+dffix <- cast(dffix, OBJECTID+month+year ~ var)
+dffix$year <- as.numeric(dffix$year)
+write.csv(dffix, './Dataframe backups/formatted-backup.csv')
