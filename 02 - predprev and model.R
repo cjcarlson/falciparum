@@ -1,4 +1,6 @@
 
+#setwd('C:/Users/cjcar/Dropbox/MalariaAttribution/')
+
 library(cowplot)
 library(ggplot2)
 library(ggthemr)
