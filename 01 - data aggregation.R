@@ -7,6 +7,15 @@ library(rgdal)
 library(sp)
 library(velox)
 
+user = "Tamma" #"Tamma"
+if (user == "Colin") {
+  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data'
+} else {
+  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/Data'
+}
+
+setwd(wd)
+
 # Some basic functions that do important work below
 
 swirl <- function(input.raster) {
@@ -46,8 +55,6 @@ r0t <- function(T, na.rm=TRUE) {
 #         driver='ESRI Shapefile')
 
 # Read in Africa
-
-setwd('C:/Users/cjcar/Dropbox/MalariaAttribution/Data')
 cont <- readOGR('AfricaADM1.shp')
 month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
 
@@ -58,7 +65,7 @@ month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec
 
 
 # Read in temperature 
-nct <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/tmp/cru_ts4.03.1901.2018.tmp.dat.nc/cru_ts4.03.1901.2018.tmp.dat.nc")
+nct <- nc_open("CRU_TS403_data/tmp/cru_ts4.03.1901.2018.tmp.dat.nc/cru_ts4.03.1901.2018.tmp.dat.nc")
 
 g <- ncvar_get(nct, 'tmp')
 
@@ -91,7 +98,7 @@ for (i in 1:1416) {
 
 # Extract precipitation
 
-ncp <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/pr/cru_ts4.03.1901.2018.pre.dat.nc/cru_ts4.03.1901.2018.pre.dat.nc")
+ncp <- nc_open("CRU_TS403_data/pr/cru_ts4.03.1901.2018.pre.dat.nc/cru_ts4.03.1901.2018.pre.dat.nc")
 g <- ncvar_get(ncp, 'pre')
 
 
@@ -170,7 +177,7 @@ for (i in 2:1416) {
   print(i)
 }
 
-setwd("C:/Users/cjcar/Dropbox/MalariaAttribution/Dataframe backups")
+setwd("../Dataframe backups")
 write.csv(first, 'unformatted-backup.csv')
 write.csv(data.frame(cont@data), 'shapefile-backup.csv')
 
@@ -198,7 +205,7 @@ ggplot(firstcomplete, aes(ppt, Pf3)) + #geom_point(col='light grey') +
 ### Save out data backups
 
 # Reconstitute the spatial data frame, "cont", without running the previous script
-setwd('C:/Users/cjcar/Dropbox/MalariaAttribution')
+setwd('../')
 cont <- readOGR('./Data/AfricaADM1.shp')
 cont@data <- read.csv('./Dataframe backups/shapefile-backup.csv')
 
