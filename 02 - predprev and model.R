@@ -37,6 +37,11 @@ spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
 countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
 complete$country <- countrydf$NAME_0[sapply(complete$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
 
+# country avg df (for robustness -- note: to do this right, we need area weights for each OBJECTID!)
+data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
+iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
+complete_iso <- iso[complete.cases(iso),]
+
 # Year as factor instead of integer
 complete$year <- factor(complete$year)
 
@@ -47,14 +52,14 @@ complete$year <- factor(complete$year)
 isocounts = complete %>% group_by(country) %>% tally()
 summary(isocounts$n) # on average, we've got 214 observations per country over the sample
 isoyrcounts = complete %>% group_by(country,year) %>% tally()
-summary(isoyrcounts$n) # on average, we've got 6 observations per country over the sample...but 25% of the data has just one obs per country-year. 
+summary(isoyrcounts$n) # on average, we've got 6 observations per country-year over the sample...but 25% of the data has just one obs per country-year. 
 # This suggests we probably want to have the central model use trends instead of country-yr FE.
 
 # 2) how many obs per year and month, on avg?
 Yrct = complete %>% group_by(year) %>% tally()
 summary(Yrct$n) # on average, we've got 80 observations per year over the sample, but some years have just one
 Moct = complete %>% group_by(month) %>% tally()
-summary(Moct$n) # on average, we've got 838 observations per year over the sample -- monthly FE are fine, might want to move to region:month FE given differential seasonality
+summary(Moct$n) # on average, we've got 838 observations per calendar month over the sample -- monthly FE are fine, might want to move to region:month FE given differential seasonality
 
 
 ############################
@@ -86,6 +91,13 @@ model5 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 + temp:ppt + temp2:ppt |
                  OBJECTID + country + year + month | 0 | OBJECTID, data = complete)
 
 summary(model5)
+
+# check if relationship holds up at country level
+complete_iso$year <- factor(complete_iso$year)
+model6 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2  | 
+                 country + year + month | 0 | OBJECTID, data = complete_iso)
+
+summary(model6)
 
 # Test model with all specified components
 
