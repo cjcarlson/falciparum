@@ -1,5 +1,6 @@
 
 ### SETUP
+rm(list = ls())
 
 library(ncdf4)
 library(raster)
@@ -7,32 +8,22 @@ library(rgdal)
 library(sp)
 library(velox)
 
+user = "Tamma" #"Colin"
+if (user == "Colin") {
+  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data'
+  repo = "" #to fill in
+} else if (user == "Tamma") {
+  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/Data'
+  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
+} else {
+  wd = NA
+  print('Script not configured for this user!')
+}
+
+setwd(wd)
+
 # Some basic functions that do important work below
-
-swirl <- function(input.raster) {
-  input.raster <- flip(t(input.raster),direction='y')
-  extent(input.raster) <- c(-180,180,-90,90)
-  input.raster = crop(input.raster, c(-30,60,-37,40))
-  return(input.raster)
-}
-
-
-r0t <- function(T, na.rm=TRUE) {
-  suppressWarnings(if(is.na(T)) return(NA))
-  if(T<=14) {return(0)}
-  a = 0.000203*T*(T-11.7)*((42.3-T)^0.5)
-  bc = -0.54*T*T + 25.2*T - 206
-  p = -0.000828*T*T + 0.0367*T + 0.522 # e^-mu
-  mu = -1*log(p)
-  PDR = 0.000111*T*(T-14.7)*((34.4-T)^0.5) # 1/EIP
-  pEA = -0.00924*T*T + 0.453*T - 4.77
-  MDR = 0.000111*T*(T-14.7)*((34-T)^0.5) # 1/tauEA
-  EFD = -0.153*T*T + 8.61*T - 97.7
-  
-  R0 = (((a^2)*bc*(p^(1/PDR))*EFD*pEA*MDR)/(mu^3))^(1/2)
-  if(is.nan(R0)){return(0)}
-  return(R0/87.13333) # that's the max
-}
+source(file.path(repo, 'code/R_utils.R'))
 
 # Some old code that made the Africa shapefile:
 #setwd('C:/Users/cjcar/Dropbox/continents/gadm28_adm0')
@@ -46,8 +37,6 @@ r0t <- function(T, na.rm=TRUE) {
 #         driver='ESRI Shapefile')
 
 # Read in Africa
-
-setwd('C:/Users/cjcar/Dropbox/MalariaAttribution/Data')
 cont <- readOGR('AfricaADM1.shp')
 month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
 
@@ -58,7 +47,7 @@ month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec
 
 
 # Read in temperature 
-nct <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/tmp/cru_ts4.03.1901.2018.tmp.dat.nc/cru_ts4.03.1901.2018.tmp.dat.nc")
+nct <- nc_open("CRU_TS403_data/tmp/cru_ts4.03.1901.2018.tmp.dat.nc/cru_ts4.03.1901.2018.tmp.dat.nc")
 
 g <- ncvar_get(nct, 'tmp')
 
@@ -91,7 +80,7 @@ for (i in 1:1416) {
 
 # Extract precipitation
 
-ncp <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/pr/cru_ts4.03.1901.2018.pre.dat.nc/cru_ts4.03.1901.2018.pre.dat.nc")
+ncp <- nc_open("CRU_TS403_data/pr/cru_ts4.03.1901.2018.pre.dat.nc/cru_ts4.03.1901.2018.pre.dat.nc")
 g <- ncvar_get(ncp, 'pre')
 
 
@@ -170,7 +159,7 @@ for (i in 2:1416) {
   print(i)
 }
 
-setwd("C:/Users/cjcar/Dropbox/MalariaAttribution/Dataframe backups")
+setwd("../Dataframe backups")
 write.csv(first, 'unformatted-backup.csv')
 write.csv(data.frame(cont@data), 'shapefile-backup.csv')
 
@@ -198,7 +187,7 @@ ggplot(firstcomplete, aes(ppt, Pf3)) + #geom_point(col='light grey') +
 ### Save out data backups
 
 # Reconstitute the spatial data frame, "cont", without running the previous script
-setwd('C:/Users/cjcar/Dropbox/MalariaAttribution')
+setwd('../')
 cont <- readOGR('./Data/AfricaADM1.shp')
 cont@data <- read.csv('./Dataframe backups/shapefile-backup.csv')
 

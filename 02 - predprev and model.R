@@ -1,6 +1,25 @@
 
-#setwd('C:/Users/cjcar/Dropbox/MalariaAttribution/')
+### SET UP
+rm(list = ls())
 
+user = "Tamma" #"Colin"
+if (user == "Colin") {
+  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
+  repo = ''
+} else if (user == "Tamma") {
+  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
+  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
+} else {
+  wd = NA
+  print('Script not configured for this user!')
+}
+
+setwd(wd)
+
+# source functions from previous script
+source(file.path(repo,'code/R_utils.R'))
+
+# packages
 library(cowplot)
 library(ggplot2)
 library(ggthemr)
@@ -8,6 +27,7 @@ library(lfe)
 library(reshape)
 library(tidyverse)
 
+############
 # Read in the data backup
 data <- read.csv('./Dataframe backups/formatted-backup.csv')
 complete <- data[complete.cases(data),]
@@ -17,8 +37,30 @@ spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
 countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
 complete$country <- countrydf$NAME_0[sapply(complete$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
 
+# country avg df (for robustness -- note: to do this right, we need area weights for each OBJECTID!)
+data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
+iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
+complete_iso <- iso[complete.cases(iso),]
+
 # Year as factor instead of integer
 complete$year <- factor(complete$year)
+
+############################
+# Exploring data coverage to ensure sufficient data for identification of common FE we want to use
+
+# 1) how many obs per country-year, on avg? 
+isocounts = complete %>% group_by(country) %>% tally()
+summary(isocounts$n) # on average, we've got 214 observations per country over the sample
+isoyrcounts = complete %>% group_by(country,year) %>% tally()
+summary(isoyrcounts$n) # on average, we've got 6 observations per country-year over the sample...but 25% of the data has just one obs per country-year. 
+# This suggests we probably want to have the central model use trends instead of country-yr FE.
+
+# 2) how many obs per year and month, on avg?
+Yrct = complete %>% group_by(year) %>% tally()
+summary(Yrct$n) # on average, we've got 80 observations per year over the sample, but some years have just one
+Moct = complete %>% group_by(month) %>% tally()
+summary(Moct$n) # on average, we've got 838 observations per calendar month over the sample -- monthly FE are fine, might want to move to region:month FE given differential seasonality
+
 
 ############################
 
@@ -29,7 +71,6 @@ model1 <- felm(PfPR2 ~ R0 |
                      OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
 summary(model1)
 
-
 model2 <- felm(PfPR2 ~ temp + temp2 | 
                  OBJECTID + year | 0 | OBJECTID, data = complete)
 summary(model2)
@@ -39,6 +80,24 @@ model3 <- felm(PfPR2 ~ temp + temp2 |
                  OBJECTID + year + month | 0 | OBJECTID, data = complete)
 summary(model3)
 
+# all climate variables
+model4 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
+                     OBJECTID + country + year + month | 0 | OBJECTID, data = complete)
+
+summary(model4)
+
+# interaction effects, temp and precip
+model5 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 + temp:ppt + temp2:ppt | 
+                 OBJECTID + country + year + month | 0 | OBJECTID, data = complete)
+
+summary(model5)
+
+# check if relationship holds up at country level
+complete_iso$year <- factor(complete_iso$year)
+model6 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2  | 
+                 country + year + month | 0 | OBJECTID, data = complete_iso)
+
+summary(model6)
 
 # Test model with all specified components
 
