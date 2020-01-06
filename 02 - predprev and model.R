@@ -18,11 +18,12 @@ setwd(wd)
 
 # source functions from previous script
 source(file.path(repo,'code/R_utils.R'))
+source(file.path(repo,'code/utils_plotting.R'))
 
 # packages
 library(cowplot)
 library(ggplot2)
-library(ggthemr)
+#library(ggthemr)
 library(lfe)
 library(reshape)
 library(tidyverse)
@@ -85,6 +86,14 @@ model4 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 |
                      OBJECTID + country + year + month | 0 | OBJECTID, data = complete)
 
 summary(model4)
+
+# Plotting example for model4:
+# 1. Construct the matrix of X values you want to plot over, reflecting your polynomial orders! 
+plotX = cbind(seq(10,40), seq(10,40)^2)
+# 2. Pass X values to plotting function, with other options reflecting the model run
+p = plotPolynomialResponse(model4, "temp", plotX, polyOrder = 2, cluster = T, xRef = 30, xLab = "Monthly avg. T [C]", 
+                           yLab = "Prevalence", title = "Country, year, month FE", yLim=c(-20,10), showYTitle = T)
+p
 
 # interaction effects, temp and precip
 model5 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 + temp:ppt + temp2:ppt | 
