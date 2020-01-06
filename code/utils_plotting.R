@@ -29,7 +29,7 @@ genRecenteredXVals_polynomial = function(xVals,xRef,polyOrder) {
 }
 
 
-plotPolynomialResponse = function(mod, patternForPlotVars, xVals, cluster = T, xRef = 0, xLab, yLab, title = "title", yLim = c(-1,1), showYTitle = T) {
+plotPolynomialResponse = function(mod, patternForPlotVars, xVals, cluster = T, xRef = 0, xLab, yLab, yLim=NA, title = "title", showYTitle = F) {
   ### mod is a model regression model object (e.g. mod = lm(y~x) or mode = felm(y~x)). 
   ### patternForPlotVars is a string that is in the variables from the model that you want to plot but not in the ones you don't want to plot. 
   ### xVals is a matrix of dataframe that corresponds to the variables you're plotting. e.g. if b1 was for T and b2 for T2 then xVals[,1] would be T and xVals[,2] would be T2. NOTE: If you are passing the function recentered xVals, you need to put the reference x value into the xRef option! 
