@@ -163,9 +163,12 @@ g1/g2
 
 library(patchwork)
 
+xV <- data.frame(temp = seq(10, 40, by=0.2),
+                 temp2 = seq(10, 40, by=0.2)^2)
+
 g1 <- plotPolynomialResponse(full.model,
                        patternForPlotVars = 'temp',
-                       xVals = complete[,c('temp','temp2')],
+                       xVals = xV,
                        xLab='Temperature',
                        yLab='Effect',
                        cluster=TRUE) + ggtitle('Full model')
