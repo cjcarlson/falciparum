@@ -1,11 +1,10 @@
-
 ### SET UP
 rm(list = ls())
 
-user = "Tamma" #"Colin"
+user = "Colin" #"Colin"
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
-  repo = ''
+  repo = 'C:/Users/cjcar/Documents/Github/falciparum'
 } else if (user == "Tamma") {
   wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
@@ -21,12 +20,14 @@ source(file.path(repo,'code/R_utils.R'))
 source(file.path(repo,'code/utils_plotting.R'))
 
 # packages
-library(cowplot)
+#library(cowplot)
 library(ggplot2)
 #library(ggthemr)
 library(lfe)
 library(reshape)
 library(tidyverse)
+library(zoo)
+library(lubridate)
 
 ############
 # Read in the data backup
@@ -45,6 +46,10 @@ complete_iso <- iso[complete.cases(iso),]
 
 # Year as factor instead of integer
 complete$year <- factor(complete$year)
+
+complete %>% unite("monthyr", month:year, sep=' ', remove=FALSE) %>% 
+  mutate(monthyr = as.Date(as.yearmon(monthyr))) %>% 
+  mutate(monthyr = as.numeric(ymd(monthyr)-ymd("1900-01-01"))) -> complete
 
 ############################
 # Exploring data coverage to ensure sufficient data for identification of common FE we want to use
@@ -115,6 +120,92 @@ full.model <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 |
 
 summary(full.model)
 
+####################
+
+# Checks on alternate temporal structures!
+
+full.model <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
+                     OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
+
+summary(full.model)
+
+#> class(complete$year)
+#[1] "factor"
+#> class(complete$month)
+#[1] "factor"
+#> class(complete$monthyr)
+#[1] "numeric"
+
+temp1 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
+               OBJECTID + country:monthyr + month | 0 | OBJECTID, data = complete)
+
+summary(temp1)
+
+temp2 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
+                  OBJECTID + country:(monthyr^2) + month | 0 | OBJECTID, data = complete)
+
+summary(temp2)
+
+
+
+
+tempgg <- function(model) {
+  # Calculate temperature-R0 curve
+  x<-seq(10, 40, by=0.2); y<-sapply(x, r0t)
+  tempdf <- data.frame(temp=x,response=y)
+  
+  # Predict the curve from the econometric model coefficients
+  tempfit2 <- function(t) {model$coefficients['temp',]*t + model$coefficients['temp2',]*t*t}
+  x<-seq(10, 40, by=0.2); y<-sapply(x, tempfit2)
+  tempdf2 <- data.frame(temp=x,response=y)
+  
+  theme_set(theme_classic())  # not run gg
+  g2 <- ggplot(tempdf2,aes(temp,response)) + geom_line(col='turquoise3', lwd=1.2) + 
+    ylab('Prevalence predicted') + xlab('Temperature') + 
+    theme(text = element_text(size=13)) 
+  print(g2)
+}
+
+g1 <- tempgg(full.model)
+g2 <- tempgg(temp1)
+g1/g2
+
+library(patchwork)
+
+xV <- data.frame(temp = seq(10, 40, by=0.2),
+                 temp2 = seq(10, 40, by=0.2)^2)
+
+g1 <- plotPolynomialResponse(full.model,
+                       patternForPlotVars = 'temp',
+                       xVals = xV,
+                       xLab='Temperature',
+                       yLab='Effect',
+                       cluster=TRUE) + ggtitle('Full model')
+
+g2 <- plotPolynomialResponse(temp1,
+                             patternForPlotVars = 'temp',
+                             xVals = complete[,c('temp','temp2')],
+                             xLab='Temperature',
+                             yLab='Effect',
+                             cluster=FALSE) + legend_bottom() + ggtitle('Country linear')
+
+g3 <- plotPolynomialResponse(temp2,
+                             patternForPlotVars = 'temp',
+                             xVals = complete[,c('temp','temp2')],
+                             xLab='Temperature',
+                             yLab='Effect',
+                             cluster=FALSE) + legend_bottom() + ggtitle('Country quadratic')
+
+g1 + g2 + g3
+
+#####################
+
+plotPolynomialResponse(temp1,
+                       patternForPlotVars = 'temp',
+                       xVals = complete[,c('temp','temp2')],
+                       xLab='Temperature',
+                       yLab='Effect',
+                       cluster=FALSE)
 #####################
 
 # This just makes a percent

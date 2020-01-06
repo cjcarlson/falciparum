@@ -29,6 +29,7 @@ genRecenteredXVals_polynomial = function(xVals,xRef,polyOrder) {
 }
 
 
+
 plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, cluster = T, xRef = 0, xLab, yLab, title = "title", yLim = c(-1,1), showYTitle = T) {
   ### mod is a model regression model object (e.g. mod = lm(y~x) or mode = felm(y~x)). 
   ### patternForPlotVars is a string that is in the variables from the model that you want to plot but not in the ones you don't want to plot. 
