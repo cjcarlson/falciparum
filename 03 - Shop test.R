@@ -42,7 +42,11 @@ source(file.path(repo,'code/utils_plotting.R'))
 # Read in the data backup
 data <- read_csv('./formatted-backup.csv')
 #complete <- data[complete.cases(data),]
-cont <- readOGR('AfricaADM1.shp')
+temp <- readOGR('AfricaADM1.shp')
+temp2 <-gSimplify(cont,tol=0.05, topologyPreserve=TRUE)
+temp2 <- spTransform(temp2, CRS( "+init=epsg:3347" ) ) 
+temp2 <- gBuffer(temp2, byid=TRUE, width=0)
+cont = SpatialPolygonsDataFrame(temp2, data=temp@data)
 #cont@data$OBJECTID = as.numeric(cont@data$OBJECTID)
 
 month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
