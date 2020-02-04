@@ -43,8 +43,8 @@ source(file.path(repo,'code/utils_plotting.R'))
 data <- read_csv('./formatted-backup.csv')
 #complete <- data[complete.cases(data),]
 temp <- readOGR('AfricaADM1.shp')
-temp2 <-gSimplify(cont,tol=0.05, topologyPreserve=TRUE)
-temp2 <- spTransform(temp2, CRS( "+init=epsg:3347" ) ) 
+temp2 <- gSimplify(temp,tol=0.05, topologyPreserve=TRUE)
+temp2 <- spTransform(temp2, center=FALSE) 
 temp2 <- gBuffer(temp2, byid=TRUE, width=0)
 cont = SpatialPolygonsDataFrame(temp2, data=temp@data)
 #cont@data$OBJECTID = as.numeric(cont@data$OBJECTID)
@@ -76,12 +76,15 @@ cont@data$id = rownames(cont@data)
 cont.points = fortify(cont, region ="id" )
 cont.df = merge(cont.points, cont@data, by="id")
 
-to_plot = cont.df[cont.df$NAME_0 == 'Algeria',]
+#to_plot = cont.df[cont.df$NAME_0 == 'Chad',]
+#to_plot = cont.df[seq(1, nrow(cont.df), 5), ]
+to_plot = cont.df
 gg <- ggplot() + geom_polygon(data = to_plot, aes(x=long, y=lat, group = group,
-                                                                      fill = ppt,colour="black")) +
-  geom_line(linetype="dotted", color="black", size=5) +
+                                                                      fill = ppt)) +
+  guides(colour="none") + 
+  #geom_line(linetype="dotted", color="black", size=5) +
   coord_fixed()+
-  scale_fill_gradient2(low = "yellow", mid="red", high = "blue", midpoint = mean(to_plot[,'ppt']), guide = guide_colorbar(title="Precipitation")) +
+  scale_fill_gradient2(low = "yellow", mid="red", high = "blue", midpoint = median(to_plot[,'ppt'], na.rm = TRUE), guide = guide_colorbar(title="Precipitation")) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = "grey92", colour = NA),title= element_text(size=10,hjust = 0.5,vjust = 1,face= c("bold"))) +
   labs(title= "Test graph",
