@@ -33,6 +33,7 @@ library(lubridate)
 # Read in the data backup
 data <- read.csv('./Dataframe backups/formatted-backup.csv')
 complete <- data[complete.cases(data),]
+ 
 
 # Add country names in
 spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
@@ -147,54 +148,28 @@ temp2 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 |
 summary(temp2)
 
 
+temp2 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
+                OBJECTID + country:(monthyr^2) + month | 0 | OBJECTID, data = complete)
 
+summary(temp2)
 
-tempgg <- function(model) {
-  # Calculate temperature-R0 curve
-  x<-seq(10, 40, by=0.2); y<-sapply(x, r0t)
-  tempdf <- data.frame(temp=x,response=y)
-  
-  # Predict the curve from the econometric model coefficients
-  tempfit2 <- function(t) {model$coefficients['temp',]*t + model$coefficients['temp2',]*t*t}
-  x<-seq(10, 40, by=0.2); y<-sapply(x, tempfit2)
-  tempdf2 <- data.frame(temp=x,response=y)
-  
-  theme_set(theme_classic())  # not run gg
-  g2 <- ggplot(tempdf2,aes(temp,response)) + geom_line(col='turquoise3', lwd=1.2) + 
-    ylab('Prevalence predicted') + xlab('Temperature') + 
-    theme(text = element_text(size=13)) 
-  print(g2)
-}
+temp3 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
+                OBJECTID + year + country:month | 0 | OBJECTID, data = complete)
 
-g1 <- tempgg(full.model)
-g2 <- tempgg(temp1)
-g1/g2
+summary(temp3)
 
 library(patchwork)
 
-xV <- data.frame(temp = seq(10, 40, by=0.2),
-                 temp2 = seq(10, 40, by=0.2)^2)
+plotX = cbind(seq(10,37), seq(10,37)^2)
 
-g1 <- plotPolynomialResponse(full.model,
-                       patternForPlotVars = 'temp',
-                       xVals = xV,
-                       xLab='Temperature',
-                       yLab='Effect',
-                       cluster=TRUE) + ggtitle('Full model')
+g1 <- plotPolynomialResponse(full.model, "temp", plotX, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                           yLab = "Prevalence", title = "Country, year, month FE", yLim=c(-15,15), showYTitle = T)
 
-g2 <- plotPolynomialResponse(temp1,
-                             patternForPlotVars = 'temp',
-                             xVals = complete[,c('temp','temp2')],
-                             xLab='Temperature',
-                             yLab='Effect',
-                             cluster=FALSE) + legend_bottom() + ggtitle('Country linear')
+g2 <- plotPolynomialResponse(temp1, "temp", plotX, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                             yLab = "Prevalence", title = "Country-linear trend", yLim=c(-15,15), showYTitle = T)
 
-g3 <- plotPolynomialResponse(temp2,
-                             patternForPlotVars = 'temp',
-                             xVals = complete[,c('temp','temp2')],
-                             xLab='Temperature',
-                             yLab='Effect',
-                             cluster=FALSE) + legend_bottom() + ggtitle('Country quadratic')
+g3 <- plotPolynomialResponse(temp2, "temp", plotX, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                             yLab = "Prevalence", title = "Country-quadratic trend", yLim=c(-15,15), showYTitle = T)
 
 g1 + g2 + g3
 
@@ -206,6 +181,7 @@ plotPolynomialResponse(temp1,
                        xLab='Temperature',
                        yLab='Effect',
                        cluster=FALSE)
+
 #####################
 
 # This just makes a percent
