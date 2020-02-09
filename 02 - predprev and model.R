@@ -259,5 +259,3 @@ ggplot(data=complete, aes(x=temp), fill=NA) +
 #  geom_ribbon(aes(ymin=effect-se, ymax=effect+se), fill='light blue', alpha=0.35) + 
 #  theme_bw() + xlab('Month') + ylab('Fixed effect')
 
-
-

@@ -31,6 +31,9 @@ setwd(wd)
 
 # Read in the data backup
 data <- read.csv('./Dataframe backups/formatted-backup.csv')
+
+data$PfPR2 <- data$PfPR2/100
+
 complete <- data[complete.cases(data),]
 
 # Add country names in
@@ -92,12 +95,12 @@ data$pred.Pf <- predict.lfe(full.model,
             data$ppt,
             data$ppt2)
 
-data %>% filter(year %in% c(1900:1910)) %>% 
+data %>% filter(year %in% c(1900:1905)) %>% 
   group_by(OBJECTID) %>% 
   summarize(pred.Pf1900 = mean(pred.Pf)) %>%
   mutate(OBJECTID = factor(OBJECTID)) -> Pf.1900s
 
-data %>% filter(year %in% c(2000:2010)) %>% 
+data %>% filter(year %in% c(2010:2015)) %>% 
   group_by(OBJECTID) %>% 
   summarize(pred.Pf2000 = mean(pred.Pf)) %>%
   mutate(OBJECTID = factor(OBJECTID)) -> Pf.2000s
@@ -107,4 +110,13 @@ cont@data <- left_join(cont@data, Pf.2000s)
 
 cont@data$deltaPf <- cont$pred.Pf2000 - cont$pred.Pf1900
 
-spplot(cont, 'deltaPf')
+###################################
+
+library(sf)
+
+# output a plot using ggplot
+p1 <- ggplot() + 
+  theme_void() + 
+  geom_sf(aes(fill=deltaPf), data = st_as_sf(cont), color=NA) +
+  scale_fill_gradient2(midpoint=0, low="blue", mid="white",
+                        high="red", space ="Lab")
