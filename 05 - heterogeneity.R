@@ -60,3 +60,18 @@ summary(model.het)
 model.het2 <- felm(PfPR2 ~ ppt + ppt2 + ppt:ppt.mean + ppt2:ppt.mean | 
                            OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
 summary(model.het2)
+
+
+model.het3 <- felm(PfPR2 ~ temp + temp2 + temp:ppt.mean + temp2:ppt.mean | 
+                    OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
+summary(model.het3)
+
+model.het4 <- felm(PfPR2 ~ ppt + ppt2 + ppt:temp.mean + ppt2:temp.mean | 
+                     OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
+summary(model.het4)
+
+
+model.het5 <- felm(PfPR2 ~ temp + temp2 + temp:temp.mean + temp2:temp.mean + 
+                     ppt + ppt2 + ppt:ppt.mean + ppt2:ppt.mean | 
+                     OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
+summary(model.het5)
