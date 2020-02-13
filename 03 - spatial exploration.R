@@ -73,6 +73,12 @@ cont <- readOGR('./Data/AfricaADM1.shp')
 
 cont@data <- left_join(cont@data, fe.spatial, c('OBJECTID'='idx'))
 
+# output a plot using ggplot
+p1 <- ggplot() + 
+  theme_void() + 
+  geom_sf(aes(fill=effect), data = st_as_sf(cont), color=NA) +
+  scale_fill_gradient2(midpoint=0, low="blue", mid="white",
+                       high="red", space ="Lab")
 #PLOT
 # spplot(cont, 'effect')
 
