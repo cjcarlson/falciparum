@@ -8,7 +8,7 @@ library(rgdal)
 library(sp)
 library(velox)
 
-user = "Tamma" #"Colin"
+user = "Colin" #"Colin"
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data'
   repo = "" #to fill in
