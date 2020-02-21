@@ -1,5 +1,7 @@
 rm(list = ls())
 
+library(RColorBrewer)
+library(colorRamps) 
 library(ncdf4)
 library(raster)
 library(rgdal)
@@ -51,6 +53,7 @@ temp2 <- gSimplify(temp,tol=0.05, topologyPreserve=TRUE)
 temp2 <- spTransform(temp2, center=FALSE) 
 temp2 <- gBuffer(temp2, byid=TRUE, width=0)
 cont = SpatialPolygonsDataFrame(temp2, data=temp@data)
+#cont@data$OBJECTID = as.numeric(as.character(cont@data$OBJECTID))
 #cont@data$OBJECTID = as.numeric(cont@data$OBJECTID)
 
 month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
@@ -87,10 +90,12 @@ x <- c("OBJECTID", "cors")
 colnames(df) <- x
 df$OBJECTID = rows
 df$cors = coefs
-df$OBJECTID <- factor(df$OBJECTID)
+#df$OBJECTID = as.numeric(as.character(df$OBJECTID))
+#df$OBJECTID <- factor(df$OBJECTID)
 
 meancovs = c('temp','ppt')
 avgdf = data %>% group_by(OBJECTID) %>% summarize_at(meancovs, mean, na.rm = T)
+#avgdf$OBJECTID = as.numeric(as.character(avgdf$OBJECTID))
 avgdf$OBJECTID <- factor(avgdf$OBJECTID)
 
 #completeFun <- function(data, desiredCols) {
@@ -98,34 +103,81 @@ avgdf$OBJECTID <- factor(avgdf$OBJECTID)
 #  return(data[completeVec, ])
 #}
 
-#cont <- cont[cont@data$OBJECTID %in% avgdf$OBJECTID,]
 ##changed df from avgdf to df
 cont@data <- left_join(cont@data, df, by = c("OBJECTID" = "OBJECTID"))
 cont@data <- left_join(cont@data, avgdf, by = c("OBJECTID" = "OBJECTID"))
-#cont@data <- completeFun(cont@data,'ppt')
 
 cont@data$id = rownames(cont@data)
 cont.points = fortify(cont, region ="id" )
 cont.df = merge(cont.points, cont@data, by="id")
 
-
-to_plot = cont.df[cont.df$NAME_0 == 'Nigeria',]
+to_plot = cont.df#[cont.df$NAME_0 == 'Nigeria',]
 #to_plot = cont.df[seq(1, nrow(cont.df), 5), ]
 #to_plot = cont.df
 
-plot_list <- list("temp","cors","ppt")
+# plot_list <- list("temp","cors","ppt")
+# plot_list2 <- list("temp")
+# 
+# for (value in plot_list) {
+# gg <- ggplot() + geom_polygon(data = to_plot, na.rm=TRUE, aes(x=long, y=lat, group = group,
+#                                                                       fill = as.numeric(to_plot[,value])),color=NA) +
+#   guides(colour="none") +
+#   #geom_line(linetype="dotted", color="black", size=5) +
+#   coord_fixed()+
+#   scale_fill_gradient2(low = '#e6e6ff', mid="#0000ff", high = "#000080", midpoint = median(to_plot[,value], na.rm = TRUE), guide = guide_colorbar(title=value)) +
+#   #scale_color_gradientn(colours=rev(brewer.pal(4,"RdYlBu")),guide = guide_colorbar(title='value')) +
+#   #scale_fill_brewer(palette="RdYlBu") +
+#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+#         panel.background = element_rect(fill = "grey92", colour = NA),title= element_text(size=10,hjust = 0.5,vjust = 1,face= c("bold"))) +
+#   labs(title= paste(value,"graph",sep = " ", collapse = NULL),x="Longitude", y= "Latitude")
+# ## cut out formatting fluff for debugging
+# #gg
+# ggsave(paste(value,'.png',sep="",collapse=NULL))}
 
-for (value in plot_list) {
-gg <- ggplot() + geom_polygon(data = to_plot, aes(x=long, y=lat, group = group,
-                                                                      fill = value),color=NA) +
+# CORRELATIONS
+gg <- ggplot() + geom_polygon(data = to_plot, na.rm=TRUE, aes(x=long, y=lat, group = group,
+                                                              fill = as.numeric(to_plot[,'cors'])),color=NA) +
   guides(colour="none") + 
   #geom_line(linetype="dotted", color="black", size=5) +
   coord_fixed()+
-  scale_fill_gradient2(low = "yellow", mid="red", high = "blue", midpoint = median(to_plot[,value], na.rm = TRUE), guide = guide_colorbar(title=value)) +
+  scale_fill_gradient2(low = '#e6e6ff', mid="#0000ff", high = "#000080", midpoint = median(to_plot[,'cors'], na.rm = TRUE), guide = guide_colorbar(title='Correlation Coefficients')) +
+  #scale_color_gradientn(colours=rev(brewer.pal(4,"RdYlBu")),guide = guide_colorbar(title='value')) +
+  #scale_fill_brewer(palette="RdYlBu") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = "grey92", colour = NA),title= element_text(size=10,hjust = 0.5,vjust = 1,face= c("bold"))) +
-  labs(title= paste(value,"graph",sep = " ", collapse = NULL),
-       x="Longitude", y= "Latitude") 
+  labs(title= "Temperature Increase per year",x="Longitude", y= "Latitude") 
 ## cut out formatting fluff for debugging
-gg
-ggsave(paste(value,'.png',sep="",collapse=NULL))}
+#gg
+ggsave('cors.png')
+
+#TEMPERATURE
+gg <- ggplot() + geom_polygon(data = to_plot, na.rm=TRUE, aes(x=long, y=lat, group = group,
+                                                              fill = as.numeric(to_plot[,'temp'])),color=NA) +
+  guides(colour="none") + 
+  #geom_line(linetype="dotted", color="black", size=5) +
+  coord_fixed()+
+  scale_fill_gradient2(low = '#ffd9b3', mid="#ff8000", high = "#804000", midpoint = median(to_plot[,'temp'], na.rm = TRUE), guide = guide_colorbar(title='Degrees ºC')) +
+  #scale_color_gradientn(colours=rev(brewer.pal(4,"RdYlBu")),guide = guide_colorbar(title='value')) +
+  #scale_fill_brewer(palette="RdYlBu") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "grey92", colour = NA),title= element_text(size=10,hjust = 0.5,vjust = 1,face= c("bold"))) +
+  labs(title= 'Average Temperature',x="Longitude", y= "Latitude") 
+## cut out formatting fluff for debugging
+#gg
+ggsave('temp.png')
+
+#PRECIPITATION
+gg <- ggplot() + geom_polygon(data = to_plot, na.rm=TRUE, aes(x=long, y=lat, group = group,
+                                                              fill = as.numeric(to_plot[,'ppt'])),color=NA) +
+  guides(colour="none") + 
+  #geom_line(linetype="dotted", color="black", size=5) +
+  coord_fixed()+
+  scale_fill_gradient2(low = '#e6e6ff', mid="#0000ff", high = "#000080", midpoint = median(to_plot[,'ppt'], na.rm = TRUE), guide = guide_colorbar(title='Rainfall (CM)')) +
+  #scale_color_gradientn(colours=rev(brewer.pal(4,"RdYlBu")),guide = guide_colorbar(title='value')) +
+  #scale_fill_brewer(palette="RdYlBu") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "grey92", colour = NA),title= element_text(size=10,hjust = 0.5,vjust = 1,face= c("bold"))) +
+  labs(title= 'Average Precipitation',x="Longitude", y= "Latitude") 
+## cut out formatting fluff for debugging
+#gg
+ggsave('ppt.png')
