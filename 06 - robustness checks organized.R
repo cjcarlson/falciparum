@@ -90,6 +90,8 @@ g8 <- plotPolynomialResponse(model.a4, "ppt", plotXppt, polyOrder = 2, cluster =
 
 #### B: ROBUSTNESS CHECKS F.E.'S
 
+plotXtemp = cbind(seq(0,37), seq(0,37)^2)
+
 model.b1 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
                  OBJECTID + country:monthyr + month | 0 | OBJECTID, data = complete)
 
@@ -102,6 +104,15 @@ model.b3 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 |
 stargazer(model.b1,
           model.b2, 
           model.b3)
+
+b1 <- plotPolynomialResponse(model.b1, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                             yLab = expression(paste(Delta, " % Prevalence", '')), title = "Alt Model 1", yLim=c(-15,15), showYTitle = T)
+b2 <- plotPolynomialResponse(model.b2, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                             yLab = expression(paste(Delta, " % Prevalence", '')), title = "Alt Model 2", yLim=c(-15,15), showYTitle = T)
+b3 <- plotPolynomialResponse(model.b3, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                             yLab = expression(paste(Delta, " % Prevalence", '')), title = "Alt Model 3", yLim=c(-15,15), showYTitle = T)
+
+g1 / b1 / b2 / b3 
 
 #### C. HETEROGENEITY
 

@@ -57,7 +57,7 @@ complete %>% unite("monthyr", month:year, sep=' ', remove=FALSE) %>%
 # Test model with all specified components
 
 full.model <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
-                     OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
+                     OBJECTID + country:year + country:month | 0 | OBJECTID, data = complete)
 
 summary(full.model)
 
