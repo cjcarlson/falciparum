@@ -27,6 +27,7 @@ library(stargazer)
 library(tidyverse)
 library(zoo)
 library(lubridate)
+library(rgdal)
 
 ########################################################################
        # A. INITIALIZING
@@ -78,69 +79,77 @@ g
 fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Fixed_effects/country_quad_trends.png')
 ggsave(filename = fn, plot = g, height = 6, width = 8)
 
+
+########################################################################
+# DEFINE GBOD REGIONS (use for regionXtime FE)
+########################################################################
+
+gbod <- readOGR(file.path(wd, "Data", "OriginalGBD", "WorldRegions.shp"))
+head(gbod@data)
+
+gboddf = as.data.frame(gbod@data)
+gboddf = gboddf %>% select("ISO", "NAME_0", "Region", "SmllRgn")
+gboddf = gboddf %>% group_by(ISO, NAME_0) %>% summarize(Region = first(Region), SmllRgn = first(SmllRgn)) # note that the small regions are homogenous within country
+colnames(gboddf) = c("ISO", "country", "region", "smllrgn")
+gboddf$country = as.character(gboddf$country)
+
+# clean to merge
+gboddf$country = ifelse(gboddf$country=="Cote D'Ivoire", "Côte d'Ivoire", gboddf$country)
+
+complete$country = as.character(complete$country)
+complete = left_join(complete, gboddf, by = "country")
+complete$country = as.factor(complete$country)
+
+rm(gbod, gboddf)
+
 ########################################################################
 # C. FULL SPEC CHECK ACROSS FEs 
 ########################################################################
 
-##### Define flood/drought variables
-complete = computePrcpExtremes(complete, 0.10, 0.90, NA)
+##### Define flood/drought variables - need to pass the climate data separately from the merged dataset with the outcome
+##### variable because we want to define climate over the whole period
+complete = computePrcpExtremes(dfclimate = data.reset, dfoutcome = complete, pctdrought = 0.10, pctflood = 0.90, yearcutoff = NA)
+complete = complete %>% arrange(OBJECTID, monthyr)
 
+# include: contemporaneous temp, then distributed lag in flood and drought
+floodvars = paste(colnames(complete)[grep("flood", colnames(complete))], collapse = " + ")
+droughtvars = paste(colnames(complete)[grep("drought", colnames(complete))], collapse = " + ")
 
-# include: contemporaneous temp & precip, then distributed lag in flood and drought
+# need this for country specific quadratic trends
+complete$monthyr2 = complete$monthyr^2
+
+# define key intervention periods
+complete$intervention = ifelse(complete$yearnum>=1955 & complete$yearnum<=1969, 1, 0)
+complete$intervention = ifelse(complete$yearnum>=2004 & complete$yearnum<=2015, 2, 0)
+complete$intervention = as.factor(complete$intervention)
 
 # Formulas
-cym = as.formula(paste0("PfPR2 ~ temp + temp2 + | as.factor(fips) + as.factor(year) + as.factor(state_doy) |0|state"))
-formquad = as.formula(paste0("sentiment ~ EVI + EVI2 + ", tempBins, " + ", "ppt + ppt2 | as.factor(fips) + as.factor(year) + as.factor(state_doy) |0|state"))
-formbin = as.formula(paste0("sentiment ~ ", EVIBins, " + " , tempBins, " + ", "ppt + ppt2 | as.factor(fips) + as.factor(year) + as.factor(state_doy) |0|state"))
-myforms = c(formlin, formquad, formbin)    
+cym = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + year + month | 0 | OBJECTID"))
+cXym = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:year + month | 0 | OBJECTID"))
+cXycXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:year + country:month | 0 | OBJECTID"))
+cXt2m = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + month | 0 | OBJECTID"))
+#cXt2ym = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + year + month | 0 | OBJECTID"))
+cXt2intm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + intervention + month | 0 | OBJECTID"))
+rXyrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + smllrgn:month + smllrgn:year | 0 | OBJECTID"))
+myforms = c(cym, cXym, cXycXm, cXt2m, cXt2intm, rXyrXm)    
 
+# region:year, month
+# region: year, region:month
 
-# Country, year, month
-
-# Country:year, month
-
-
-# Country*time+country*time2, month
-# Year, country*time+country*time^2, month
-# Dummies for interventions, country*time+country*time^2, month
-# Region:year, region:month
-# Region:year, country*time+country*time^2, month
-# Region:year, country*time+country*time^2, region:month
-
-
-# Run for each window
-windows = c(100,200, 365)
+# Run all models
 modellist = list()
-i = 0
-for (w in windows) {
-  for (m in myforms) {
-    i = i+1
-    modellist[[i]] = felm(data = data[data$doy<= w,], formula = m)
-  }
+i=0
+for (m in myforms) {
+  i=i+1
+  modellist[[i]] = felm(data = complete, formula = m)
 }
 
-# Combine into a single stargazer plot - limited window models
-stargazer(modellist[1:6],
-          title="EVI with early year windows", align=TRUE, column.labels = c("doy 0-100","doy 0-100","doy 0-100","doy 0-200","doy 0-200","doy 0-200"),
-          out = file.path(RES, "tables", "results_panelFE_early_year_windows.tex"), out.header = FALSE, type = "latex", float=F)
+# Combine into a single stargazer plot 
+stargazer(modellist,
+          title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = c("cym","cXym","cXycXm","cXt2m",  "cXt2intm", "rXyrXm"),
+          out = file.path(wd, "Results", "Tables", "panelFE_FE_sensitivity.tex"), out.header = FALSE, type = "latex", float=F)
 
-
-model.a1 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
-                   OBJECTID + year | 0 | OBJECTID, data = complete)
-
-model.a2 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
-                   OBJECTID + country + year | 0 | OBJECTID, data = complete)
-
-model.a3 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
-                   OBJECTID + country + year + month | 0 | OBJECTID, data = complete)
-
-model.a4 <- felm(PfPR2 ~ temp + temp2 + ppt + ppt2 | 
-                   OBJECTID + country:year + month | 0 | OBJECTID, data = complete)
-
-stargazer(model.a1, 
-          model.a2,
-          model.a3,
-          model.a4)
+# Plot temperature response for each model
 
 plotXtemp = cbind(seq(0,37), seq(0,37)^2)
 
