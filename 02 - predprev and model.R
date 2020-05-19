@@ -1,7 +1,7 @@
 ### SET UP
 rm(list = ls())
 
-user = "Colin" #"Colin"
+user = "Tamma" #"Colin"
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
   repo = 'C:/Users/cjcar/Documents/Github/falciparum'

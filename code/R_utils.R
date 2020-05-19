@@ -24,3 +24,57 @@ r0t <- function(T, na.rm=TRUE) {
   if(is.nan(R0)){return(0)}
   return(R0/87.13333) # that's the max
 }
+
+
+computePrcpExtremes = function(dfclimate, dfoutcome, pctdrought, pctflood, yearcutoff=NA) {
+  # NOTE: for percentiles: enter 0.90 for 90th, 0.10 for 10th.
+  # NOTE: dfclimate is the dataframe where your climate data live (may be more comprehensive in space and/or time than your outcome variable)
+  # dfoutcome is the dataframe where your outcome merged to climate data live
+  
+  # initialize
+  data = dfclimate
+  data = data %>% arrange(OBJECTID, monthyr)
+  
+  # year cutoff, if not null
+  if(is.na(yearcutoff)) { yearcutoff = max(data$yearnum) }
+  
+  # flood definition
+  data %>% 
+    filter(yearnum <= yearcutoff ) %>% 
+    group_by(OBJECTID) %>% 
+    summarize(ppt.90 = quantile(na.omit(ppt), pctflood)) -> ppt.90
+  data <- left_join(data, ppt.90)
+  data$flood <- as.numeric(data$ppt >= data$ppt.90)
+  colnames(data)[dim(data)[2]-1] = paste0("ppt_pctile", pctflood)
+  
+  # flood lags
+  data %>% group_by(OBJECTID) %>% 
+    mutate(flood.lag = lag(flood, order_by = monthyr),
+           flood.lag2 = lag(flood, order_by = monthyr, n=2),
+           flood.lag3 = lag(flood, order_by = monthyr, n=3)) -> data
+  
+  # drought definition
+  data %>% 
+    filter(yearnum <= yearcutoff ) %>% 
+    group_by(OBJECTID) %>% 
+    summarize(ppt.10 = quantile(na.omit(ppt), pctdrought)) -> ppt.10
+  
+  data <- left_join(data, ppt.10)
+  data$drought <- as.numeric(data$ppt <= data$ppt.10)
+  colnames(data)[dim(data)[2]-1] = paste0("ppt_pctile", pctdrought)
+  
+  # drought lags
+  data %>% group_by(OBJECTID) %>% 
+    mutate(drought.lag = lag(drought, order_by = monthyr),
+           drought.lag2 = lag(drought, order_by = monthyr, n=2),
+           drought.lag3 = lag(drought, order_by = monthyr, n=3)) -> data
+  
+  # merge into outcome dataframe 
+  tokeep = c("OBJECTID", "monthyr", "month", "year")
+  data = data %>% select(tokeep, contains("flood"), contains("ppt_pctile"), contains("drought"))
+  dfoutcome <- left_join(dfoutcome, data, by=c("OBJECTID", "monthyr", "month", "year"))
+  
+  # return
+  return(dfoutcome)
+  
+}
