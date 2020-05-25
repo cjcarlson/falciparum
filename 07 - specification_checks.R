@@ -59,7 +59,7 @@ gbod <- readOGR(file.path(wd, "Data", "OriginalGBD", "WorldRegions.shp"))
 head(gbod@data)
 
 gboddf = as.data.frame(gbod@data)
-gboddf = gboddf %>% select("ISO", "NAME_0", "Region", "SmllRgn")
+gboddf = gboddf %>% dplyr::select("ISO", "NAME_0", "Region", "SmllRgn")
 gboddf = gboddf %>% group_by(ISO, NAME_0) %>% summarize(Region = first(Region), SmllRgn = first(SmllRgn)) # note that the small regions are homogenous within country
 colnames(gboddf) = c("ISO", "country", "region", "smllrgn")
 gboddf$country = as.character(gboddf$country)
@@ -204,6 +204,8 @@ regmocounts = complete %>% group_by(smllrgn,month) %>% tally()
 summary(regmocounts$n) # on average, we've got 209 observations per GBOD region per month to identify regionXmonth FEs
 isomocounts = complete %>% group_by(country,month) %>% tally()
 summary(isomocounts$n)
+isoyrcounts = complete %>% group_by(country,year) %>% tally()
+summary(isoyrcounts$n)
 
 # 2) run model with regionXyear effects and jointly test significance
 form1 = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + year + smllrgn:month | 0 | OBJECTID"))
@@ -423,4 +425,131 @@ stargazer(modellist,
           title="Quadratic temperature: Leads and lags", align=TRUE, column.labels = mycollabs,
           keep = c("temp", "flood", "drought"),
           out = file.path(wd, "Results", "Tables", "panelFE_leads_lags.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
+
+
+########################################################################
+# J. Robustness on drought/flood definitions
+########################################################################
+
+# Loop over drought/flood function
+dlist = c(0.01,0.05,0.1,0.15,0.2)
+flist = c(0.85,0.9,0.95)
+
+modellist = list()
+modellabs = list()
+i = 0
+for (dd in dlist) {
+  for (ff in flist) {
+    i = i+1
+    
+    # compute drought and flood variables
+    dropcols = grep("flood|drought|ppt_pctile", colnames(complete), value=TRUE)  
+    newdf = computePrcpExtremes(dfclimate = data.reset, dfoutcome = complete[,!(names(complete) %in% dropcols)], pctdrought = dd, pctflood = ff, yearcutoff = NA)
+    newdf = newdf %>% arrange(OBJECTID, monthyr)
+    
+    # list of variables indicating drought and flood
+    floodvars = paste(colnames(complete)[grep("flood", colnames(complete))], collapse = " + ")
+    droughtvars = paste(colnames(complete)[grep("drought", colnames(complete))], collapse = " + ")
+    
+    # regression formula (main spec)
+    mymod = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
+    
+    # run regression, store results
+    modellist[[i]] = felm(data = newdf, formula = mymod)
+    modellabs[[i]] = paste0("drought:",dd," flood:",ff)
+    
+    print(paste0('----------- Regression run for drought pctile ', dd, ' and flood pctile ', ff, ' -----------'))
+    rm(newdf)
+  }
+}
+
+######## For each model, plot temperature response ########
+plotXtemp = cbind(seq(10,37), seq(10,37)^2)
+figList = list()
+for(m in 1:length(modellist)) {
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-15,15), showYTitle = T)
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
+              figList[[4]], figList[[5]], figList[[6]],
+              figList[[7]], figList[[8]], figList[[9]], 
+              figList[[10]], figList[[11]], figList[[12]], 
+              figList[[13]], figList[[14]], figList[[15]], nrow=5)
+p
+
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Main_model", "temp_responses_drought_flood_sensitivity.pdf"), plot = p, width = 7, height = 10)
+
+######## For each model, plot drought and flood coeffs ########
+
+# All drought figures
+figList = list()
+for(m in 1:length(modellist)) {
+  figList[[m]] =  plotLinearLags(modellist[[m]], "drought", cluster = T, laglength = 3, xLab="Lag", "Coefficient", title = modellabs[[m]], yLim = c(-6,4))
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
+              figList[[4]], figList[[5]], figList[[6]],
+              figList[[7]], figList[[8]], figList[[9]], 
+              figList[[10]], figList[[11]], figList[[12]], 
+              figList[[13]], figList[[14]], figList[[15]], nrow=5)
+p
+
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Main_model", "drought_responses_sensitivity.pdf"), plot = p, width = 7, height = 10)
+
+# All flood figures
+figList = list()
+for(m in 1:length(modellist)) {
+  figList[[m]] =  plotLinearLags(modellist[[m]], "flood", cluster = T, laglength = 3, xLab="Lag", "Coefficient", title = modellabs[[m]], yLim = c(-4,4))
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
+              figList[[4]], figList[[5]], figList[[6]],
+              figList[[7]], figList[[8]], figList[[9]], 
+              figList[[10]], figList[[11]], figList[[12]], 
+              figList[[13]], figList[[14]], figList[[15]], nrow=5)
+p
+
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Main_model", "flood_responses_sensitivity.pdf"), plot = p, width = 7, height = 10)
+
+########################################################################
+# K. GBoD region sensitivity analysis
+########################################################################
+
+#to run a set of tests on the GBD regions (see if seasonality changes over time and see if east africa needs country X month FEs)
+
+### Q1: does seasonality in the GBoD regions change over time? 
+
+## Full sample
+mymod = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention)  + I(smllrgn)*month | OBJECTID + country:monthyr + country:monthyr2  | 0 | OBJECTID"))
+out = felm(data = complete, formula = mymod)
+summary(out)
+
+## Break up time series
+complete$period = ifelse(complete$yearnum<=1960, 1, 0)
+complete$period[complete$yearnum>1960 & complete$yearnum<=2000] = 2
+complete$period[complete$yearnum>2000] = 3
+complete$period = as.factor(complete$period)
+
+# Re run interacting seasonality with time period...not really seeing much here 
+mymod = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention)  + I(smllrgn)*month*period | OBJECTID + country:monthyr + country:monthyr2  | 0 | OBJECTID"))
+out = felm(data = complete, formula = mymod)
+summary(out)
+
+### Q2: Does East Africa X month FE change overall main result?
+# Create a countryXmo factor only for east african region
+complete$isomo = with(complete, interaction(country,  month), drop = TRUE )
+complete$factorvar = ifelse(complete$smllrgn=="Sub-Saharan Africa (East)", complete$isomo, 0)
+complete$factorvar = as.factor(complete$factorvar)
+
+mymodmain = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention)  | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
+out_main = felm(data = complete, formula = mymodmain)
+mymodsens = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + I(factorvar) | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
+out_sens = felm(data = complete, formula = mymodsens)
+
+# Combine into a single stargazer plot 
+stargazer(out_main, out_sens,
+          title="Quadratic temperature: Sensitivity to ISOxMO in E. Africa", align=TRUE, column.labels = c("Main", "ISOxMo in E.A."),
+          keep = c("temp", "flood", "drought"),
+          out = file.path(wd, "Results", "Tables", "panelFE_ISOxMO_East_Africa.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 

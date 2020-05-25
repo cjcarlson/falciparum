@@ -92,3 +92,44 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, clu
   }
   return(g)
 }
+
+
+# Plot linear responses that are lagged
+plotLinearLags = function(mod, patternForPlotVars, cluster = T, laglength = 3, xLab, yLab, title = "title", yLim = c(-1,1)) {
+  
+  beta=mod$coefficients
+  vars = rownames(beta)
+  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
+  b = as.matrix(beta[rownames(beta) %in% plotVars])
+  
+  if(cluster==T) {
+    vcov = getVcov(mod$clustervcv, plotVars)
+  }
+  else{
+    vcov = getVcov(mod$vcv, plotVars)
+  }
+  
+  response = 1 * b #Prediction -- here, all responses are linear!
+  length = 1.96 * sqrt(diag(vcov))
+  lb = response - length
+  ub = response + length
+  
+  # Plot
+  plotData = data.frame(lag = 0:laglength, response = response, lb = lb, ub = ub)
+  if(plotVars[1]=="drought") {
+    mycolor = "sienna"
+  }
+  else if (plotVars[1]=="flood") {
+    mycolor = "royalblue"
+  }
+  else {
+    mycolor = "black"
+  }
+  
+  g = ggplot(data=plotData, aes(x=lag)) + geom_point(aes(y=response), color=mycolor, size=2) + geom_errorbar(aes(ymin=lb,ymax=ub), color=mycolor,width=.1) +
+    theme_classic() +
+    geom_hline(yintercept = 0, size=.5,color="grey") + labs(x = "Lag" , y = "Coefficient") +
+    coord_cartesian(ylim=yLim) + ggtitle(title) + theme(plot.title = element_text(size = 8), text = element_text(size=8))
+  
+  return(g)
+}
