@@ -71,7 +71,7 @@ computePrcpExtremes = function(dfclimate, dfoutcome, pctdrought, pctflood, yearc
   
   # merge into outcome dataframe 
   tokeep = c("OBJECTID", "monthyr", "month", "year")
-  data = data %>% select(tokeep, contains("flood"), contains("ppt_pctile"), contains("drought"))
+  data = data %>% dplyr::select(tokeep, contains("flood"), contains("ppt_pctile"), contains("drought"))
   dfoutcome <- left_join(dfoutcome, data, by=c("OBJECTID", "monthyr", "month", "year"))
   
   # return
