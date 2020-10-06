@@ -1,7 +1,7 @@
 ### SET UP
 rm(list = ls())
 
-user = "Colin" #"Colin"
+user = "Tamma" #"Colin"
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
   repo = 'C:/Users/cjcar/Documents/Github/falciparum'
@@ -96,24 +96,35 @@ complete$intervention = as.factor(complete$intervention)
 # Formulas
 cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
 cXt2rXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
+cXt2intm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + intervention + month | 0 | OBJECTID"))
+cXt2m = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + month | 0 | OBJECTID"))
+rXyrXmcXt = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country*monthyr | OBJECTID + smllrgn:month + smllrgn:year | 0 | OBJECTID"))
 
-complete %>% filter(as.numeric(as.character(year)) < 2000) -> pre
-complete %>% filter(as.numeric(as.character(year)) >= 2000) -> post
+complete %>% filter(as.numeric(as.character(year)) < 2004) -> pre
+complete %>% filter(as.numeric(as.character(year)) >= 2004) -> post
 
-# Pre-post 1
-
-pre.m <- felm(data = pre, formula = cXt2rXm)
-post.m <- felm(data = post, formula = cXt2rXm) # This one spits out wild messages
-
-# Pre-post 2
-
-pre.m <- felm(data = pre, formula = cXt2intrXm)
-post.m <- felm(data = post, formula = cXt2intrXm) # This one is infinity times slow
+# Pre-post with simplified model due to splitting the sample (note full sample response is very similar to main model)
+modellist = list()
+modellist[[1]] =  felm(data = complete, formula = cXt2intrXm) #main spec
+modellist[[2]] <- felm(data = complete, formula = rXyrXmcXt) #simplified spec (no quad trends by country, which are very demanding)
+modellist[[3]] <- felm(data = pre, formula = rXyrXmcXt) #simplified spec
+modellist[[4]] <- felm(data = post, formula = rXyrXmcXt) #simplified spec, no need for intervention dummies bc it's post period only
+mycollabs = c("Full (main spec)", "Full (simplified spec)", "1900-2003", "2004-2017")
 
 
-# Plotting code I'll rearrange for when this works
-
-summary(model)
+# Plots: Full model, main spec; full model, simplified spec; pre period, simplified spec; post period, simplified spec
+# Plot temperature response for each model
 plotXtemp = cbind(seq(10,37), seq(10,37)^2)
-plotPolynomialResponse(model, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                       yLab = expression(paste(Delta, " % Prevalence", '')), title=NULL, yLim=c(-15,15), showYTitle = T)
+
+figList = list()
+for(m in 1:4) {
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-15,15), showYTitle = T)
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
+              figList[[4]], nrow=2)
+p
+
+ggsave(file.path(wd, "Results", "Figures", "Pre_Post", "pre_vs_post_temperature_response.pdf"), plot = p, width = 7, height = 8)
+

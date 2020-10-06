@@ -135,14 +135,15 @@ stargazer(modellist,
           out = file.path(wd, "Results", "Tables", "panelFE_FE_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
           notes.append = TRUE, notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
-# This is the full list (run overnight!)
-#stargazer(modellist,
-#          title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = c("cym", "cXym", "cXycXm", "cXt2m", "cXtym", "cXt2intm", "cXt2intrXm", "rXyrXm", "rXyrXmcXt"),
-#          out = file.path(wd, "Results", "Tables", "panelFE_FE_sensitivity.tex"), out.header = FALSE, type = "latex", float=F,
-#          notes.append = FALSE, notes.align = "l",
-#          notes = "\\parbox[t]{\\textwidth}{Column specifications: (1) country, year and month FE; (2) country-by-year and month FE; (3) country-by-year and country-by-month Fs; (4) country-specific quad. trends and month FE;
-#          (5) country-specific linear trends and year and month FE; (6) country-specific quad. trends and intervention year FE; (7) country-specific quad. trends, intervention year FE, GBOD region-by-month FE;
-#          (8) GBOD region-by-year and region-by-month FE; (9) GBOD region-by-year and region-by-month FE, country-specific linear trends.}")
+# Save preferred model to use in counterfactual exercise
+mycollabs[[8]]
+mainmod = felm(data = complete, formula = cXt2intrXm)
+coeffs = as.data.frame(mainmod$coefficients)
+vcov = as.data.frame(mainmod$clustervcv)
+bfn = file.path(wd,"Results", "Models", "coefficients_cXt2intrXm.rds")
+vfn = file.path(wd,"Results", "Models", "vcv_cXt2intrXm.rds")
+saveRDS(coeffs, file=bfn)
+saveRDS(vcov, file=vfn)
 
 ########################################################################
 # D. PLOT RESPONSE FUNCTIONS FOR FULL SPEC CHECK ACROSS FEs 
