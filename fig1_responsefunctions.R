@@ -30,7 +30,9 @@ library(lfe)
 library(reshape)
 library(tidyverse)
 library(cowplot)
-library("tidyr")
+library(tidyr)
+library(zoo)
+library(lubridate)
 
 ########################################################################
 # A. Read in saved regression results
@@ -159,8 +161,36 @@ g
 fileout = file.path("Results", "Figures", "Fig1","Tresponse_bootstrapped.pdf")
 ggsave(fileout, plot=g)
 
-# TODO: ADD TEMP HISTOGRAM UNDERNEATH
+# Add temperature histogram underneath
+data <- read.csv('./Dataframe backups/formatted-backup.csv')
+#### STANDARD FILTERING & AUGMENTING
+spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
+countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
+data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
+iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
+data_iso <- iso[complete.cases(iso),]
+data$yearnum <- data$year
+data$year <- factor(data$year)
+data %>% unite("monthyr", month:year, sep=' ', remove=FALSE) %>% 
+  mutate(monthyr = as.Date(as.yearmon(monthyr))) %>% 
+  mutate(monthyr = as.numeric(ymd(monthyr)-ymd("1900-01-01"))) -> data.reset
 
+complete <- data.reset[complete.cases(data.reset),]
+rm(data,spatial,countrydf,iso)
+
+h = ggplot(data=complete, aes(temp)) + geom_histogram(aes(y=..density..),bins=50, colour="darkgrey", fill="grey", alpha=.5) +
+  theme_cowplot() + labs(x="Daily average temperature (C)", y = "Density") +  scale_y_continuous(position = "right") #+
+  theme(axis.text.x = element_blank())
+
+# combine
+#p = plot_grid(g,h,ncol=1, rel_heights = c(4,1), align = "h")
+#p
+# this seems to work more nicely
+aligned_plots <- align_plots(h, g, align="hv", axis="tblr")
+p = ggdraw(aligned_plots[[1]]) + draw_plot(aligned_plots[[2]])
+p
+fileout = file.path("Results", "Figures", "Fig1","Tresponse_bootstrapped.pdf")
+ggsave(fileout, plot=p)
 ########################################################################
 # D. Lagged drought and flood responses
 ########################################################################
