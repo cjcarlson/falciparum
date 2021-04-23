@@ -7,15 +7,15 @@ library(tidyverse)
 
 setwd("/Users/christophertrisos/Dropbox/MalariaAttribution/IterationFiles/")
 
+####### Get differences in prevalence between Historical NoGHG and Historical with GHG #######
 #get metadata
 metadat<-fread("Historical/RowMetadata.csv")
-
-#get differences in prevalence between Historical NoGHG and Historical with GHG
 
 #get file names
 filenames<-list.files(paste0(getwd(),"/Historical"))
 #set number of iterations
-num.iter<-1000
+num.iter<-length(filenames)
+
 #make list to store outputs
 median.diff.dat<-as.list(rep(NA,num.iter))
 
@@ -57,11 +57,12 @@ do.call()
 #get median value for 2014 for each admin1xscenario combination
 
 
-################# Make the maps ##########################
-
-med.val<-
+####### Get probability of decrease in malaria #######
 
 
+################# Make the maps ######################
+
+med.val<- 
 
 
 #admin units
