@@ -114,7 +114,7 @@ S = 1000
 # Set number of cores to parallelize over:
 n_cores = 4
 
-## Bootstrap, sampling by countries 
+## Bootstrap, sampling by ADM1
 # Store in the first row of the output the regression run with all observations
 # parallelize
 set.seed(11235)
