@@ -240,4 +240,4 @@ p5 <- ggplot() +
   labs(fill = "+Runs")
 
 library(patchwork)
-p3 / (p4 + p1) / (p5 + p2)
+p3 / (p4 + p1) / (p5 + p2) + plot_annotation(tag_levels = c('A','B','C','D','E'))
