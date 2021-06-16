@@ -30,11 +30,12 @@ genRecenteredXVals_polynomial = function(xVals,xRef,polyOrder) {
 
 
 
-plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, cluster = T, xRef = 0, xLab, yLab, title = "title", yLim = c(-1,1), showYTitle = T) {
+plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, plotmax = T, cluster = T, xRef = 0, xLab, yLab, title = "title", yLim = c(-1,1), showYTitle = T) {
   ### mod is a model regression model object (e.g. mod = lm(y~x) or mode = felm(y~x)). 
   ### patternForPlotVars is a string that is in the variables from the model that you want to plot but not in the ones you don't want to plot. 
   ### xVals is a matrix of dataframe that corresponds to the variables you're plotting. e.g. if b1 was for T and b2 for T2 then xVals[,1] would be T and xVals[,2] would be T2. NOTE: Do not pass the function recentered xVals, the function recenters for you!  
   ### polyOrder is the order of polynomial contained within xVals. 
+  ### plotmax = T will plot a vertical line at the maximum of the estimated response function
   ### cluster = T if clustering (need clustervcv), cluster = F if not clustering SEs
   ### xRef is the reference value for the x-axis. If you are passing the function recentered xVals, this is the value where you want y to be equal to zero. 
   ### xLab is x-axis label
@@ -70,6 +71,9 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, clu
   #Plot -- add back in the reference temperature so it's centered at xRef
   plotData = data.frame(x = xValsT[,1] + xRef, response = response, lb = lb, ub = ub)
   
+  # plot maximum if desired
+  maxX = max(plotData$x[plotData$response==max(plotData$response)])
+  
   if(sum(is.na(yLim))>0) {
     g = ggplot(data = plotData) + geom_line(mapping = aes(x = x, y = response), color = "cadetblue4") +
       geom_line(data = plotData, mapping = aes(x = x, y = ub), color = "cadetblue3", linetype = 2) +
@@ -89,6 +93,12 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, clu
   
   if (!showYTitle) {
     g = g + theme(axis.title.y=element_blank())
+  }
+  
+  if(plotmax==T) {
+    g = g + geom_vline(mapping = aes(xintercept=maxX), linetype = "solid", colour = "sandybrown") +
+      annotate(geom="text", x=maxX+2.5, y=15, label=paste0(maxX," C"),
+               color="sandybrown")
   }
   return(g)
 }
@@ -133,3 +143,48 @@ plotLinearLags = function(mod, patternForPlotVars, cluster = T, laglength = 3, x
   
   return(g)
 }
+
+
+plotPolynomialResponseSimple = function(coefs, xVals, polyOrder, plotmax = F, xRef = 0, xLab, yLab, title = "title", yLim = c(-1,1), showYTitle = T) {
+  ### same as plotPolynomialResponse(), but input is not a model but the actual set of coefficients, and no SE are plotted
+  ### temporary function until I can figure out how to get the right SEs on the cumulative effects
+  
+  beta = coefs ##See if this works
+
+  # Recenter Xs so predictions are relative to the reference T
+  xValsT = genRecenteredXVals_polynomial(xVals,xRef,polyOrder)
+  
+  b = as.matrix(beta)
+  
+  response = as.matrix(xValsT) %*% b #Prediction
+  
+  #Plot -- add back in the reference temperature so it's centered at xRef
+  plotData = data.frame(x = xValsT[,1] + xRef, response = response)
+  
+  # plot maximum if desired
+  maxX = max(plotData$x[plotData$response==max(plotData$response)])
+  
+  if(sum(is.na(yLim))>0) {
+    g = ggplot(data = plotData) + geom_line(mapping = aes(x = x, y = response), color = "cadetblue4") +
+      theme_classic() +
+      geom_hline(yintercept = 0) + labs(x = xLab , y = yLab) +
+      ggtitle(title)
+  } else {
+    g = ggplot(data = plotData) + geom_line(mapping = aes(x = x, y = response), color = "cadetblue4") +
+      theme_classic() +
+      geom_hline(yintercept = 0) + labs(x = xLab , y = yLab) +
+      coord_cartesian(ylim=yLim) + ggtitle(title)
+  }
+  if (!showYTitle) {
+    g = g + theme(axis.title.y=element_blank())
+  }
+  if(plotmax==T) {
+    g = g + geom_vline(mapping = aes(xintercept=maxX), linetype = "solid", colour = "sandybrown") +
+      annotate(geom="text", x=maxX+2.5, y=15, label=paste0(maxX," C"),
+               color="sandybrown")
+  }
+  return(g)
+}
+
+
+
