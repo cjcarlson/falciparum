@@ -1,0 +1,4 @@
+
+(map.n + map.p) / (g + f + d) / s + 
+  plot_layout(heights = c(2.25, 1, 1)) + plot_annotation(tag_levels = 'A')
+

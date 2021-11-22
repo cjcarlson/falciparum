@@ -1,6 +1,11 @@
 
+library(sf)
+library(lubridate)
 library(magrittr)
+library(rgdal)
 library(tidyverse)
+library(patchwork)
+library(multiscales)
 
 setwd('C:/Users/cjcar/Dropbox/MalariaAttribution')
 
@@ -32,6 +37,7 @@ hist.files %>%
   histdf
 
 all <- bind_rows(natdf, histdf)
+rm(natdf); rm(histdf)
 
 all %<>% mutate(Pf.temp = (temp*coef.t1 + temp2*coef.t2))
 
@@ -53,22 +59,21 @@ read_csv('./Dataframe backups/shapefile-backup.csv') %>%
 
 all %<>% left_join(countrydf)
 
-# A specific country
-
-all %>% filter(Country == 'Ethiopia') %>%
-  select(year, Pf.temp, run, scenario) %>%
-  group_by(year, run, scenario) %>% 
-  summarize(Pf.temp = mean(Pf.temp, na.rm = TRUE)) %>% 
-  ggplot(aes(x = year, y = Pf.temp)) + 
-  theme_bw() + 
-  geom_smooth(aes(color = scenario, group = scenario)) + 
-  geom_line(aes(color = scenario,
-                group = interaction(run,scenario)),
-            alpha = 0.3)
+# # A specific country
+# 
+# all %>% filter(Country == 'Ethiopia') %>%
+#   select(year, Pf.temp, run, scenario) %>%
+#   group_by(year, run, scenario) %>% 
+#   summarize(Pf.temp = mean(Pf.temp, na.rm = TRUE)) %>% 
+#   ggplot(aes(x = year, y = Pf.temp)) + 
+#   theme_bw() + 
+#   geom_smooth(aes(color = scenario, group = scenario)) + 
+#   geom_line(aes(color = scenario,
+#                 group = interaction(run,scenario)),
+#             alpha = 0.3)
 
 # Region read-in
 
-library(rgdal)
 gbod <- readOGR(file.path("Data", "OriginalGBD", "WorldRegions.shp"))
 gboddf = as.data.frame(gbod@data)
 gboddf %<>% dplyr::select("ISO", "NAME_0", "SmllRgn")
@@ -105,13 +110,10 @@ all %>% left_join(precip.key) %>%
   dplyr::rename(ppt.90 = ppt_pctile0.9, 
                 ppt.10 = ppt_pctile0.1) -> all
 
-# 
-library(zoo)
-library(lubridate)
-
-all %>% unite("monthyr", month:year, sep=' ', remove=FALSE) %>% 
-  mutate(monthyr = as.Date(as.yearmon(monthyr))) %>% 
-  mutate(monthyr = as.numeric(ymd(monthyr)-ymd("1900-01-01"))) -> all
+all %<>% unite("monthyr", month:year, sep=' 1 ', remove=FALSE) 
+all %<>% mutate(monthyr = mdy(monthyr))
+all %<>% mutate(monthyr = monthyr - ymd("1900-01-01"))
+all %<>% mutate(monthyr = as.numeric(monthyr))
 
 # flood and lags
 all$flood <- as.numeric(all$ppt >= all$ppt.90)
@@ -162,39 +164,55 @@ slices.runs %>% ungroup %>% group_by(OBJECTID) %>%
 ### ADD THE MAP
 
 slice.map %<>% mutate(OBJECTID = factor(OBJECTID))
-
 cont <- readOGR('./Data/AfricaADM1.shp')
-
 cont@data <- left_join(cont@data, slice.map)
 
-library(sf)
+sfcont <- st_as_sf(cont)
+sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5.5)/5.5)
 
-# output a plot using ggplot
-p1 <- ggplot() + 
-  theme_void() + 
-  geom_sf(aes(fill=mean.diff), data = st_as_sf(cont), color=NA) +
-  scale_fill_gradient2(midpoint=0, low="blue", mid="white",
-                       high="red", space ="Lab") + 
-  labs(fill = expression(Delta*"PfPR"["2-10"]))
+colors <- scales::colour_ramp(
+  colors = c(red = "#AC202F", purple = "#740280", blue = "#2265A3")
+)((0:7)/7)
 
-p2 <- ggplot() + 
-  theme_void() + 
-  geom_sf(aes(fill=runs.diff), data = st_as_sf(cont), color=NA) +
-  scale_fill_gradient2(midpoint=6, low="blue", mid="white",
-                       high="red", space ="Lab") + 
-  labs(fill = "+Runs")
+colors <- rev(colors)
 
-all %>% # filter(Country == 'Ethiopia') %>%
-  select(year, Pred, run, scenario) %>%
-  group_by(year, run, scenario) %>% 
-  summarize(Pred = mean(Pred, na.rm = TRUE)) %>% 
-  ggplot(aes(x = year, y = Pred)) + 
-  theme_bw() + 
-  labs(y = "Climate-attributable prevalence") + 
-  geom_smooth(aes(color = scenario, group = scenario)) + 
-  geom_line(aes(color = scenario,
-                group = interaction(run,scenario)),
-            alpha = 0.3) -> p3
+ggplot(sfcont) + 
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  coord_sf(datum = NA) +
+  bivariate_scale("fill",
+                  pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
+                  name = c("Change in prevalence (%)", "sign uncertainty"),
+                  limits = list(c(-1, 1), c(0, 1)),
+                  breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
+                  labels = list(waiver(), scales::percent),
+                  guide = "colourfan") +
+  theme_void() +
+  theme(
+    legend.key.size = grid::unit(1, "cm"),
+    legend.title.align = 0.5 #,
+    #plot.margin = margin(5.5, 12, 5.5, 5.5)
+  ) -> map.diff
+
+legend <- cowplot::get_legend(map.diff)
+
+ggplot(sfcont) + 
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  coord_sf(datum = NA, 
+           xlim = c(-19, 53)) + 
+  bivariate_scale("fill",
+                  pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
+                  name = c("Change in prevalence (%)", "sign uncertainty"),
+                  limits = list(c(-1, 1), c(0, 1)),
+                  breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
+                  labels = list(waiver(), scales::percent)) +
+  theme_void() +
+  theme(
+    #legend.key.size = grid::unit(1, "cm"),
+    #legend.title.align = 0.5,
+    plot.margin = margin(0, 0, 0, 0)
+  ) + ggtitle('B') + 
+  theme(plot.title = element_text(size = 25)) -> map.diff.no.legend 
+
 
 ###########################################################################
 ###########################################################################
@@ -217,27 +235,30 @@ slices.runs %>% ungroup %>% group_by(OBJECTID) %>%
 ### ADD THE MAP
 
 slice.map %<>% mutate(OBJECTID = factor(OBJECTID))
-
 cont <- readOGR('./Data/AfricaADM1.shp')
-
 cont@data <- left_join(cont@data, slice.map)
 
-library(sf)
+sfcont <- st_as_sf(cont)
+sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5.5)/5.5)
 
-# output a plot using ggplot
-p4 <- ggplot() + 
-  theme_void() + 
-  geom_sf(aes(fill=mean.diff), data = st_as_sf(cont), color=NA) +
-  scale_fill_gradient2(midpoint=0, low="blue", mid="white",
-                       high="red", space ="Lab") + 
-  labs(fill = expression(Delta*"PfPR"["2-10"]))
+library(multiscales)
+ggplot(sfcont) + 
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  coord_sf(datum = NA, 
+           xlim = c(-19, 53)) + 
+  bivariate_scale("fill",
+                  pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
+                  name = c("Change in prevalence (%)", "sign uncertainty"),
+                  limits = list(c(-1, 1), c(0, 1)),
+                  breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
+                  labels = list(waiver(), scales::percent)) +
+  theme_void() +
+  theme(
+    #legend.key.size = grid::unit(1, "cm"),
+    #legend.title.align = 0.5,
+    plot.margin = margin(0, 0, 0, 0)
+  ) + ggtitle('A') + 
+  theme(plot.title = element_text(size = 25))  -> map.mean.no.legend
 
-p5 <- ggplot() + 
-  theme_void() + 
-  geom_sf(aes(fill=runs.diff), data = st_as_sf(cont), color=NA) +
-  scale_fill_gradient2(midpoint=6, low="blue", mid="white",
-                       high="red", space ="Lab") + 
-  labs(fill = "+Runs")
-
-library(patchwork)
-p3 / (p4 + p1) / (p5 + p2) + plot_annotation(tag_levels = c('A','B','C','D','E'))
+map.mean.no.legend + map.diff.no.legend + legend + plot_layout(widths = c(4, 4, 2)) -> top
+rm(all)
