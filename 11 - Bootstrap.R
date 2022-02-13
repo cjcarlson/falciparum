@@ -92,8 +92,11 @@ complete$monthyr2 = complete$monthyr^2
 
 # define key intervention periods
 complete$intervention = ifelse(complete$yearnum>=1955 & complete$yearnum<=1969, 1, 0)
-complete$intervention[complete$yearnum>=2004 & complete$yearnum<=2015] = 2
+complete$intervention[complete$yearnum>=2000 & complete$yearnum<=2015] = 2
 complete$intervention = as.factor(complete$intervention)
+
+# classes: important for ensuring felm is treating these correctly
+complete$month = as.factor(complete$month)
 
 rm(data.reset) # remove from memory
 
@@ -103,7 +106,7 @@ rm(data.reset) # remove from memory
 
 # MAIN SPEC: cXt2intrXm (country specific quadratic trends, intervention dummies, GBOD region by month FE)
 myform = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
-                           " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
+                           " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID"))
 
 # BLOCK BOOTSTRAP by ADM1s:
 adm1s = unique(complete$OBJECTID)
@@ -117,13 +120,13 @@ n_cores = 4
 ## Bootstrap, sampling by ADM1
 # Store in the first row of the output the regression run with all observations
 # parallelize
-set.seed(11235)
+set.seed(11235) 
 clus <- makeCluster(n_cores)
 registerDoSNOW(clus)
 pb <- txtProgressBar(max = S, style = 3)
 progress <- function(n) setTxtProgressBar(pb, n)
 opts <- list(progress = progress)
-result <- foreach (i = 1:(S+1),
+result <- foreach (i = 195:(S+1),
                    .packages = c("lfe"),
                    .options.snow = opts) %dopar% 
                    {

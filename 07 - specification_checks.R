@@ -92,7 +92,7 @@ complete$monthyr2 = complete$monthyr^2
 
 # define key intervention periods
 complete$intervention = ifelse(complete$yearnum>=1955 & complete$yearnum<=1969, 1, 0)
-complete$intervention[complete$yearnum>=2004 & complete$yearnum<=2015] = 2
+complete$intervention[complete$yearnum>=2000 & complete$yearnum<=2015] = 2
 complete$intervention = as.factor(complete$intervention)
 
 # classes: important for ensuring felm is treating these correctly
@@ -121,7 +121,6 @@ summary(felm(data=complete, formula = rXyrXmcXt))
 
 # look at likely preferred model for a sec 
 summary(felm(data=complete, formula = cXt2intrXm))
-
 
 # Run all models
 modellist = list()
