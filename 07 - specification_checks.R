@@ -139,7 +139,6 @@ stargazer(modellist,
           notes.append = TRUE, notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 # Save preferred model to use in counterfactual exercise
-mycollabs[[8]]
 mainmod = felm(data = complete, formula = cXt2intrXm)
 coeffs = as.data.frame(mainmod$coefficients)
 vcov = as.data.frame(mainmod$clustervcv)
@@ -147,6 +146,19 @@ bfn = file.path(wd,"Results", "Models", "coefficients_cXt2intrXm.rds")
 vfn = file.path(wd,"Results", "Models", "vcv_cXt2intrXm.rds")
 saveRDS(coeffs, file=bfn)
 saveRDS(vcov, file=vfn)
+
+# Save fixed effects for the main model
+print(cXt2intrXm)
+
+# Make necessary vbls by hand 
+#as.factor(smllrgn):month
+complete = complete %>% mutate(smllrgnXmth = interaction(smllrgn, month))
+cXt2intrXm_v2 = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + smllrgnXmth + I(country):monthyr + I(country):monthyr2 | OBJECTID | 0 | OBJECTID"))
+mainmod_v2 = felm(data = complete, formula = cXt2intrXm_v2)
+summary(mainmod_v2)
+fes = lfe::getfe(mainmod_v2,se=FALSE)
+fesfn = file.path(wd,"Results", "Models", "fixed_effects_cXt2intrXm.rds")
+saveRDS(fes, file=fesfn)
 
 ########################################################################
 # D. PLOT RESPONSE FUNCTIONS FOR FULL SPEC CHECK ACROSS FEs 
