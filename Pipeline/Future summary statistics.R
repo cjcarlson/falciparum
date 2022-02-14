@@ -7,7 +7,9 @@ meta <- fread("RowMetadata.csv", select = c("year", "run"))
 
 #### OVERALL PREVALENCE
 
-for (i in 1:100) { #Loop stars  
+for (i in 1:1000) { #Loop stars  
+  setDTthreads(2L)
+  
   iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = "Pred")
   iter <- bind_cols(meta, iter)
   iter <-  iter[,list(Pred = mean(Pred, na.rm = TRUE)), by = 'run,year']
