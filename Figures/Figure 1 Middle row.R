@@ -96,8 +96,8 @@ for(mod in 2:dim(df)[1]){ #dim(df)[1]
 }
 
 # reshape
-colnames(plotData)[2] = "boot1"
-plotData = plotData %>% gather(plotData, response, boot1:boot996)  
+colnames(plotData)[3] = "boot1"
+plotData = plotData %>% gather(plotData, response, boot1:boot1001)  
 colnames(plotData) = c("x", "model","response")  
 
 # plot

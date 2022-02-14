@@ -4,7 +4,7 @@ library(tidyverse); library(magrittr); library(ggplot2); library(data.table)
 setwd("D:/MalariaAfrica/HistoricalTempFiles")
 
 setDTthreads(1L)
-meta <- fread("RowMetadata.csv", select = c("year", "GCM", "scenario", "Region"))
+meta <- fread("RowMetadata.csv", select = c("year", "scenario", "Region"))
 
 # meta %<>%
 #   tidyr::extract(run, 
@@ -12,20 +12,22 @@ meta <- fread("RowMetadata.csv", select = c("year", "GCM", "scenario", "Region")
 #                  regex = "(BCC-CSM2|BCC-CSM2-MR|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
 #                  remove = FALSE)  
 
-for (i in 1:10) { #Loop starts  
+# Doesn't need GCM because the averages are the same? 
+
+for (i in 1:1000) { #Loop starts  
   iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = "Pred")
   iter <- bind_cols(meta, iter)
-  iter <-  iter[,list(Pred = mean(Pred, na.rm = TRUE)), by = 'GCM,scenario,year,Region']
+  iter <-  iter[,list(Pred = mean(Pred, na.rm = TRUE)), by = 'scenario,year,Region']
   if(i==1) {iter.df <- iter} else {iter.df <- bind_cols(iter.df, iter$Pred)}
 } #Loop ends
 
 iter.df %<>% as.tibble()
 
-iter.df %<>% pivot_longer(cols = -c(GCM, scenario, year, Region), names_to = c("Pred"))
+iter.df %<>% pivot_longer(cols = -c(scenario, year, Region), names_to = c("Pred"))
 
 iter.df %>% 
   filter(year %in% c(1900:1930)) %>%
-  group_by(GCM, scenario, Region, Pred) %>%
+  group_by(scenario, Region, Pred) %>%
   summarize(BetaMean = mean(value, na.rm = TRUE)) %>% 
   right_join(iter.df) %>% 
   mutate(value = (value-BetaMean)) %>%

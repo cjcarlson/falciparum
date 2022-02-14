@@ -148,19 +148,19 @@ all$Pred <- all$Pf.temp + all$Pf.prec
 ###########################################################################
 ###########################################################################
 ###########################################################################
-
+# 
 # all %>% # filter(Country == 'Ethiopia') %>%
 #   select(year, Pred, run, scenario) %>%
 #   group_by(year, run, scenario) %>%
 #   summarize(Pred = mean(Pred, na.rm = TRUE)) %>%
-#   ggplot(aes(x = year, y = Pred)) +
+#   ggplot(aes(x = year, y = Pred, group = interaction(run,scenario))) +
 #   theme_bw() +
 #   labs(y = "Climate-attributable prevalence") +
 #   geom_line(aes(color = scenario,
 #                 group = interaction(run,scenario)),
 #             alpha = 0.3)
 
-small <- all
+small <- all # %>% filter(Region == 'Sub-Saharan Africa (East)')
 
 small %<>% 
   ungroup() %>%
@@ -210,6 +210,12 @@ smallfuture %<>%
 
 small <- bind_rows(smallpast, smallfuture)
 
+small %>% 
+  group_by(year, line) %>%
+  summarize(mean = mean(Pred)) -> binddata
+
+small %<>% left_join(binddata)
+
 small %>%
   mutate(line = factor(line, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
   ggplot(aes(x = year, y = Pred, 
@@ -221,7 +227,8 @@ small %>%
                      labels = c('Historical counterfactual', 'Historical climate', 'Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                      name = '') + 
   geom_vline(xintercept = 2014.5, linetype = 'dashed') + 
-  geom_smooth(lwd = 1.3, se = FALSE) + 
+  geom_line(aes(x = year, y = mean), lwd = 1.3) + 
+  #geom_smooth(lwd = 1.3, se = FALSE) + 
   xlab("Year") + ylab("Change in prevalence (%)") + 
   theme(axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 6),
