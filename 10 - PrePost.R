@@ -1,7 +1,7 @@
 ### SET UP
 rm(list = ls())
 
-user = "Tamma" #"Colin"
+user = "Colin" #"Colin"
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
   repo = 'C:/Users/cjcar/Documents/Github/falciparum'
@@ -100,8 +100,10 @@ cXt2intm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", drough
 cXt2m = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + month | 0 | OBJECTID"))
 rXyrXmcXt = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country*monthyr | OBJECTID + smllrgn:month + smllrgn:year | 0 | OBJECTID"))
 
-complete %>% filter(as.numeric(as.character(year)) < 2004) -> pre
-complete %>% filter(as.numeric(as.character(year)) >= 2004) -> post
+complete$smllrgn <- as.factor(complete$smllrgn)
+complete$month <- as.factor(complete$month)
+complete %>% filter(as.numeric(as.character(year)) < 2000) -> pre
+complete %>% filter(as.numeric(as.character(year)) >= 2000) -> post
 
 # Pre-post with simplified model due to splitting the sample (note full sample response is very similar to main model)
 modellist = list()
@@ -109,7 +111,7 @@ modellist[[1]] =  felm(data = complete, formula = cXt2intrXm) #main spec
 modellist[[2]] <- felm(data = complete, formula = rXyrXmcXt) #simplified spec (no quad trends by country, which are very demanding)
 modellist[[3]] <- felm(data = pre, formula = rXyrXmcXt) #simplified spec
 modellist[[4]] <- felm(data = post, formula = rXyrXmcXt) #simplified spec, no need for intervention dummies bc it's post period only
-mycollabs = c("Full (main spec)", "Full (simplified spec)", "1900-2003", "2004-2017")
+mycollabs = c("Full (main specification)", "Full (simplified specification)", "1900-1999 (simplified)", "2000-2015 (simplified)")
 
 
 # Plots: Full model, main spec; full model, simplified spec; pre period, simplified spec; post period, simplified spec
