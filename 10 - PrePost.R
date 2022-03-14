@@ -1,7 +1,7 @@
 ### SET UP
 rm(list = ls())
 
-user = "Colin" #"Colin"
+user = "Tamma" #"Colin"
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
   repo = 'C:/Users/cjcar/Documents/Github/falciparum'
@@ -90,7 +90,7 @@ complete$monthyr2 = complete$monthyr^2
 
 # define key intervention periods
 complete$intervention = ifelse(complete$yearnum>=1955 & complete$yearnum<=1969, 1, 0)
-complete$intervention[complete$yearnum>=2004 & complete$yearnum<=2015] = 2
+complete$intervention[complete$yearnum>=2000 & complete$yearnum<=2015] = 2
 complete$intervention = as.factor(complete$intervention)
 
 # Formulas
@@ -116,12 +116,12 @@ mycollabs = c("Full (main specification)", "Full (simplified specification)", "1
 
 # Plots: Full model, main spec; full model, simplified spec; pre period, simplified spec; post period, simplified spec
 # Plot temperature response for each model
-plotXtemp = cbind(seq(10,37), seq(10,37)^2)
+plotXtemp = cbind(seq(10,40), seq(10,40)^2)
 
 figList = list()
 for(m in 1:4) {
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-15,15), showYTitle = T)
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 24, xLab = "Monthly avg. T [C]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-30,10), showYTitle = T)
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 

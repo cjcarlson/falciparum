@@ -6,7 +6,7 @@
 
 rm(list = ls())
 
-user = "Colin" # "Tamma" #
+user = "Tamma" # "Colin" #
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
   repo = 'C:/Users/cjcar/Documents/Github/falciparum'
