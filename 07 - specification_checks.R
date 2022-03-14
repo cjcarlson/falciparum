@@ -1,7 +1,7 @@
 ### SET UP
 rm(list = ls())
 
-user = "Colin" #"Colin"
+user = "Tamma" #"Colin"
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
   repo = 'C:/Users/cjcar/Documents/Github/falciparum'
@@ -30,6 +30,11 @@ library(lubridate)
 library(rgdal)
 library(cowplot)
 library(multcomp)
+
+###### Plotting toggles
+Tref = 24 #reference temperature - curve gets recentered to 0 here
+Tmin = 10 #min T for x axis
+Tmax = 40 #max T for x axis
 
 ########################################################################
        # A. INITIALIZING
@@ -194,12 +199,12 @@ hist(complete$temp)
 ########################################################################
 
 # Plot temperature response for each model
-plotXtemp = cbind(seq(10,37), seq(10,37)^2)
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 
 figList = list()
 for(m in 1:length(modellist)) {
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-15,15), showYTitle = T)
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-30,10), showYTitle = T)
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
@@ -296,7 +301,6 @@ ggsave(filename = fn, plot = g, height = 6, width = 8)
 # plot region by year FEs
 rlist = unique(complete$smllrgn)
 ylist = unique(complete$yearnum)
-complete$ymn = NA
 
 avgbyregionyr = complete %>% group_by(smllrgn, yearnum) %>% summarize(ymn = mean(PfPR2))
 toplot = left_join(complete, avgbyregionyr, by = c("smllrgn", "yearnum"))
@@ -375,7 +379,7 @@ ggsave(filename = fn, plot = g, height = 6, width = 8)
 ## Look at regionXmonth fe in the regression and see if they are sig
 cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(smllrgn)*I(month)  | OBJECTID  + country:monthyr + country:monthyr2 + intervention | 0 | OBJECTID"))
 cXt2intcXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(country)*I(month)  | OBJECTID  + country:monthyr + country:monthyr2 + intervention | 0 | OBJECTID"))
-rXyrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(smllrgn)*I(month) | OBJECTID + smllrgn:year | 0 | OBJECTID"))
+rXyrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(smllrgn)*I(month) | OBJECTID + as.factor(smllrgn):year | 0 | OBJECTID"))
 summary(felm(data=complete, formula = cXt2intrXm))
 summary(felm(data=complete, formula = rXyrXm))
 summary(felm(data=complete, formula = cXt2intcXm))
@@ -389,8 +393,7 @@ plot(tznmo$month, tznmo$mn, type='l')
 ########################################################################
 
 # plot residuals from main specifications (over time and histogram)
-myform = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " | OBJECTID  + country:monthyr + country:monthyr2 + intervention + smllrgn:month | 0 | OBJECTID"))
-main = felm(data=complete, formula = myform)
+main = felm(data=complete, formula = cXt2intrXm)
 complete$residuals = main$residuals
 
 # residuals histogram
@@ -435,7 +438,7 @@ templags = data.reset %>% group_by(OBJECTID) %>%
 
 # merge back into main dataset 
 tokeep = c("OBJECTID", "monthyr", "month", "year")
-templags = templags %>% select(tokeep, contains("lag"), contains("lead"))
+templags = templags %>% dplyr::select(tokeep, contains("lag"), contains("lead"))
 complete <- left_join(complete, templags, by=c("OBJECTID", "monthyr", "month", "year"))
 complete$month=as.factor(complete$month)
 
@@ -473,25 +476,25 @@ stargazer(modellist,
           out = file.path(wd, "Results", "Tables", "panelFE_leads_lags.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 
 # Plot main model with SEs
-plotXtemp = cbind(seq(10,37), seq(10,37)^2)
-c = plotPolynomialResponse(modellist[[1]], "temp", plotXtemp, polyOrder = 2, plotmax=T, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                           yLab = expression(paste(Delta, " % Prevalence", '')), title = "contemp.", yLim=c(-15,15), showYTitle = T)
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
+c = plotPolynomialResponse(modellist[[1]], "temp", plotXtemp, polyOrder = 2, plotmax=T, cluster = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
+                           yLab = expression(paste(Delta, " % Prevalence", '')), title = "contemp.", yLim=c(-30,10), showYTitle = T)
 
 # Plot cumulative effect at different lag lengths (w/o conf intervals for now)
 # lag 1
 coefs = c(summary(glht(modellist[[2]], linfct = c("temp + temp.lag = 0")))$test$coefficients, summary(glht(modellist[[2]], linfct = c("temp2 + temp2.lag = 0")))$test$coefficients)
-p1 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                                yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (1 mo.)", yLim=c(-15,15), showYTitle = T)
+p1 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
+                                yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (1 mo.)", yLim=c(-30,10), showYTitle = T)
 # lag 2
 coefs = c(summary(glht(modellist[[3]], linfct = c("temp + temp.lag + temp.lag2 = 0")))$test$coefficients, summary(glht(modellist[[3]], linfct = c("temp2 + temp2.lag + temp2.lag2 = 0")))$test$coefficients)
-p2 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                                  yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (2 mos.)", yLim=c(-15,15), showYTitle = T)
+p2 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
+                                  yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (2 mos.)", yLim=c(-30,10), showYTitle = T)
 
 # lag 3
 coefs = c(summary(glht(modellist[[4]], linfct = c("temp + temp.lag + temp.lag2 + temp.lag3 = 0")))$test$coefficients, summary(glht(modellist[[4]], 
                                             linfct = c("temp2 + temp2.lag + temp2.lag2 + temp2.lag3 = 0")))$test$coefficients)
-p3 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                                  yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (3 mos.)", yLim=c(-15,15), showYTitle = T)
+p3 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
+                                  yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (3 mos.)", yLim=c(-30,10), showYTitle = T)
 
 p = plot_grid(c, p1, p2, p3, nrow=1)
 p
@@ -518,15 +521,16 @@ for (dd in dlist) {
     # compute drought and flood variables
     dropcols = grep("flood|drought|ppt_pctile", colnames(complete), value=TRUE)  
     newdf = computePrcpExtremes(dfclimate = data.reset, dfoutcome = complete[,!(names(complete) %in% dropcols)], pctdrought = dd, pctflood = ff, yearcutoff = NA)
-    newdf = newdf %>% arrange(OBJECTID, monthyr)
+    newdf = newdf %>% dplyr::arrange(OBJECTID, monthyr)
+    newdf$month = as.factor(newdf$month)
     
     # list of variables indicating drought and flood
     floodvars = paste(colnames(complete)[grep("flood", colnames(complete))], collapse = " + ")
     droughtvars = paste(colnames(complete)[grep("drought", colnames(complete))], collapse = " + ")
     
     # regression formula (main spec)
-    mymod = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
-    
+    mymod = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID"))
+ 
     # run regression, store results
     modellist[[i]] = felm(data = newdf, formula = mymod)
     modellabs[[i]] = paste0("drought:",dd," flood:",ff)
@@ -537,11 +541,11 @@ for (dd in dlist) {
 }
 
 ######## For each model, plot temperature response ########
-plotXtemp = cbind(seq(10,37), seq(10,37)^2)
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 figList = list()
 for(m in 1:length(modellist)) {
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = 32.6, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-15,15), showYTitle = T)
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,10), showYTitle = T)
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
@@ -615,9 +619,9 @@ complete$isomo = with(complete, interaction(country,  month), drop = TRUE )
 complete$factorvar = ifelse(complete$smllrgn=="Sub-Saharan Africa (East)", complete$isomo, 0)
 complete$factorvar = as.factor(complete$factorvar)
 
-mymodmain = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention)  | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
+mymodmain = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention)  | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID"))
 out_main = felm(data = complete, formula = mymodmain)
-mymodsens = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + I(factorvar) | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
+mymodsens = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + I(factorvar) | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID"))
 out_sens = felm(data = complete, formula = mymodsens)
 
 # Combine into a single stargazer plot 
