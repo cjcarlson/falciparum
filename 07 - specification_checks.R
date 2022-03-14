@@ -161,6 +161,35 @@ fesfn = file.path(wd,"Results", "Models", "fixed_effects_cXt2intrXm.rds")
 saveRDS(fes, file=fesfn)
 
 ########################################################################
+# ## INTERLUDE: investigate Chad
+########################################################################
+
+chad = complete %>% subset(ISO=="TCD")
+require(broom)    
+coefs = tidy(mainmod_v2)
+t1 = coefs$estimate[coefs$term=="I(country)Chad:monthyr"]  
+t2 = coefs$estimate[coefs$term=="I(country)Chad:monthyr2"]
+
+# FES
+fes$rown = rownames(fes)
+fesmerge = fes %>% separate(rown, c("label", "OBJECTID"))
+merge = chad %>% left_join(chad, fesmerge, by=c("OBJECTID"))
+
+# scatter
+chad$trendpred = t1*chad$monthyr + t2*chad$monthyr2
+ggplot(data=chad) + geom_point(aes(x=monthyr, y=PfPR2))  + geom_line(aes(x=monthyr, y=trendpred))
+
+chad$pred_noclim = chad$trendpred + 
+  
+test = fes %>% subset(idx>552)
+
+hist(chad$PfPR2)
+hist(complete$PfPR2)
+hist(chad$temp)
+hist(complete$temp)
+
+
+########################################################################
 # D. PLOT RESPONSE FUNCTIONS FOR FULL SPEC CHECK ACROSS FEs 
 ########################################################################
 
