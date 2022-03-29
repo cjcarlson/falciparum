@@ -71,8 +71,10 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, plo
   #Plot -- add back in the reference temperature so it's centered at xRef
   plotData = data.frame(x = xValsT[,1] + xRef, response = response, lb = lb, ub = ub)
   
-  # plot maximum if desired
-  maxX = max(plotData$x[plotData$response==max(plotData$response)])
+  # plot maximum if desired (peak within 10-30 range)
+  sub = plotData[plotData$x>=10 & plotData$x<=30,]
+  maxX = max(sub$x[sub$response==max(sub$response)])
+  #maxX = max(plotData$x[plotData$response==max(plotData$response)])
   
   if(sum(is.na(yLim))>0) {
     g = ggplot(data = plotData) + geom_line(mapping = aes(x = x, y = response), color = "cadetblue4") +
@@ -97,7 +99,7 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, plo
   
   if(plotmax==T) {
     g = g + geom_vline(mapping = aes(xintercept=maxX), linetype = "solid", colour = "sandybrown") +
-      annotate(geom="text", x=maxX+2.5, y=15, label=paste0(maxX," C"),
+      annotate(geom="text", x=maxX+2.5, y=9, label=paste0(maxX," C"),
                color="sandybrown")
   }
   return(g)

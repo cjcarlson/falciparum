@@ -30,6 +30,7 @@ library(lubridate)
 library(rgdal)
 library(cowplot)
 library(multcomp)
+library(dplyr)
 
 ###### Plotting toggles
 Tref = 24 #reference temperature - curve gets recentered to 0 here
@@ -629,4 +630,114 @@ stargazer(out_main, out_sens,
           title="Quadratic temperature: Sensitivity to ISOxMO in E. Africa", align=TRUE, column.labels = c("Main", "ISOxMo in E.A."),
           keep = c("temp", "flood", "drought"),
           out = file.path(wd, "Results", "Tables", "panelFE_ISOxMO_East_Africa.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
+
+########################################################################
+# L. Temperature functional form 
+########################################################################
+
+polys <- read.csv(file.path(wd,"Data","FullPolynomial.csv"))
+data <- read.csv('./Dataframe backups/formatted-backup.csv')
+
+# rearrange full dataframe to match
+data = data %>% mutate(date = my(paste(month, year))) %>% arrange(date, OBJECTID)
+
+# check it out
+head(data)
+head(polys)
+
+# extra stuff we can remove
+polys <- polys %>% dplyr::select(-c(X,Pf,Pf2,temp,temp2,ppt,ppt2))
+
+# same order as data backup file, can left join
+fulldf <- dplyr::bind_cols(data, polys)
+
+# clean up -- complete cases only, get ISO identifiers
+rm(polys, data)
+spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
+countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
+fulldf$country <- countrydf$NAME_0[sapply(fulldf$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
+iso = fulldf %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
+data_iso <- iso[complete.cases(iso),]
+fulldf$yearnum <- fulldf$year
+fulldf$year <- factor(fulldf$year)
+fulldf %>% unite("monthyr", month:year, sep=' ', remove=FALSE) %>% 
+  mutate(monthyr = as.Date(as.yearmon(monthyr))) %>% 
+  mutate(monthyr = as.numeric(ymd(monthyr)-ymd("1900-01-01"))) -> data.reset
+
+completepoly <- data.reset[complete.cases(data.reset),]
+
+# get regions from GBD
+gbod <- readOGR(file.path(wd, "Data", "OriginalGBD", "WorldRegions.shp"))
+head(gbod@data)
+
+gboddf = as.data.frame(gbod@data)
+gboddf = gboddf %>% dplyr::select("ISO", "NAME_0", "Region", "SmllRgn")
+gboddf = gboddf %>% group_by(ISO, NAME_0) %>% summarize(Region = first(Region), SmllRgn = first(SmllRgn)) # note that the small regions are homogenous within country
+colnames(gboddf) = c("ISO", "country", "region", "smllrgn")
+gboddf$country = as.character(gboddf$country)
+
+# clean to merge
+gboddf$country = ifelse(gboddf$country=="Cote D'Ivoire", "Côte d'Ivoire", gboddf$country)
+
+completepoly$country = as.character(completepoly$country)
+completepoly = left_join(completepoly, gboddf, by = "country")
+completepoly$country = as.factor(completepoly$country)
+
+rm(gbod, gboddf)
+
+completepoly = computePrcpExtremes(dfclimate = data.reset, dfoutcome = completepoly, pctdrought = 0.10, pctflood = 0.90, yearcutoff = NA)
+completepoly = completepoly %>% arrange(OBJECTID, monthyr)
+
+# include: contemporaneous temp, then distributed lag in flood and drought
+floodvars = paste(colnames(completepoly)[grep("flood", colnames(completepoly))], collapse = " + ")
+droughtvars = paste(colnames(completepoly)[grep("drought", colnames(completepoly))], collapse = " + ")
+
+# need this for country specific quadratic trends
+completepoly$monthyr2 = completepoly$monthyr^2
+
+# define key intervention periods
+completepoly$intervention = ifelse(completepoly$yearnum>=1955 & completepoly$yearnum<=1969, 1, 0)
+completepoly$intervention[completepoly$yearnum>=2000 & completepoly$yearnum<=2015] = 2
+completepoly$intervention = as.factor(completepoly$intervention)
+
+# classes: important for ensuring felm is treating these correctly
+completepoly$month = as.factor(completepoly$month)
+
+# Formulas
+cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID"))
+
+# confirm this matches
+summary(felm(data=completepoly, formula = cXt2intrXm))
+summary(felm(data=complete, formula = cXt2intrXm))
+
+# estimate all poly orders
+modellist = list()
+modellist[[1]] = felm(data = completepoly, formula = cXt2intrXm)
+modellist[[2]] = felm(data = completepoly, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + temp3 +", floodvars,
+                                          " + ", droughtvars, 
+                                          " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[3]] = felm(data = completepoly, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + temp3 + temp4 +", floodvars,
+                                          " + ", droughtvars, 
+                                          " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[4]] = felm(data = completepoly, formula = 
+                                         as.formula(paste0("PfPR2 ~ temp + temp2 + temp3 + temp4 + temp5 +", floodvars,
+                                                           " + ", droughtvars, 
+                                                           " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | 0 | OBJECTID")))
+# plot
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2, seq(Tmin,Tmax)^3,seq(Tmin,Tmax)^4,seq(Tmin,Tmax)^5)
+modellabs = c("Quadratic", "Cubic", "Quartic", "Quintic")
+figList = list()
+for(m in 1:length(modellist)) {
+  end = m+1
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp[,1:end], polyOrder = end, plotmax = T, cluster = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,10), showYTitle = T)
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
+              figList[[4]], nrow=2)
+p
+
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Main_model", "temperature_poly_order.pdf"), plot = p, width = 10, height = 10)
 
