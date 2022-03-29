@@ -45,13 +45,23 @@ registerDoParallel(no_cores)
 
 IDs = shpFile$OBJECTID
 
-elev = foreach (i = 1:length(shpFile),
+# need to chunk this out because it's breaking and we can't identify which adm is the problem
+# This vector indexes each 10k obs in the 1e6 set of lat-lons
+kk <- rep(1:10, each=length(shpFile)/10)
+
+# Divide into 100 pieces = 1e6/10k
+for(k in 1:10) {
+  
+  sampIDs = IDs[kk==k]
+  sampk <- subset(shpFile, OBJECTID %in% sampIDs)
+  
+elev = foreach (i = 1:length(sampk),
                 .combine = rbind,
                 .packages = c("raster","elevatr")) %dopar% 
   {
     
       #Create 
-      adm = subset(shpFile, OBJECTID==IDs[[i]])
+      adm = subset(sampk, OBJECTID==sampIDs[[i]])
       
       # Throwing this in here to stop the weird "different resolution" error from the AWS API
       outmean <- tryCatch({
@@ -80,26 +90,53 @@ elev = foreach (i = 1:length(shpFile),
       
       # Print so we can track progress
       if(round(i/10) == i/10) {
-        print(paste0("-------- Done with sample ", i, " of ", length(shpFile), " ---------"))
+        print(paste0("-------- Done with sample ", i, " of ", length(sampk), " ---------"))
       }
       
       rm(adm,DEM)
       return(out)
     }
-    
+
+  #rbind all the sample obs together
+  elev = data.frame(elev, stringsAsFactors = F)
+  colnames(elev) = c("OBJECTID","elevmin", "elevmn", "elevmax")
+  
+  # Save Rdata of labels
+  fn = file.path(wd,"Data", "elevation", paste0("iteration_", k ,"_elevation_ADM1.RData"))
+  print(paste0("------- Saving iteration ", k, " of 10 ---------"))
+  print(fn)
+  save(file = fn, list = c("elev"))
+  print("---------- Saved ------------")
+}
+
 stopImplicitCluster()
 
-elev = data.frame(elev, stringsAsFactors = F)
-colnames(elev) = c("OBJECTID","elevmin", "elevmn", "elevmax")
-
-print('--------- Done extracting elevation ----------')
+print('--------- Done extracting elevation in 10 subsamples ----------')
 
 ########################################################
 # SAVE CSV OF LABELS
 ########################################################
 
-outfn = file.path(wd, "Data", "extracted_elevation_ADM1.csv")
+savefn = file.path(wd, "Data", "elevation", "elevation_extracted_all_ADM1.csv")
+fileend <- paste0("_elevation_ADM1.RData")
 
-write.csv(x = elev, file = outfn)
+# Loop over and load all 10 iterations already saved
+print(" -------- Merging and saving full dataset ----------")
 
-print('--------- Saved csv of labels ----------')
+library(data.table)
+
+RLoad = function(fn) {
+  return(get(load(fn)))
+}
+
+fl = list.files(file.path(wd, "Data", "elevation"), full.names = T)
+fl = fl[grepl(x = fl, pattern = fileend)]
+print(fl)
+df <- do.call(rbind,lapply(fl,RLoad))
+dt = data.table(df)
+colnames(dt) = c("OBJECTID","elevmin", "elevmn", "elevmax")
+
+write.csv(x = dt, file = savefn)
+
+print(" -------- FULL DATASET SAVED ----------")
+
