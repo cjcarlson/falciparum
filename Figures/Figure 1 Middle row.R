@@ -68,7 +68,7 @@ for(f in 1:length(files)){
 Tref = 24
 Tmin = 10
 Tmax = 40
-int = 1
+int = 0.1
 plotXtemp = cbind(seq(Tmin,Tmax,by=int), seq(Tmin,Tmax,by=int)^2)
 xValsT = genRecenteredXVals_polynomial(plotXtemp,Tref,2)
 
