@@ -35,7 +35,7 @@ library(cowplot)
 ########################################################################
 
 #### Read in the data backup
-data <- read.csv('./Dataframe backups/formatted-backup.csv')
+data <- read.csv('./Data/CRU-Reextraction-Aug2022.csv')
 #### STANDARD FILTERING & AUGMENTING
 spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
 countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
@@ -94,16 +94,17 @@ complete$intervention[complete$yearnum>=2000 & complete$yearnum<=2015] = 2
 complete$intervention = as.factor(complete$intervention)
 
 # Formulas
-cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
-cXt2rXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " | OBJECTID + country:monthyr + country:monthyr2 + smllrgn:month | 0 | OBJECTID"))
-cXt2intm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + intervention + month | 0 | OBJECTID"))
+cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention)+ country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2rXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "+ country:monthyr + country:monthyr2 | OBJECTID  + intervention + month | 0 | OBJECTID"))
 cXt2m = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:monthyr + country:monthyr2 + month | 0 | OBJECTID"))
-rXyrXmcXt = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country*monthyr | OBJECTID + smllrgn:month + smllrgn:year | 0 | OBJECTID"))
+rXyrXmcXt = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
 
 complete$smllrgn <- as.factor(complete$smllrgn)
 complete$month <- as.factor(complete$month)
 complete %>% filter(as.numeric(as.character(year)) < 2000) -> pre
 complete %>% filter(as.numeric(as.character(year)) >= 2000) -> post
+complete$year <- as.factor(complete$year)
 
 # Pre-post with simplified model due to splitting the sample (note full sample response is very similar to main model)
 modellist = list()
