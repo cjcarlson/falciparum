@@ -123,6 +123,40 @@ print("-------- Saved Rds of coefficients and p-values from randomization test w
 
 placebo = readRDS(file.path("Results", "Models", "scramble_time_placebo.rds"))
 
+# main model
+mainmod = felm(data=complete, formula = myform)
+Xvars = rownames(mainmod$coefficients)[grepl(paste(pattern, collapse="|"), x = rownames(mainmod$coefficients))]
+Xcoefs = as.matrix(mainmod$coefficients[rownames(mainmod$coefficients) %in% Xvars])
+Xpvals = as.matrix(summary(mainmod)$coefficients[rownames(mainmod$coefficients) %in% Xvars,4])
+main = as.data.frame(cbind(t(Xcoefs), t(Xpvals)))
+pnames = list()
+for(x in Xvars){
+  pnames[[x]] = paste0(x, "_p")
+}
+colnames(main) = c(Xvars, unlist(pnames))
+main$vline = 1
+vline = melt(data.table(main), id.vars = "vline")
+vline = vline %>% select(-vline) %>% rename(vline=value)
+
 # matrix of graphs: histogram of coefficients from placebo, compared to coef in true (vertical line in red) 
+placebo = placebo %>% mutate(sim = row_number())
+toplot = melt(data.table(placebo), id.vars = "sim")
+toplot = toplot %>% mutate(pval = (grepl("_p",variable)))
+
+# merge in main mod
+toplot = toplot %>% left_join(vline, by=c("variable"))
+
+p = ggplot(data = toplot[toplot$pval==FALSE & toplot$variable!="temp2",], aes(x=value)) +
+  geom_histogram() + geom_vline(aes(xintercept = vline), colour="red") +
+  facet_wrap(~variable) +
+  theme_bw()
+p
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Placebo_checks", "coefficients_time_randomiz.pdf"), plot = p, width = 7, height = 9)
+
+p2 = ggplot(data = toplot[toplot$pval==FALSE & toplot$variable=="temp2",], aes(x=value)) +
+  geom_histogram() + geom_vline(aes(xintercept = vline), colour="red") +
+  theme_bw()
+p2
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Placebo_checks", "coefficients_time_randomiz_TEMP2.pdf"), plot = p2, width = 7, height = 9)
 
 # matrix of graphs: histogram of pvals from placebo, compared to pval in true (vertical line in red)
