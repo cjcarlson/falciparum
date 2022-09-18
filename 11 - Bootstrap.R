@@ -65,7 +65,7 @@ registerDoSNOW(clus)
 pb <- txtProgressBar(max = S, style = 3)
 progress <- function(n) setTxtProgressBar(pb, n)
 opts <- list(progress = progress)
-result <- foreach (i = 195:(S+1),
+result <- foreach (i = 1:(S+1),
                    .packages = c("lfe"),
                    .options.snow = opts) %dopar% 
                    {
