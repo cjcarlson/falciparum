@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 .DS_Store
+TempFiles/ADM1-CRU.csv
+TempFiles/ADM1-Prevalence.csv
+*.gz

@@ -37,7 +37,10 @@ library(lubridate)
 ########################################################################
 
 # load main model (full sample)
-main <- readRDS(file.path("Results","Models","bootstrap","full_sample_cXt2intrXm.rds"))
+main <- readRDS("./Results/Models/coefficients_cXt2intrXm.rds")
+coefs <- main[,1]
+names(coefs) <- rownames(main)
+main <- as.data.frame(t(as.matrix(coefs)))
 
 # function to compute optimal temp for each run
 optT <- function(beta1, beta2){

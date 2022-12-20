@@ -193,7 +193,7 @@ ggplot(sfcont) +
     #plot.margin = margin(5.5, 12, 5.5, 5.5)
   ) -> map.diff
 
-legend <- cowplot::get_legend(map.diff)
+leg <- cowplot::get_legend(map.diff)
 
 ggplot(sfcont) + 
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
@@ -260,5 +260,5 @@ ggplot(sfcont) +
   ) + ggtitle('A') + 
   theme(plot.title = element_text(size = 25))  -> map.mean.no.legend
 
-map.mean.no.legend + map.diff.no.legend + legend + plot_layout(widths = c(4, 4, 2)) -> top
+map.mean.no.legend + map.diff.no.legend + leg + plot_layout(widths = c(4, 4, 2)) -> top
 rm(all)
