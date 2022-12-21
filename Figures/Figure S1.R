@@ -17,7 +17,7 @@ setwd(wd)
 
 # source functions from previous script
 source(file.path(repo,'code/R_utils.R'))
-source(file.path(repo,'code/utils_plotting.R'))
+#source(file.path(repo,'code/utils_plotting.R'))
 
 # packages
 library(ggplot2)
