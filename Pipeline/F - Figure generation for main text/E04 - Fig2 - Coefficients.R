@@ -7,7 +7,7 @@
 user = "Colin" # "Tamma" #
 if (user == "Colin") {
   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum'
+  repo = 'C:/Users/cjcar/Documents/Github/falciparum/'
 } else if (user == "Tamma") {
   wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
@@ -19,8 +19,7 @@ if (user == "Colin") {
 setwd(wd)
 
 # source functions from previous script
-#source(file.path(repo,'code/R_utils.R'))
-source(file.path(repo,'code/utils_plotting.R'))
+source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
 
 # packages
 library(ggplot2)
