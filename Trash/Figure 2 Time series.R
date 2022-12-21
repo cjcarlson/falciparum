@@ -4,15 +4,7 @@ library(tidyverse); library(magrittr); library(ggplot2); library(data.table)
 setwd("D:/MalariaAfrica/HistoricalTempFiles")
 
 setDTthreads(1L)
-meta <- fread("RowMetadata.csv", select = c("year", "scenario", "Region"))
-
-# meta %<>%
-#   tidyr::extract(run, 
-#                  into = c('GCM','RCP'),
-#                  regex = "(BCC-CSM2|BCC-CSM2-MR|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
-#                  remove = FALSE)  
-
-# Doesn't need GCM because the averages are the same? 
+meta <- fread("RowMetadata.csv", select = c("year", "scenario", "GCM", "Region"))
 
 for (i in 1:10) { #Loop starts  
   iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = "Pred")
