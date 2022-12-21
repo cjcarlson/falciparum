@@ -17,8 +17,8 @@ if (user == "Colin") {
 setwd(wd)
 
 # source functions from previous script
-source(file.path(repo,'code/R_utils.R'))
-source(file.path(repo,'code/utils_plotting.R'))
+# source(file.path(repo,'code/R_utils.R'))
+# source(file.path(repo,'code/utils_plotting.R'))
 
 # packages
 library(doSNOW)
@@ -37,8 +37,9 @@ library(vroom)
 ########################################################################
 
 #### Read in the data backup
-data <- vroom('./Dataframe backups/formatted-backup.csv', 
-              col_types = cols(Pf = "d", PfPR2 = "d"))
+data <- vroom(file.path(wd,"Data/CRU-Reextraction-Aug2022.csv"),
+                 col_types = cols(Pf = "d", PfPR2 = "d")) %>%
+  filter(!(year == 1900))
 
 tdf <- bind_rows(data %>% select(temp, ppt) %>% mutate(sample = 'Background'),
                  data %>% filter(!is.na(PfPR2)) %>% select(temp, ppt) %>% mutate(sample = 'Sampled'))
@@ -106,22 +107,6 @@ fd %>%
   scale_alpha_continuous(range = c(0.2, 1)) + 
   xlab(NULL) + ylab(NULL) + 
   guides(fill = FALSE) -> fd2
-
-
-# fd %>% 
-#   filter()
-#   select(month, year, OBJECTID, flood, drought) %>%
-#   group_by(month, year) %>% 
-#   summarize(flood = sum(flood, na.rm = TRUE),
-#             drought = sum(drought, na.rm = TRUE)) %>% 
-#   unite("monthyr", month:year, sep=' 1 ', remove=FALSE) %>% 
-#   mutate(monthyr = mdy(monthyr)) %>%
-#   pivot_longer(c('flood', 'drought'), 'event') %>% 
-#   ggplot(aes(x = monthyr, y = value, group = event, color = value)) +
-#   theme_minimal() + 
-#   geom_point(alpha = 0.1) + geom_smooth(method = 'gam') + 
-#   facet_wrap(~ event, nrow = 2) + 
-#   xlab(NULL) + ylab("ADM1 areas with value")
 
 library(patchwork)
 (thist + phist) / fd1 / fd2 + plot_layout(heights = c(2.3, 1, 1)) + plot_annotation(tag_levels = 'A')
