@@ -14,15 +14,14 @@ meta <- fread("RowMetadata.csv", select = c("year", "scenario", "Region"))
 
 # Doesn't need GCM because the averages are the same? 
 
-for (i in 1:1000) { #Loop starts  
+for (i in 1:10) { #Loop starts  
   iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = "Pred")
   iter <- bind_cols(meta, iter)
   iter <-  iter[,list(Pred = mean(Pred, na.rm = TRUE)), by = 'scenario,year,Region']
   if(i==1) {iter.df <- iter} else {iter.df <- bind_cols(iter.df, iter$Pred)}
 } #Loop ends
 
-iter.df %<>% as.tibble()
-
+iter.df %<>% as_tibble()
 iter.df %<>% pivot_longer(cols = -c(scenario, year, Region), names_to = c("Pred"))
 
 iter.df %>% 
