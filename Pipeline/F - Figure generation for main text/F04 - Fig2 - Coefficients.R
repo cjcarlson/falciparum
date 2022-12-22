@@ -110,7 +110,7 @@ g = ggplot()  +
   geom_line(data = subset(plotData,model=="boot1"), 
             mapping = aes(x = x, y = response), color = "black", size = 1) +
   theme_bw() + 
-  labs(x = expression(paste("Mean temperature (",degree,"C")), y = "Effect on prevalence (%)") + 
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = "Effect on prevalence (%)") + 
   xlim(Tmin,Tmax) + 
   theme(axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 5),

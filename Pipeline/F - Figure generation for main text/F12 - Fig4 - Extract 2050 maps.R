@@ -19,7 +19,7 @@ meta <- meta[rows,]
 meta$year[meta$year %in% c(2015:2019)] <- 2015
 meta$year[meta$year %in% c(2048:2052)] <- 2050
 
-for (i in 1:10) {  
+for (i in 1:1000) {  
   iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = "Pred")
   iter <- iter[rows,]
   iter <- bind_cols(meta, iter)
