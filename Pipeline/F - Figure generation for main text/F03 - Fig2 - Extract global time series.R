@@ -32,7 +32,7 @@ iter.df %<>% pivot_longer(cols = -c(scenario, GCM, year), names_to = c("Pred"))
 
 iter.df %>% 
   filter(year %in% c(1900:1930)) %>%
-  group_by(scenario, GCM, Pred) %>%
+  group_by(GCM, Pred, scenario) %>%
   summarize(BetaMean = mean(value, na.rm = TRUE)) %>% 
   right_join(iter.df) %>% 
   mutate(value = (value-BetaMean)) %>%
@@ -92,7 +92,7 @@ iter.df %>%
 
 iter.df2 %>% 
   filter(year %in% c(2015:2019)) %>%
-  group_by(RCP, Pred) %>%
+  group_by(GCM, Pred, RCP) %>%
   summarize(BetaMean = mean(value, na.rm = TRUE)) %>% 
   right_join(iter.df2) %>% 
   mutate(value = (value-BetaMean)) %>%

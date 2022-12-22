@@ -6,7 +6,7 @@ setwd("D:/MalariaAfrica/FutureTempFiles")
 setDTthreads(1L)
 meta <- fread("RowMetadata.csv", select = c("year", "run", "Region"))
 
-for (i in 1:10) { 
+for (i in 1:1000) { 
   iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = "Pred")
   iter <- bind_cols(meta, iter)
   iter <-  iter[,list(Pred = mean(Pred, na.rm = TRUE)), by = 'run,year,Region']
@@ -24,7 +24,7 @@ iter.df %>%
 
 iter.df2 %>% 
   filter(year %in% c(2015:2020)) %>%
-  group_by(RCP, Region, Pred) %>%
+  group_by(RCP, Region, GCM, Pred) %>%
   summarize(BetaMean = mean(value, na.rm = TRUE)) %>% 
   right_join(iter.df2) %>% 
   mutate(value = (value-BetaMean)) %>%
