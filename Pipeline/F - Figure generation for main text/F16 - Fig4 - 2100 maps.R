@@ -7,7 +7,7 @@ library(patchwork)
 library(multiscales)
 library(vroom)
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/Fig3Big2100.csv")
+iter.df <- vroom("~/Github/falciparum/TempFiles/Fig4Big2100.csv")
 
 ###########################################################################
 ###########################################################################

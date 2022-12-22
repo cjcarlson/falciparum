@@ -30,4 +30,4 @@ for (i in 1:1000) {
 iter.df %<>% as_tibble()
 iter.df %<>% pivot_longer(cols = -c(RCP, GCM, year, OBJECTID), names_to = c("Pred"))
 
-vroom::vroom_write(iter.df, "~/Github/falciparum/TempFiles/Fig3Big2050.csv")
+vroom::vroom_write(iter.df, "~/Github/falciparum/TempFiles/Fig4Big2050.csv")
