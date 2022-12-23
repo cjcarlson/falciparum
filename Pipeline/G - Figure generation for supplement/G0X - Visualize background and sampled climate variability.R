@@ -51,7 +51,7 @@ tdf %>%
   theme(legend.position = c(0.2, 0.9),
         legend.title = element_blank()) +
   scale_alpha_manual(values = c(0.35, 1)) + 
-  xlab(expression(paste("Mean temperature (",degree,"C"))) + ylab("Count") -> thist
+  xlab(expression(paste("Temperature (",degree,"C)"))) + ylab("Count") -> thist
 
 tdf %>% 
   ggplot(aes(ppt, color = NULL, fill = sample, alpha = sample)) + 

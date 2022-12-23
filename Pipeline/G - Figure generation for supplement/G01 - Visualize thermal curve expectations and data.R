@@ -111,9 +111,6 @@ colnames(plotData) = c("x", "model","response")
 data <- read.csv(file.path(wd,"Data/CRU-Reextraction-Aug2022.csv"))
 # Keep an eye out for logical data parse issue
 
-# Rescale to percentages
-data %>% mutate(PfPR2 = PfPR2/100) -> data
-
 # Generate the R0 curves:
 data$predR0 <- sapply(data$temp, r0t)
 
@@ -131,8 +128,8 @@ data %>%
   geom_vline(xintercept = 25.56, color = 'dark grey', lwd = 1, linetype = 'longdash') +
   geom_line(color = "black", lwd = 0.7) + 
   xlim(c(15,35)) + 
-  xlab("Temperature") + 
-  ylab(expression('R'[0]*' predicted')) + 
+  labs(x = expression(paste("Temperature (",degree,"C)")),
+       y = expression('R'[0]*' predicted')) + 
   theme_bw() -> g1
 
 
@@ -141,9 +138,9 @@ data %>%
   geom_vline(xintercept = 25.56, color = 'dark grey', lwd = 0.7, linetype = 'longdash') +
 #  geom_vline(xintercept = optg2, color = "#C1657C", lwd = 0.7, linetype = 'longdash') +
   geom_smooth(aes(y = PfPR2), lwd=1, color = "#C1657C", fill='light grey') + 
-  xlim(c(15,35)) + 
-  xlab("Temperature") + 
-  ylab("Prevalence (raw data)") + 
+  xlim(c(15,35)) +
+  labs(x = expression(paste("Temperature (",degree,"C)")),
+       y = "Prevalence (%, raw data)")  + 
   theme_bw() -> g2 
 ggplot_build(g2)$data[[2]] -> sm
 sm$x[sm$y == max(sm$y)] -> optg2
@@ -153,8 +150,8 @@ data %>%
   geom_vline(xintercept = optg2, color = "#C1657C", lwd = 0.7, linetype = 'longdash') +
   geom_smooth(aes(y = PfPR2), lwd=1, color = "#C1657C", fill='light grey') + 
   xlim(c(15,35)) + 
-  xlab("Temperature") + 
-  ylab("Prevalence (raw data)") + 
+  labs(x = expression(paste("Temperature (",degree,"C)")),
+       y = "Prevalence (%, raw data)") + 
   theme_bw() -> g2 
 
 plotData[(plotData$model=='boot1'),] -> sm
@@ -165,8 +162,9 @@ plotData[plotData$model=='boot1',] %>%
   geom_vline(xintercept = optg3, color = "#C1657C", lwd = 0.7, linetype = 'longdash') +
   geom_line(color = "#C1657C", lwd = 1) + 
   xlim(c(15,35)) + 
-  xlab("Temperature") + 
-  ylab("Prevalence (modeled)") + 
+  ylim(c(-9,0.2)) + 
+  labs(x = expression(paste("Temperature (",degree,"C)")),
+       y = "Prevalence (%, modeled)") + 
   theme_bw() -> g3
 
 g1 + g2 + g3 + plot_annotation(tag_levels = 'A')

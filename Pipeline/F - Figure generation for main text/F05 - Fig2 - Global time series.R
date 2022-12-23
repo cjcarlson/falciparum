@@ -40,4 +40,4 @@ graph.data %>%
   theme(axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 6),
         plot.margin = unit(c(0.5,0.5,1,1), "cm"), 
-        legend.position = c(0.13, 0.23)) -> s; s
+        legend.position = c(0.13, 0.33)) -> s; s

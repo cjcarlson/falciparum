@@ -31,7 +31,7 @@ iter.df %<>% as_tibble()
 iter.df %<>% pivot_longer(cols = -c(scenario, GCM, year), names_to = c("Pred"))
 
 iter.df %>% 
-  filter(year %in% c(1900:1930)) %>%
+  filter(year %in% c(1900:1930)) %>% # This is actually 1901 to 1930 in practice
   group_by(GCM, Pred, scenario) %>%
   summarize(BetaMean = mean(value, na.rm = TRUE)) %>% 
   right_join(iter.df) %>% 

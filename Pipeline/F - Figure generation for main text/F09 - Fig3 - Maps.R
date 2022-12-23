@@ -48,7 +48,7 @@ ggplot(sfcont) +
   coord_sf(datum = NA) +
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
-                  name = c("Change in prevalence (%)", "sign uncertainty"),
+                  name = c("Change in prevalence (%)", "sign uncert."),
                   limits = list(c(-1, 1), c(0, 1)),
                   breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent),
@@ -65,7 +65,8 @@ leg <- cowplot::get_legend(map.diff)
 ggplot(sfcont) + 
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
   coord_sf(datum = NA, 
-           xlim = c(-19, 53)) + 
+           xlim = c(-17.5, 52),
+           ylim = c(-35.5, 37.5)) + 
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
                   name = c("Change in prevalence (%)", "sign uncertainty"),
@@ -78,7 +79,7 @@ ggplot(sfcont) +
     #legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
   ) + ggtitle('B') + 
-  theme(plot.title = element_text(size = 25)) -> map.diff.no.legend 
+  theme(plot.title = element_text(size = 20)) -> map.diff.no.legend 
 
 
 ###########################################################################
@@ -113,10 +114,11 @@ library(multiscales)
 ggplot(sfcont) + 
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
   coord_sf(datum = NA, 
-           xlim = c(-19, 53)) + 
+           xlim = c(-17.5, 52),
+           ylim = c(-35.5, 37.5)) + 
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
-                  name = c("Change in prevalence (%)", "sign uncertainty"),
+                  name = c("Change in prevalence (%)", "sign uncert."),
                   limits = list(c(-1, 1), c(0, 1)),
                   breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent)) +
@@ -126,7 +128,7 @@ ggplot(sfcont) +
     #legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
   ) + ggtitle('A') + 
-  theme(plot.title = element_text(size = 25))  -> map.mean.no.legend
+  theme(plot.title = element_text(size = 20))  -> map.mean.no.legend
 
 map.mean.no.legend + map.diff.no.legend + leg + plot_layout(widths = c(4, 4, 2)) -> top
 #rm(all)
