@@ -7,3 +7,5 @@ TempFiles/ADM1-CRU.csv
 TempFiles/ADM1-Prevalence.csv
 *.gz
 TempFiles/Fig2Big.csv
+TempFiles/Fig4Big2050.csv
+TempFiles/Fig4Big2100.csv

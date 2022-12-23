@@ -19,5 +19,6 @@ data.to.graph %>%
   ylab("Predicted change in prevalence (%)") + 
   geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) + 
   facet_wrap(Region ~ ., ncol = 4) + 
+  ggtitle('E') + 
   theme(legend.position = 'bottom') -> bottom
 

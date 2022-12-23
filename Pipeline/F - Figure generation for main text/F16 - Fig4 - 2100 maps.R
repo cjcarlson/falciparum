@@ -60,7 +60,7 @@ ggplot(sfcont) +
     legend.key.size = grid::unit(1, "cm"),
     legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
-  ) + ggtitle('A') + 
+  ) + ggtitle('C') + 
   theme(plot.title = element_text(size = 25))  -> map.rcp26
 
 legend <- cowplot::get_legend(map.rcp26)
@@ -134,7 +134,7 @@ ggplot(sfcont) +
     legend.key.size = grid::unit(1, "cm"),
     legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
-  ) + ggtitle('B') + 
+  ) + ggtitle('D') + 
   theme(plot.title = element_text(size = 25))  -> map.rcp85.nolegend
 
 map.rcp26.nolegend + map.rcp85.nolegend + legend + plot_layout(widths = c(4, 4, 2)) -> middle

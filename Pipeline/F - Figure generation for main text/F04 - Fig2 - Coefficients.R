@@ -84,7 +84,7 @@ plotData = data.frame(x = xValsT[,1] + Tref, response = response)
 #plotData$model = "main"    
 
 # loop over all bootstraps, add to dataframe
-for(mod in 2:dim(df)[1]){ #dim(df)[1]
+for(mod in 1:dim(df)[1]){ #dim(df)[1]
   sub = df[mod,]
   b = as.matrix(c(sub$temp,sub$temp2))
   boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
