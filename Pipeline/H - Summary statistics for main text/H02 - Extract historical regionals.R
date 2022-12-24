@@ -20,7 +20,7 @@ setwd("D:/MalariaAfrica/HistoricalTempFiles")
 setDTthreads(1L)
 meta <- fread("RowMetadata.csv", select = c("year", "scenario", "GCM", "Region"))
 
-for (i in 1:10) { 
+for (i in 1:1000) { 
   iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = c("Pred","Pf.temp","Pf.flood","Pf.drought"))
   iter <- bind_cols(meta, iter)
   iter <-  iter[,list(Pred = mean(Pred, na.rm = TRUE), 
