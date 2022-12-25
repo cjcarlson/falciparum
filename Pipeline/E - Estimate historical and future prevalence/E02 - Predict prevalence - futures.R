@@ -91,7 +91,7 @@ precip.key <- read_csv('~/Github/falciparum/precipkey.csv')
 
 setwd("D:/MalariaAfrica/FutureTempFiles")
 
-for (i in c(686:1000)) {
+for (i in c(1:1000)) {
   
 coef <- bootstrap[i,]
 iter.df <- future.df
