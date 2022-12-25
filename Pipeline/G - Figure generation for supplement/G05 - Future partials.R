@@ -1,10 +1,16 @@
 
 library(tidyverse); library(magrittr); library(ggplot2); library(data.table); library(vroom)
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/SuppHistoricalBig.csv")
+iter.df <- vroom("~/Github/falciparum/TempFiles/SuppFutureBig.csv")
+
+iter.df %<>% 
+  tidyr::extract(run, 
+                 into = c('GCM','scenario'),
+                 regex = "(BCC-CSM2|BCC-CSM2-MR|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
+                 remove = FALSE) 
 
 iter.df %>% 
-  filter(year %in% c(1900:1930)) %>%
+  filter(year %in% c(2015:2020)) %>%
   group_by(GCM, scenario, iter) %>%
   summarize(BetaMean = mean(Pred, na.rm = TRUE)) -> bm
 iter.df %>% 
@@ -13,6 +19,7 @@ iter.df %>%
   select(-BetaMean) -> df
 
 df %>%
+  mutate(scenario = factor(scenario)) %>% 
   group_by(scenario, year) %>%
   summarize(median = median(Pred, na.rm = TRUE),
             upper = quantile(Pred, 0.95, na.rm = TRUE),
@@ -21,24 +28,23 @@ df %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("grey50", "#287DAB"), 
-                     labels = c('Historical counterfactual', 'Historical climate'),
+  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                      name = '') + 
-  scale_fill_manual(values = c("grey50", "#287DAB"), 
-                    labels = c('Historical counterfactual', 'Historical climate'),
-                    name = '') + 
+  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
   xlab(NULL) + ylab("Predicted prevalence (%)") + 
   theme(axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 6),
         plot.margin = unit(c(0.2,0.5,0.2,1), "cm"), 
-        legend.position = c(0.2, 0.82),
-        legend.spacing.y = unit(0, "mm"),
+        legend.position = c(0.2, 0.27),
         legend.title = element_blank()) -> s1; s1
 
 iter.df %>% 
-  filter(year %in% c(1900:1930)) %>%
+  filter(year %in% c(2015:2020)) %>%
   group_by(GCM, scenario, iter) %>%
   summarize(BetaMean = mean(Pf.temp, na.rm = TRUE)) -> bm
 iter.df %>% 
@@ -55,11 +61,11 @@ df %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("grey50", "#287DAB"), 
-                     labels = c('Historical counterfactual', 'Historical climate'),
+  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                      name = '') + 
-  scale_fill_manual(values = c("grey50", "#287DAB"), 
-                    labels = c('Historical counterfactual', 'Historical climate'),
+  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                    labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
@@ -71,7 +77,7 @@ df %>%
         legend.title = element_blank()) -> s2; s2
 
 iter.df %>% 
-  filter(year %in% c(1900:1930)) %>%
+  filter(year %in% c(2015:2020)) %>%
   group_by(GCM, scenario, iter) %>%
   summarize(BetaMean = mean(Pf.flood, na.rm = TRUE)) -> bm
 iter.df %>% 
@@ -88,11 +94,11 @@ df %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("grey50", "#287DAB"), 
-                     labels = c('Historical counterfactual', 'Historical climate'),
+  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                      name = '') + 
-  scale_fill_manual(values = c("grey50", "#287DAB"), 
-                    labels = c('Historical counterfactual', 'Historical climate'),
+  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                    labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
@@ -105,7 +111,7 @@ df %>%
 
 
 iter.df %>% 
-  filter(year %in% c(1900:1930)) %>%
+  filter(year %in% c(2015:2020)) %>%
   group_by(GCM, scenario, iter) %>%
   summarize(BetaMean = mean(Pf.drought, na.rm = TRUE)) -> bm
 iter.df %>% 
@@ -122,11 +128,11 @@ df %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("grey50", "#287DAB"), 
-                     labels = c('Historical counterfactual', 'Historical climate'),
+  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                      name = '') + 
-  scale_fill_manual(values = c("grey50", "#287DAB"), 
-                    labels = c('Historical counterfactual', 'Historical climate'),
+  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
+                    labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
