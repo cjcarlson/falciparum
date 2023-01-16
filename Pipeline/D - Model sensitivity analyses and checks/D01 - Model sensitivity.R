@@ -58,6 +58,10 @@ Tmax = 40 #max T for x axis
 #### Call external script for data cleaning
 source(file.path(repo,'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
 
+########################################################################
+# Estimation
+########################################################################
+
 # Formulas: all fixed effects (main spec = cXt2intrXm)
 cym = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + year + month | 0 | OBJECTID"))
 cXt2m = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID  + month | 0 | OBJECTID"))
