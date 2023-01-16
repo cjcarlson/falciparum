@@ -99,7 +99,7 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, plo
   
   if(plotmax==T) {
     g = g + geom_vline(mapping = aes(xintercept=maxX), linetype = "solid", colour = "sandybrown") +
-      annotate(geom="text", x=maxX+2.5, y=9, label=paste0(maxX," C"),
+      annotate(geom="text", x=maxX+2.5, y=5, label=paste0(maxX," C"),
                color="sandybrown")
   }
   return(g)
