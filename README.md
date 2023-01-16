@@ -13,13 +13,15 @@ B - Extract climate and prevalence data
 ├─ B01 - Extract CRU data and temperature.R
 ├─ B02 - Extract GCMs - historical.R
 ├─ B03 - Extract GCMs - natural counterfactual.R
-└─ B04 - Extract GCMs - future
+└─ B04 - Extract GCMs - future.R
 
 C - Model estimation
-└─ ### pending
+├─ C01 - MainSpec.R
+└─ C02 - Bootstrap.R 
 
 D - Model sensitivity analyses and checks
-└─ ### pending
+├─ D01 - Model sensitivity.R
+└─ D02 - Randomization tests.R
 
 E - Estimate historical and future prevalence
 ├─ E01 - Predict prevalence - historicals.R
