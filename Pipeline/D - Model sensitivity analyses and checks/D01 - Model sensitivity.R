@@ -47,7 +47,7 @@ library(dplyr)
 # as minimum and maximum for range of temperature
 ############################################################
 
-Tref = 24 #reference temperature - curve gets recentered to 0 here
+Tref = 25 #reference temperature - curve gets recentered to 0 here
 Tmin = 10 #min T for x axis
 Tmax = 40 #max T for x axis
 
@@ -73,7 +73,8 @@ rXyrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtv
 rXycXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXyrXmcXt = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
 myforms = c(cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt) 
-mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
+#mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
+mycollabs = c("cnty + yr + mo FEs.", "cnty trd, mo FEs.", "cnty trd, cnty-mo FEs.", "cnty trd, int + mo FEs.", "cnty trd, int + rgn-mo FEs.", "cnty trd, int + cnty-mo FEs.", "rgn-yr + rgn-mo FEs.", "rgn-yr + cnty-mo FEs.", "rgn-yr+rgn-mo FEs., cnty trd")
 
 # Run all models
 modellist = list()
@@ -87,9 +88,9 @@ for (m in myforms) {
 mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
 stargazer(modellist,
           title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = mycollabs,
-          keep = c("temp", "flood", "drought"),
+          keep = c("temp", "flood", "drought", "intervention"),
           out = file.path(wd, "Results", "Tables", "sensitivity","FixedEffects_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
-          notes.append = TRUE, notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
+          notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 ########################################################################
 # Plot temperature response functions for all fixed effects specifications
@@ -104,7 +105,8 @@ for(m in 1:length(modellist)) {
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
   figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-30,10), showYTitle = T)
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
+    theme(plot.title = element_text(size = 10))
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
@@ -170,8 +172,8 @@ for(r in 1:length(rlist)){
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2, 
               labels=c(as.character(rlist[1]), as.character(rlist[2]), as.character(rlist[3]), as.character(rlist[4])),
               label_size = 8, vjust = .5)
-fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Fixed_effects/country_quad_trends_by_GBOD_region.png')
-ggsave(filename = fn, plot = p, height = 8, width = 10)
+fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Fixed_effects/country_quad_trends_by_GBOD_region.pdf')
+ggsave(filename = fn, plot = p, height = 10, width = 10)
 
 # 3. Ensure we have sufficient data to identify GBOD region X year FEs,
 # region X month FEs, country X month FEs, but not country X year FEs (too little coverage here).
@@ -377,7 +379,8 @@ for(m in 1:length(modellist)) {
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
   figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,5), showYTitle = T)
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,5), showYTitle = T) +
+    theme(plot.title = element_text(size = 10))
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
@@ -395,7 +398,7 @@ ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", 
 # All drought figures
 figList = list()
 for(m in 1:length(modellist)) {
-  figList[[m]] =  plotLinearLags(modellist[[m]], "drought", cluster = T, laglength = 3, xLab="Lag", "Coefficient", title = modellabs[[m]], yLim = c(-6,4))
+  figList[[m]] =  plotLinearLags(modellist[[m]], "drought", cluster = T, laglength = 3, xLab="Monthly lag", "Coefficient", title = modellabs[[m]], yLim = c(-6,4))
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
@@ -410,7 +413,7 @@ ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", 
 # All flood figures
 figList = list()
 for(m in 1:length(modellist)) {
-  figList[[m]] =  plotLinearLags(modellist[[m]], "flood", cluster = T, laglength = 3, xLab="Lag", "Coefficient", title = modellabs[[m]], yLim = c(-4,4))
+  figList[[m]] =  plotLinearLags(modellist[[m]], "flood", cluster = T, laglength = 3, xLab="Monthly lag", "Coefficient", title = modellabs[[m]], yLim = c(-4,4))
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
@@ -452,8 +455,10 @@ myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
 figList = list()
 for(m in 1:length(modellist)) {
   end = m+1
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp[,1:end], polyOrder = end, plotmax = T, cluster = T, xRef = myrefT, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,5), showYTitle = T)
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp[,1:end], polyOrder = end, plotmax = F, cluster = T, xRef = myrefT, xLab = "Monthly avg. T [C]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,5), showYTitle = T) +
+        geom_vline(mapping = aes(xintercept=myrefT), linetype = "solid", colour = "sandybrown") +
+        annotate(geom="text", x=myrefT+3, y=5, label=paste0(myrefT," C"), color="sandybrown")
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
