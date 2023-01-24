@@ -1,4 +1,4 @@
-# The historical fingerprint and future impact of climate change on childhood malaria in Africa 🦟🦠
+# Code from: The historical fingerprint and future impact of climate change on childhood malaria in Africa
 
 ![banner](https://github.com/cjcarlson/falciparum/blob/master/TempFiles/GithubPreview.jpg)
 
