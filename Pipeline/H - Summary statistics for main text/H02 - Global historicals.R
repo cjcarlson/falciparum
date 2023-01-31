@@ -18,8 +18,10 @@ df %>%
   filter(year %in% c(2010:2014)) %>%
   pivot_wider(names_from = scenario, values_from = Pred) -> df2
 
+mean(df2$hist - df2$nat)
 100000*mean(df2$hist - df2$nat)/100
-t.test(df2$hist, df2$nat, paired = TRUE)
 
+quantile((df2$hist - df2$nat), 0.025)
+quantile((df2$hist - df2$nat), 0.975)
 table((df2$hist - df2$nat) > 0) %>% prop.table() 
 
