@@ -180,4 +180,4 @@ dffix <- separate(contdf,  variable, into=c('month','year','var'), sep='\\.')
 dffix <- dffix %>% pivot_wider(names_from = 'var', values_from = 'value')
 dffix$year <- as.numeric(dffix$year)
 
-readr::write_csv(dffix, 'CRU-Reextraction-Aug2022.csv')
+readr::write_csv(dffix, '~/Github/falciparum/Climate/CRU-Reextraction-Aug2022.csv')
