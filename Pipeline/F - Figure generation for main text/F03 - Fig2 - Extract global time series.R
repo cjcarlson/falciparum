@@ -44,7 +44,7 @@ df %>%
             upper = quantile(value, 0.95, na.rm = TRUE),
             lower = quantile(value, 0.05, na.rm = TRUE)) -> hist.to.graph
 
-write_csv(hist.to.graph, "~/Github/falciparum/TempFiles/Fig1Hist.csv")
+write_csv(hist.to.graph, "~/Github/falciparum/TempFiles/Fig2Hist.csv")
 rm(meta)
 
 # hist.to.graph %>%
@@ -104,7 +104,7 @@ df %>%
             upper = quantile(value, 0.95),
             lower = quantile(value, 0.05)) -> future.to.graph
 
-write_csv(future.to.graph, "~/Github/falciparum/TempFiles/Fig1Future.csv")
+write_csv(future.to.graph, "~/Github/falciparum/TempFiles/Fig2Future.csv")
 rm(meta)
 
 # future.to.graph %>%

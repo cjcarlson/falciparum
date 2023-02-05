@@ -1,5 +1,5 @@
 
-setwd("C:/Users/cjcar/Dropbox/MalariaAttribution")
+setwd("~/Github/falciparum/Climate")
 
 library(tidyverse)
 library(magrittr)
@@ -13,10 +13,10 @@ library(vroom)
 # 1. Get the climate data - every file with a future projection 
 # (Note: Some are currently missing and need to be restored)
 
-all.files <- list.files('./ClimateCSVs', full.names = TRUE)
-future.files <- list.files('./ClimateCSVs', pattern = "rcp", full.names = TRUE)
-all.files <- all.files[!(all.files %in% future.files)]
-nat.files <- list.files('./ClimateCSVs', pattern="nat.csv", full.names = TRUE)
+future.files <- list.files('./Future', pattern = "rcp", full.names = TRUE)
+
+all.files <- list.files('./Historical', full.names = TRUE)
+nat.files <- list.files('./Historical', pattern="nat.csv", full.names = TRUE)
 hist.files <- all.files[!(all.files %in% nat.files)]
 
 read_plus <- function(flnm) {
@@ -50,7 +50,7 @@ hist.df %<>% rename(GCM = "run")
 
 # First, bind country information to the OBJECTID's
 
-read_csv('./Dataframe backups/shapefile-backup.csv') %>%
+read_csv('C:/Users/cjcar/Dropbox/MalariaAttribution/Dataframe backups/shapefile-backup.csv') %>%
   select(OBJECTID, NAME_0) %>%
   unique() %>% 
   dplyr::rename(Country = NAME_0) -> 
@@ -60,7 +60,7 @@ hist.df %<>% left_join(countrydf)
 
 # Next, add the GBD regions back in
 
-gbod <- readOGR(file.path("Data", "OriginalGBD", "WorldRegions.shp"))
+gbod <- readOGR(file.path("C:/Users/cjcar/Dropbox/MalariaAttribution/Data", "OriginalGBD", "WorldRegions.shp"))
 
 gbod@data %>%
   as_tibble() %>%
@@ -89,7 +89,7 @@ hist.df %>%
 
 # 3. Load the bootstraps, and gather coefficients
 
-bootstrap <- readRDS("Results/Models/block_bootstrap_cXt2intrXm.rds")
+bootstrap <- readRDS("C:/Users/cjcar/Dropbox/MalariaAttribution/Results/Models/block_bootstrap_cXt2intrXm.rds")
 bootstrap <- as_tibble(bootstrap)
 
 # Load the precip thresholds

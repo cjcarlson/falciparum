@@ -8,8 +8,8 @@ library(patchwork)
 library(data.table)
 library(vroom)
 
-hist.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig1Hist.csv")
-future.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig1Future.csv")
+hist.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig2Hist.csv")
+future.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig2Future.csv")
 
 hist.to.graph %>%
   filter(scenario == 'hist', year %in% c(2010:2014)) %>%

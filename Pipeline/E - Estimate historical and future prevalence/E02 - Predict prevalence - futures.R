@@ -13,7 +13,7 @@ library(vroom)
 # 1. Get the climate data - every file with a future projection 
 # (Note: Some are currently missing and need to be restored)
 
-future.files <- list.files('./ClimateCSVs', pattern="rcp", full.names = TRUE)
+future.files <- list.files('~/Github/falciparum/Climate/Future', pattern = "rcp", full.names = TRUE)
 
 read_plus <- function(flnm) {
   read_csv(flnm) %>% 
