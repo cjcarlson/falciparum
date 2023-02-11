@@ -7,7 +7,12 @@ library(patchwork)
 library(multiscales)
 library(vroom)
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/Fig2Big.csv")
+iter.df <- vroom("~/Github/falciparum/TempFiles/Fig3Big.csv")
+
+iter.df %>%
+  mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
+  mutate(GCM = str_replace_all(GCM,'./Future/','')) %>%
+  mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
 
 ###########################################################################
 ###########################################################################
@@ -44,7 +49,7 @@ colors <- scales::colour_ramp(
 colors <- rev(colors)
 
 ggplot(sfcont) + 
-  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
   coord_sf(datum = NA) +
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
@@ -63,15 +68,15 @@ ggplot(sfcont) +
 leg <- cowplot::get_legend(map.diff)
 
 ggplot(sfcont) + 
-  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
   coord_sf(datum = NA, 
            xlim = c(-17.5, 52),
            ylim = c(-35.5, 37.5)) + 
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
                   name = c("Change in prevalence (%)", "sign uncertainty"),
-                  limits = list(c(-1, 1), c(0, 1)),
-                  breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
+                  limits = list(c(-2.5, 2.5), c(0, 1)),
+                  breaks = list(c(-2.5, -1, 0, 1, 2.5), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent)) +
   theme_void() +
   theme(
@@ -112,15 +117,15 @@ sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5500)/5500)
 
 library(multiscales)
 ggplot(sfcont) + 
-  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
   coord_sf(datum = NA, 
            xlim = c(-17.5, 52),
            ylim = c(-35.5, 37.5)) + 
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
                   name = c("Change in prevalence (%)", "sign uncert."),
-                  limits = list(c(-1, 1), c(0, 1)),
-                  breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
+                  limits = list(c(-2.5, 2.5), c(0, 1)),
+                  breaks = list(c(-2.5, -1, 0, 1, 2.5), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent)) +
   theme_void() +
   theme(
