@@ -45,7 +45,7 @@ colors <- rev(colors)
 
 library(multiscales)
 ggplot(sfcont) + 
-  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
   coord_sf(datum = NA, 
            xlim = c(-17.5, 52),
            ylim = c(-35.5, 37.5)) + 
@@ -67,15 +67,15 @@ ggplot(sfcont) +
 legend <- cowplot::get_legend(map.rcp26)
 
 ggplot(sfcont) + 
-  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
   coord_sf(datum = NA, 
            xlim = c(-17.5, 52),
            ylim = c(-35.5, 37.5)) + 
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
                   name = c("Change in prevalence (%)", "sign uncertainty"),
-                  limits = list(c(-4.5, 4.5), c(0, 1)),
-                  breaks = list(c(-4.5, -2, 0, 2, 4.5), c(0, 0.25, 0.5, 0.75, 1)),
+                  limits = list(c(-8, 8), c(0, 1)),
+                  breaks = list(c(-8, -4, 0, 4, 8), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent)) +
   theme_void() +
   theme(
@@ -122,15 +122,15 @@ colors <- rev(colors)
 library(multiscales)
 
 ggplot(sfcont) + 
-  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.1) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
   coord_sf(datum = NA, 
            xlim = c(-17.5, 52),
            ylim = c(-35.5, 37.5)) + 
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
                   name = c("Change in prevalence (%)", "sign uncertainty"),
-                  limits = list(c(-4.5, 4.5), c(0, 1)),
-                  breaks = list(c(-4.5, -2, 0, 2, 4.5), c(0, 0.25, 0.5, 0.75, 1)),
+                  limits = list(c(-8, 8), c(0, 1)),
+                  breaks = list(c(-8, -4, 0, 4, 8), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent)) +
   theme_void() +
   theme(

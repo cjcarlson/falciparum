@@ -116,3 +116,6 @@ temps %>%
   filter(!(model=='boot1')) %>% 
   pull(temp) -> temps
 fivenum(temps)
+
+quantile(temps, 0.025)
+quantile(temps, 0.975)

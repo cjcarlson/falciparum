@@ -1,7 +1,12 @@
 
 library(tidyverse); library(magrittr); library(ggplot2); library(data.table); library(vroom)
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/SuppHistoricalBig.csv")
+iter.df <- read_delim("~/Github/falciparum/TempFiles/SuppHistoricalBig.csv", delim='\t')
+iter.df <- iter.df[1:2508000,] # Did this overwrite with something bad?
+
+iter.df %>%
+  mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
+  mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
 
 iter.df %>% 
   filter(year %in% c(1900:1930)) %>%
@@ -17,7 +22,7 @@ df %>%
   summarize(median = median(Pred, na.rm = TRUE),
             upper = quantile(Pred, 0.95, na.rm = TRUE),
             lower = quantile(Pred, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
@@ -51,7 +56,7 @@ df %>%
   summarize(median = median(Pf.temp, na.rm = TRUE),
             upper = quantile(Pf.temp, 0.95, na.rm = TRUE),
             lower = quantile(Pf.temp, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
@@ -84,7 +89,7 @@ df %>%
   summarize(median = median(Pf.flood, na.rm = TRUE),
             upper = quantile(Pf.flood, 0.95, na.rm = TRUE),
             lower = quantile(Pf.flood, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
@@ -118,7 +123,7 @@ df %>%
   summarize(median = median(Pf.drought, na.rm = TRUE),
             upper = quantile(Pf.drought, 0.95, na.rm = TRUE),
             lower = quantile(Pf.drought, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 

@@ -3,6 +3,11 @@ library(tidyverse); library(magrittr); library(ggplot2); library(data.table); li
 
 iter.df <- vroom("~/Github/falciparum/TempFiles/SuppHistoricalRegions.csv")
 
+iter.df %>%
+  mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
+  mutate(GCM = str_replace_all(GCM,'./Future/','')) %>%
+  mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
+
 ###########################################################################
 ###########################################################################
 ###########################################################################
@@ -20,14 +25,21 @@ iter.df %>%
   select(-BetaMean) -> df
 
 df %>% 
-  select(GCM, iter, year, Pred, scenario) %>% 
   filter(year %in% c(2010:2014)) %>%
+  select(GCM, iter, year, Pred, scenario) %>% 
   pivot_wider(names_from = scenario, values_from = Pred) -> df2
 
-# 100000*mean(df2$hist - df2$nat)/100
-t.test(df2$hist, df2$nat, paired = TRUE)
+df2 %>%
+  group_by(GCM, iter) %>%
+  summarize(nat = mean(nat), hist = mean(hist)) -> df2
 
+mean(df2$hist - df2$nat)
+100000*mean(df2$hist - df2$nat)/100
+quantile((df2$hist - df2$nat), 0.025)
+quantile((df2$hist - df2$nat), 0.975)
 table((df2$hist - df2$nat) > 0) %>% prop.table() 
+
+
 
 
 ###########################################################################
@@ -47,14 +59,20 @@ iter.df %>%
   select(-BetaMean) -> df
 
 df %>% 
-  select(GCM, iter, year, Pred, scenario) %>% 
   filter(year %in% c(2010:2014)) %>%
+  select(GCM, iter, year, Pred, scenario) %>% 
   pivot_wider(names_from = scenario, values_from = Pred) -> df2
 
-# 100000*mean(df2$hist - df2$nat)/100
-t.test(df2$hist, df2$nat, paired = TRUE)
+df2 %>%
+  group_by(GCM, iter) %>%
+  summarize(nat = mean(nat), hist = mean(hist)) -> df2
 
+mean(df2$hist - df2$nat)
+100000*mean(df2$hist - df2$nat)/100
+quantile((df2$hist - df2$nat), 0.025)
+quantile((df2$hist - df2$nat), 0.975)
 table((df2$hist - df2$nat) > 0) %>% prop.table() 
+
 
 ###########################################################################
 ###########################################################################
@@ -73,14 +91,21 @@ iter.df %>%
   select(-BetaMean) -> df
 
 df %>% 
-  select(GCM, iter, year, Pred, scenario) %>% 
   filter(year %in% c(2010:2014)) %>%
+  select(GCM, iter, year, Pred, scenario) %>% 
   pivot_wider(names_from = scenario, values_from = Pred) -> df2
 
-# 100000*mean(df2$hist - df2$nat)/100
-t.test(df2$hist, df2$nat, paired = TRUE)
+df2 %>%
+  group_by(GCM, iter) %>%
+  summarize(nat = mean(nat), hist = mean(hist)) -> df2
 
+mean(df2$hist - df2$nat)
+100000*mean(df2$hist - df2$nat)/100
+quantile((df2$hist - df2$nat), 0.025)
+quantile((df2$hist - df2$nat), 0.975)
 table((df2$hist - df2$nat) > 0) %>% prop.table() 
+
+
 
 ###########################################################################
 ###########################################################################
@@ -99,11 +124,17 @@ iter.df %>%
   select(-BetaMean) -> df
 
 df %>% 
-  select(GCM, iter, year, Pred, scenario) %>% 
   filter(year %in% c(2010:2014)) %>%
+  select(GCM, iter, year, Pred, scenario) %>% 
   pivot_wider(names_from = scenario, values_from = Pred) -> df2
 
-# 100000*mean(df2$hist - df2$nat)/100
-t.test(df2$hist, df2$nat, paired = TRUE)
+df2 %>%
+  group_by(GCM, iter) %>%
+  summarize(nat = mean(nat), hist = mean(hist)) -> df2
 
+mean(df2$hist - df2$nat)
+100000*mean(df2$hist - df2$nat)/100
+quantile((df2$hist - df2$nat), 0.025)
+quantile((df2$hist - df2$nat), 0.975)
 table((df2$hist - df2$nat) > 0) %>% prop.table() 
+
