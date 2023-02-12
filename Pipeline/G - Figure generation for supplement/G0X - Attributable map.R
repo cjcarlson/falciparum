@@ -67,3 +67,29 @@ ggplot(cont) +
   theme(legend.position = c(0.15, 0.25))  -> g2 
 
 g1 + g2 
+
+### Scratch space
+
+cont %>%
+  mutate(sign = as.numeric(lower.diff > 0) + as.numeric(upper.diff < 0)) %>% 
+  mutate(sign = replace_na(sign, 0)) %>%
+  arrange(-sign) %>%
+  mutate(sign = as.factor(sign)) -> cont
+
+cont %>% select(sign) %>%
+  filter(sign == 1) %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_make_valid() %>% 
+  st_union() -> top
+
+ggplot(cont) + 
+  geom_sf(aes(fill = mean.diff), color = 'grey70', size = 0.05) +
+  coord_sf(datum = NA, 
+           xlim = c(-17.5, 52),
+           ylim = c(-35.5, 37.5)) + 
+  theme_void() + 
+  scale_fill_continuous_divergingx(palette = "Geyser", na.value = "white") +
+  labs(fill = "Change (%)") + 
+  theme(legend.position = c(0.25, 0.35)) + 
+  geom_sf(data = top, color = 'black', size = 0.25, fill = NA)
