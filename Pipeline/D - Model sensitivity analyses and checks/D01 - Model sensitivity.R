@@ -468,3 +468,39 @@ p
 dir.create(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_functionalForm"), showWarnings = FALSE)
 ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_functionalForm", "temperature_poly_order.pdf"), plot = p, width = 10, height = 10)
 
+########################################################################
+# Cumulative precipitation
+########################################################################
+
+# estimate polynomial orders up to 5
+modellist = list()
+modellist[[1]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[2]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[3]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[4]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + ppt5 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+# plot
+Tmin = 0
+Tmax = 600
+plotXprcp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2, seq(Tmin,Tmax)^3,seq(Tmin,Tmax)^4,seq(Tmin,Tmax)^5)
+modellabs = c("Quadratic", "Cubic", "Quartic", "Quintic")
+
+# get ref P
+myrefP = 0
+
+figList = list()
+for(m in 1:length(modellist)) {
+  end = m+1
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "ppt", plotXprcp[,1:end], polyOrder = end, plotmax = F, cluster = T, xRef = myrefP, xLab = "Monthly precip [mm]", 
+                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-10,5), showYTitle = T) 
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
+              figList[[4]], nrow=2)
+p
+
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", "precipitation_poly_order.pdf"), plot = p, width = 10, height = 10)
+
