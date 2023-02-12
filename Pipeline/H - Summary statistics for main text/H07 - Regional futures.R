@@ -27,6 +27,9 @@ iter.df %>%
 
 df %>% 
   filter(year %in% c(2048:2052)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),
@@ -34,11 +37,13 @@ df %>%
 
 df %>% 
   filter(year %in% c(2096:2100)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),
             upper = quantile(Pred, 0.975))
-
 
 #################################################################
 #################################################################
@@ -58,6 +63,9 @@ iter.df %>%
 
 df %>% 
   filter(year %in% c(2048:2052)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),
@@ -65,11 +73,13 @@ df %>%
 
 df %>% 
   filter(year %in% c(2096:2100)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),
             upper = quantile(Pred, 0.975))
-
 
 #################################################################
 #################################################################
@@ -89,6 +99,9 @@ iter.df %>%
 
 df %>% 
   filter(year %in% c(2048:2052)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),
@@ -96,6 +109,9 @@ df %>%
 
 df %>% 
   filter(year %in% c(2096:2100)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),
@@ -119,6 +135,9 @@ iter.df %>%
 
 df %>% 
   filter(year %in% c(2048:2052)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),
@@ -126,6 +145,9 @@ df %>%
 
 df %>% 
   filter(year %in% c(2096:2100)) %>%
+  group_by(iter, GCM, RCP) %>%
+  summarize(Pred = mean(Pred)) %>% 
+  ungroup() %>%
   group_by(RCP) %>% 
   summarize(mean = mean(Pred),
             lower = quantile(Pred, 0.025),

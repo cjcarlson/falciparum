@@ -19,10 +19,14 @@ iter.df %>%
   select(-BetaMean) -> df
 
 df %>% 
-  select(GCM, iter, year, Pred, scenario) %>% 
   filter(year %in% c(2010:2014)) %>%
+  select(GCM, iter, year, Pred, scenario) %>% 
   pivot_wider(names_from = scenario, values_from = Pred) -> df2
 
+df2 %>%
+  group_by(GCM, iter) %>%
+  summarize(nat = mean(nat), hist = mean(hist)) -> df2
+  
 mean(df2$hist - df2$nat)
 100000*mean(df2$hist - df2$nat)/100
 
