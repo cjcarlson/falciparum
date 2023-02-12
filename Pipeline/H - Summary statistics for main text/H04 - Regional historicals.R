@@ -3,6 +3,11 @@ library(tidyverse); library(magrittr); library(ggplot2); library(data.table); li
 
 iter.df <- vroom("~/Github/falciparum/TempFiles/SuppHistoricalRegions.csv")
 
+iter.df %>%
+  mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
+  mutate(GCM = str_replace_all(GCM,'./Future/','')) %>%
+  mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
+
 ###########################################################################
 ###########################################################################
 ###########################################################################
