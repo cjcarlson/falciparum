@@ -495,7 +495,7 @@ myrefP = 0
 figList = list()
 for(m in 1:length(modellist)) {
   end = m+1
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "ppt", plotXprcp[,1:end], polyOrder = end, plotmax = F, cluster = T, xRef = myrefP, xLab = "Total precipitation (mm)", 
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "ppt", plotXprcp[,1:end], polyOrder = end, plotmax = F, cluster = T, xRef = myrefP, fillcolor= "#43A7BA", xLab = "Total precipitation (mm)", 
                                          yLab = "Prevalence (%)", title = modellabs[m], yLim=c(-10,5), showYTitle = T) 
 }
 
