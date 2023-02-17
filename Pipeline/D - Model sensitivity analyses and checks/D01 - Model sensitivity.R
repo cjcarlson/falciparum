@@ -303,32 +303,29 @@ stargazer(modellist,
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 c = plotPolynomialResponse(modellist[[1]], "temp", plotXtemp, polyOrder = 2, plotmax=T, cluster = T, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
                            yLab = "Prevalence (%)", title = "contemp.", yLim=c(-30,5), showYTitle = T)
-  
-# Plot cumulative effect at different lag lengths (w/o conf intervals for simplicity)
-# lag 1
-coefs = c(summary(glht(modellist[[2]], linfct = c("temp + temp.lag = 0")))$test$coefficients, summary(glht(modellist[[2]], linfct = c("temp2 + temp2.lag = 0")))$test$coefficients)
-p1 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = F, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                  yLab = "Prevalence (%)", title = "cumulative (1 mo.)", yLim=c(-30,5), showYTitle = T) +
-  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "grey39") +
-  annotate(geom="text", x=28, y=5, label=paste0("25 C"),
-           color="grey39")
-# lag 2
-coefs = c(summary(glht(modellist[[3]], linfct = c("temp + temp.lag + temp.lag2 = 0")))$test$coefficients, summary(glht(modellist[[3]], linfct = c("temp2 + temp2.lag + temp2.lag2 = 0")))$test$coefficients)
-p2 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = F, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                  yLab = "Prevalence (%)", title = "cumulative (2 mos.)", yLim=c(-30,5), showYTitle = T) +
+
+# Plot with one lag
+p1 = plotPolynomialResponse(modellist[[2]], "temp", plotXtemp, polyOrder = 2, lag=1, plotmax=F, cluster = T, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                           yLab = "Prevalence (%)", title = "cumulative (1 mo.)", yLim=c(-30,5), showYTitle = T)+
   geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "grey39") +
   annotate(geom="text", x=28, y=5, label=paste0("25 C"),
            color="grey39")
 
-# lag 3
-coefs = c(summary(glht(modellist[[4]], linfct = c("temp + temp.lag + temp.lag2 + temp.lag3 = 0")))$test$coefficients, summary(glht(modellist[[4]], 
-                                                                                                                                   linfct = c("temp2 + temp2.lag + temp2.lag2 + temp2.lag3 = 0")))$test$coefficients)
-p3 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = F, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                  yLab = "Prevalence (%)", title = "cumulative (3 mos.)", yLim=c(-30,5), showYTitle = T)+
+# Plot with two lags
+p2 = plotPolynomialResponse(modellist[[3]], "temp", plotXtemp, polyOrder = 2, lag=2, plotmax=F, cluster = T, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                            yLab = "Prevalence (%)", title = "cumulative (2 mo.)", yLim=c(-30,5), showYTitle = T)+
   geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "grey39") +
   annotate(geom="text", x=28, y=5, label=paste0("25 C"),
            color="grey39")
 
+# Plot with three lags
+p3 = plotPolynomialResponse(modellist[[4]], "temp", plotXtemp, polyOrder = 2, lag=3, plotmax=T, cluster = F, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                            yLab = "Prevalence (%)", title = "cumulative (3 mo.)", yLim=c(-30,5), showYTitle = T)+
+  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "grey39") +
+  annotate(geom="text", x=28, y=5, label=paste0("25 C"),
+           color="grey39")
+
+# Combine figs
 p = plot_grid(c, p1, p2, p3, nrow=1)
 p
 
