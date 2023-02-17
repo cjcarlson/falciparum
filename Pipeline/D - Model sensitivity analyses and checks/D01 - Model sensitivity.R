@@ -104,8 +104,8 @@ for(m in 1:length(modellist)) {
   # get max of response function
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                         yLab = "Prevalence (%)", title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
     theme(plot.title = element_text(size = 10))
 }
 
@@ -301,34 +301,31 @@ stargazer(modellist,
 
 # Plot main model with SEs
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
-c = plotPolynomialResponse(modellist[[1]], "temp", plotXtemp, polyOrder = 2, plotmax=T, cluster = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
-                           yLab = expression(paste(Delta, " % Prevalence", '')), title = "contemp.", yLim=c(-30,5), showYTitle = T)
-  
-# Plot cumulative effect at different lag lengths (w/o conf intervals for simplicity)
-# lag 1
-coefs = c(summary(glht(modellist[[2]], linfct = c("temp + temp.lag = 0")))$test$coefficients, summary(glht(modellist[[2]], linfct = c("temp2 + temp2.lag = 0")))$test$coefficients)
-p1 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = F, xRef = Tref, xLab = "Monthly avg. T [C]", 
-                                  yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (1 mo.)", yLim=c(-30,5), showYTitle = T) +
-  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "sandybrown") +
-  annotate(geom="text", x=28, y=5, label=paste0("25 C"),
-           color="sandybrown")
-# lag 2
-coefs = c(summary(glht(modellist[[3]], linfct = c("temp + temp.lag + temp.lag2 = 0")))$test$coefficients, summary(glht(modellist[[3]], linfct = c("temp2 + temp2.lag + temp2.lag2 = 0")))$test$coefficients)
-p2 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = F, xRef = Tref, xLab = "Monthly avg. T [C]", 
-                                  yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (2 mos.)", yLim=c(-30,5), showYTitle = T) +
-  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "sandybrown") +
-  annotate(geom="text", x=28, y=5, label=paste0("25 C"),
-           color="sandybrown")
+c = plotPolynomialResponse(modellist[[1]], "temp", plotXtemp, polyOrder = 2, plotmax=T, cluster = T, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                           yLab = "Prevalence (%)", title = "contemp.", yLim=c(-30,5), showYTitle = T)
 
-# lag 3
-coefs = c(summary(glht(modellist[[4]], linfct = c("temp + temp.lag + temp.lag2 + temp.lag3 = 0")))$test$coefficients, summary(glht(modellist[[4]], 
-                                                                                                                                   linfct = c("temp2 + temp2.lag + temp2.lag2 + temp2.lag3 = 0")))$test$coefficients)
-p3 = plotPolynomialResponseSimple(coefs, plotXtemp, polyOrder = 2, plotmax = F, xRef = Tref, xLab = "Monthly avg. T [C]", 
-                                  yLab = expression(paste(Delta, " % Prevalence", '')), title = "cumulative (3 mos.)", yLim=c(-30,5), showYTitle = T)+
-  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "sandybrown") +
+# Plot with one lag
+p1 = plotPolynomialResponse(modellist[[2]], "temp", plotXtemp, polyOrder = 2, lag=1, plotmax=F, cluster = T, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                           yLab = "Prevalence (%)", title = "cumulative (1 mo.)", yLim=c(-30,5), showYTitle = T)+
+  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "grey39") +
   annotate(geom="text", x=28, y=5, label=paste0("25 C"),
-           color="sandybrown")
+           color="grey39")
 
+# Plot with two lags
+p2 = plotPolynomialResponse(modellist[[3]], "temp", plotXtemp, polyOrder = 2, lag=2, plotmax=F, cluster = T, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                            yLab = "Prevalence (%)", title = "cumulative (2 mo.)", yLim=c(-30,5), showYTitle = T)+
+  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "grey39") +
+  annotate(geom="text", x=28, y=5, label=paste0("25 C"),
+           color="grey39")
+
+# Plot with three lags
+p3 = plotPolynomialResponse(modellist[[4]], "temp", plotXtemp, polyOrder = 2, lag=3, plotmax=T, cluster = F, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                            yLab = "Prevalence (%)", title = "cumulative (3 mo.)", yLim=c(-30,5), showYTitle = T)+
+  geom_vline(mapping = aes(xintercept=25), linetype = "solid", colour = "grey39") +
+  annotate(geom="text", x=28, y=5, label=paste0("25 C"),
+           color="grey39")
+
+# Combine figs
 p = plot_grid(c, p1, p2, p3, nrow=1)
 p
 
@@ -378,10 +375,11 @@ figList = list()
 for(m in 1:length(modellist)) {
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = Tref, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,5), showYTitle = T) +
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = Tref, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                         yLab = "Prevalence (%)", title = modellabs[m], yLim=c(-30,5), showYTitle = T) +
     theme(plot.title = element_text(size = 10))
 }
+
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
               figList[[4]], figList[[5]], figList[[6]],
@@ -455,10 +453,10 @@ myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
 figList = list()
 for(m in 1:length(modellist)) {
   end = m+1
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp[,1:end], polyOrder = end, plotmax = F, cluster = T, xRef = myrefT, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = modellabs[m], yLim=c(-30,5), showYTitle = T) +
-        geom_vline(mapping = aes(xintercept=myrefT), linetype = "solid", colour = "sandybrown") +
-        annotate(geom="text", x=myrefT+3, y=5, label=paste0(myrefT," C"), color="sandybrown")
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp[,1:end], polyOrder = end, plotmax = F, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                         yLab = "Prevalence (%)", title = modellabs[m], yLim=c(-30,5), showYTitle = T) +
+        geom_vline(mapping = aes(xintercept=myrefT), linetype = "solid", colour = "grey39") +
+        annotate(geom="text", x=myrefT+3, y=5, label=paste0(myrefT," C"), color="grey39")
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
@@ -467,4 +465,40 @@ p
 
 dir.create(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_functionalForm"), showWarnings = FALSE)
 ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_functionalForm", "temperature_poly_order.pdf"), plot = p, width = 10, height = 10)
+
+########################################################################
+# Cumulative precipitation
+########################################################################
+
+# estimate polynomial orders up to 5
+modellist = list()
+modellist[[1]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[2]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[3]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+modellist[[4]] = felm(data = complete, formula = 
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + ppt5 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+# plot
+Tmin = 0
+Tmax = 600
+plotXprcp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2, seq(Tmin,Tmax)^3,seq(Tmin,Tmax)^4,seq(Tmin,Tmax)^5)
+modellabs = c("Quadratic", "Cubic", "Quartic", "Quintic")
+
+# get ref P
+myrefP = 0
+
+figList = list()
+for(m in 1:length(modellist)) {
+  end = m+1
+  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "ppt", plotXprcp[,1:end], polyOrder = end, plotmax = F, cluster = T, xRef = myrefP, fillcolor= "#43A7BA", xLab = "Total precipitation (mm)", 
+                                         yLab = "Prevalence (%)", title = modellabs[m], yLim=c(-10,5), showYTitle = T) 
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
+              figList[[4]], nrow=2)
+p
+
+ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", "precipitation_poly_order.pdf"), plot = p, width = 10, height = 10)
 

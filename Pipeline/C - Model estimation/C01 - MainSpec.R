@@ -91,8 +91,8 @@ plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 
 coefs = summary(mainmod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
-fig =  plotPolynomialResponse(mainmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = "Monthly avg. T [C]", 
-                                         yLab = expression(paste(Delta, " % Prevalence", '')), title = "Main spec: cXt2intrXm", yLim=c(-30,5), showYTitle = T)
+fig =  plotPolynomialResponse(mainmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                         yLab = "Prevalence (%)", title = "Main spec: cXt2intrXm", yLim=c(-30,5), showYTitle = T)
 
 fig
 ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Main_model", "temp_response_cXt2intrXm.pdf"), plot = fig, width = 7, height = 7)
