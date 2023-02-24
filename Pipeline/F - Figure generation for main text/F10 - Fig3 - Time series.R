@@ -17,12 +17,12 @@ data.to.graph %>%
   geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) + 
   facet_wrap(Region ~ ., nrow = 1) + 
   xlab(NULL) + 
-  ylab("Predicted change in prevalence (%)") + 
+  ylab("Prevalence (%)") + 
   scale_color_manual(values = c("grey50", "#287DAB"), 
                      labels = c('Historical counterfactual', 'Historical climate'),
                      name = '') + 
   scale_fill_manual(values = c("grey50", "#287DAB"), 
                     labels = c('Historical counterfactual', 'Historical climate'),
                     name = '') + 
-  theme(legend.position = 'bottom') + ggtitle('C') + 
+  theme(legend.position = 'bottom') + # ggtitle('C') + 
   theme(plot.title = element_text(size = 20)) -> bottom

@@ -50,19 +50,22 @@ colors <- rev(colors)
 
 ggplot(sfcont) + 
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
+  scale_x_continuous(limits = c(-17,52), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-36, 38), expand = c(0, 0)) +
   coord_sf(datum = NA) +
   bivariate_scale("fill",
                   pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
-                  name = c("Change in prevalence (%)", "sign uncert."),
-                  limits = list(c(-1, 1), c(0, 1)),
-                  breaks = list(c(-1, -0.5, 0, 0.5, 1), c(0, 0.25, 0.5, 0.75, 1)),
+                  name = c("Prevalence (%)", "sign uncertainty"),
+                  limits = list(c(-2.1, 2.1), c(0, 1)),
+                  breaks = list(c(-2, -1, 0, 1, 2), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent),
                   guide = "colourfan") +
   theme_void() +
   theme(
-    legend.key.size = grid::unit(1, "cm"),
-    legend.title.align = 0.5 #,
-    #plot.margin = margin(5.5, 12, 5.5, 5.5)
+    legend.position = c(0.18,0.3),
+    legend.key.size = grid::unit(0.8, "cm"),
+    legend.title.align = 0.5,
+    plot.margin = margin(0, 0, 0, 0)
   ) -> map.diff
 
 leg <- cowplot::get_legend(map.diff)

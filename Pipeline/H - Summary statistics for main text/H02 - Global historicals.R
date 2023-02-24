@@ -2,14 +2,13 @@
 library(tidyverse); library(magrittr); library(ggplot2); library(data.table); library(vroom)
 
 iter.df <- read_delim("~/Github/falciparum/TempFiles/SuppHistoricalBig.csv", delim='\t')
-iter.df <- iter.df[1:2508000,] # Did this overwrite with something bad?
 
 iter.df %>%
   mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
   mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
 
 iter.df %>% 
-  filter(year %in% c(1900:1930)) %>%
+  filter(year %in% c(1901:1930)) %>%
   group_by(GCM, scenario, iter) %>%
   summarize(BetaMean = mean(Pred, na.rm = TRUE)) -> bm
 

@@ -16,24 +16,29 @@ library(vroom)
 future.files <- list.files('~/Github/falciparum/Climate/Future', pattern = "rcp", full.names = TRUE)
 
 read_plus <- function(flnm) {
+  shnm <- gsub('C:/Users/cjcar/Documents/Github/falciparum/Climate/Future/','',flnm)
+  shnm <- gsub('.csv','',shnm)
   read_csv(flnm) %>% 
-    mutate(run = flnm)
+    mutate(run = shnm)
 }
 
 future.files %>% 
   map_df(~read_plus(.)) %>% 
   mutate(run = gsub('./ClimateCSVs/','', run)) %>%
-  mutate(run = gsub('.csv','', run)) %>% 
-  select(-X1) -> 
+  mutate(run = gsub('.csv','', run)) -> 
   future.df
+
+future.df <- future.df[,-1]
 
 # Grab the RCPs more systematically
 
 future.df %<>%
   tidyr::extract(run, 
           into = c('GCM','RCP'),
-          regex = "(BCC-CSM2|BCC-CSM2|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
+          regex = "(BCC-CSM2|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
           remove = FALSE)
+future.df %<>% na.omit() 
+
 
 ###########
 
@@ -85,7 +90,8 @@ bootstrap <- as_tibble(bootstrap)
 
 # Load the precip thresholds
 
-precip.key <- read_csv('~/Github/falciparum/precipkey.csv')
+precip.key <- read_csv('~/Github/falciparum/Climate/PrecipKey.csv')
+future.df %<>% filter(OBJECTID %in% precip.key$OBJECTID)
 
 # Scaffolding: only use the first bootstrap, and reset
 
@@ -121,7 +127,7 @@ iter.df %>%
 
 iter.df %>%
   mutate(flood = as.numeric(ppt >= ppt.90)) %>%
-  group_by(OBJECTID) %>%
+  group_by(OBJECTID, GCM, RCP) %>%
   mutate(flood.lag = lag(flood, order_by = monthyr),
          flood.lag2 = lag(flood, order_by = monthyr, n=2),
          flood.lag3 = lag(flood, order_by = monthyr, n=3)) -> iter.df
@@ -130,7 +136,7 @@ iter.df %>%
 
 iter.df %>%
   mutate(drought = as.numeric(ppt <= ppt.10)) %>% 
-  group_by(OBJECTID) %>% 
+  group_by(OBJECTID, GCM, RCP) %>% 
   mutate(drought.lag = lag(drought, order_by = monthyr),
          drought.lag2 = lag(drought, order_by = monthyr, n=2),
          drought.lag3 = lag(drought, order_by = monthyr, n=3)) -> iter.df

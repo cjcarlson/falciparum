@@ -24,7 +24,7 @@ complete <- data.reset[complete.cases(data.reset),]
 # Define Global Burden of Disease regions 
 ########################################################################
 
-gbod <- readOGR(file.path(wd, "Data", "OriginalGBD", "WorldRegions.shp"))
+gbod <- readOGR(file.path("./Data/OriginalGBD/WorldRegions.shp"))
 head(gbod@data)
 
 gboddf = as.data.frame(gbod@data)

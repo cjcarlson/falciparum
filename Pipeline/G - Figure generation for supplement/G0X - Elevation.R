@@ -77,44 +77,46 @@ df %>%
   mutate(sign = factor(sign)) -> df
   
 df %>%
+  na.omit() %>%
   ggplot(aes(x = mean.diff, y = elevmn, color = sign)) + 
   geom_point() + 
   geom_errorbar(aes(xmin = lower.diff, xmax = upper.diff), alpha = 0.5) + 
   geom_vline(xintercept = 0, linetype = 'dashed') + 
   theme_classic() + 
-  xlab("Estimated change in prevalence") + 
+  xlab("Prevalence (%)") + 
   ylab("Elevation (m)") + 
   theme(axis.title.x = element_text(margin = margin(t = 20, b = 10)),
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
-        legend.position = 'n') + 
-  scale_color_manual(values = c("#00AFBB","grey80","#fa5340")) -> g1
+        legend.position = 'n',
+        plot.margin = margin(0,0,10,0)) + 
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g1
 
 df %>%
+  na.omit() %>%
   ggplot(aes(x = mean.diff, y = lat, color = sign)) + 
   geom_point() + 
   geom_errorbar(aes(xmin = lower.diff, xmax = upper.diff), alpha = 0.5) + 
   geom_vline(xintercept = 0, linetype = 'dashed') + 
   theme_classic() + 
-  xlab("Estimated change in prevalence") + 
+  xlab("Prevalence (%)") + 
   ylab("Latitude") + 
   theme(axis.title.x = element_text(margin = margin(t = 20, b = 10)),
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
-        legend.position = 'n') + 
-  scale_color_manual(values = c("#00AFBB","grey80","#fa5340")) -> g2
+        legend.position = 'n',
+        plot.margin = margin(0,0,0,0)) + 
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g2
 
 df %>%
+  na.omit() %>%
   ggplot(aes(x = mean.diff, y = t, color = sign)) + 
   geom_point() + 
   geom_errorbar(aes(xmin = lower.diff, xmax = upper.diff), alpha = 0.5) + 
   geom_vline(xintercept = 0, linetype = 'dashed') + 
   theme_classic() + 
-  xlab("Estimated change in prevalence") + 
+  xlab("Prevalence (%)") + 
   ylab("Mean temperature (1901-1930)") + 
   theme(axis.title.x = element_text(margin = margin(t = 20, b = 10)),
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
-        legend.position = 'n') + 
-  scale_color_manual(values = c("#00AFBB","grey80","#fa5340")) -> g3
-
-g3 + g1 + g2
-
-        
+        legend.position = 'n',
+        plot.margin = margin(0,0,0,0)) + 
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g3

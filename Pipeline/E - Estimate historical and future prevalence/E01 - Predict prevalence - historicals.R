@@ -43,6 +43,7 @@ hist.df <- bind_rows(natdf, histdf)
 # Grab the RCPs more systematically
 
 hist.df %<>% rename(GCM = "run")
+hist.df %<>% na.omit() 
 
 ###########
 
@@ -83,7 +84,7 @@ hist.df %<>% filter(!(Region %in% c('Asia (Southeast)', 'North Africa & Middle E
 hist.df %>% 
   unite("monthyr", month:year, sep=' ', remove=FALSE) %>% 
   mutate(monthyr = as.Date(as.yearmon(monthyr))) %>% 
-  mutate(monthyr = as.numeric(ymd(monthyr)-ymd("2015-01-01"))) -> hist.df
+  mutate(monthyr = as.numeric(ymd(monthyr)-ymd("1900-01-01"))) -> hist.df
 
 ###########
 
@@ -94,7 +95,8 @@ bootstrap <- as_tibble(bootstrap)
 
 # Load the precip thresholds
 
-precip.key <- read_csv('~/Github/falciparum/precipkey.csv')
+precip.key <- read_csv('~/Github/falciparum/Climate/PrecipKey.csv')
+hist.df %<>% filter(OBJECTID %in% precip.key$OBJECTID)
 
 # Scaffolding: only use the first bootstrap, and reset
 
@@ -130,7 +132,7 @@ iter.df %>%
 
 iter.df %>%
   mutate(flood = as.numeric(ppt >= ppt.90)) %>%
-  group_by(OBJECTID) %>%
+  group_by(OBJECTID, GCM, scenario) %>%
   mutate(flood.lag = lag(flood, order_by = monthyr),
          flood.lag2 = lag(flood, order_by = monthyr, n=2),
          flood.lag3 = lag(flood, order_by = monthyr, n=3)) -> iter.df
@@ -139,7 +141,7 @@ iter.df %>%
 
 iter.df %>%
   mutate(drought = as.numeric(ppt <= ppt.10)) %>% 
-  group_by(OBJECTID) %>% 
+  group_by(OBJECTID, GCM, scenario) %>%
   mutate(drought.lag = lag(drought, order_by = monthyr),
          drought.lag2 = lag(drought, order_by = monthyr, n=2),
          drought.lag3 = lag(drought, order_by = monthyr, n=3)) -> iter.df
