@@ -72,3 +72,16 @@ Climate/Historical/NorESM2-nat.csv
 Climate/Historical/NorESM2.csv
 TempFiles/Fig3Big.csv
 Quarantine/
+Climate/Historical/ACCESS-CM2.csv
+Climate/Historical/ACCESS-ESM1.csv
+Climate/Historical/ACCESS-CM2-nat.csv
+Climate/Historical/FGOALS-g3.csv
+Climate/Historical/IPSL-CM6A-LR.csv
+Climate/Historical/MRI-ESM2-0.csv
+Climate/Historical/NorESM2-LM.csv
+Climate/Historical/BCC-CSM2-MR-nat.csv
+Climate/Historical/ACCESS-ESM1-nat.csv
+Climate/Historical/FGOALS-g3-nat.csv
+Climate/Historical/IPSL-CM6A-LR-nat.csv
+Climate/Historical/NorESM2-LM-nat.csv
+Climate/Historical/MRI-ESM2-0-nat.csv
