@@ -22,6 +22,10 @@ df %>%
             upper = quantile(Pred, 0.95, na.rm = TRUE),
             lower = quantile(Pred, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
+  
+  # plots start in 1902 the first full year
+  filter(year > 1901) %>% 
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
@@ -33,7 +37,7 @@ df %>%
                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  xlab(NULL) + ylab("Predicted prevalence (%)") + 
+  xlab(NULL) + ylab("Prevalence (%)") + 
   theme(axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 6),
         plot.margin = unit(c(0.2,0.5,0.2,1), "cm"), 
@@ -56,6 +60,11 @@ df %>%
             upper = quantile(Pf.temp, 0.95, na.rm = TRUE),
             lower = quantile(Pf.temp, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
+  
+  # plots start in 1902 the first full year
+  filter(year > 1901) %>% 
+  
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
@@ -89,6 +98,11 @@ df %>%
             upper = quantile(Pf.flood, 0.95, na.rm = TRUE),
             lower = quantile(Pf.flood, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
+  
+  # plots start in 1902 the first full year
+  filter(year > 1901) %>% 
+  
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
@@ -123,6 +137,11 @@ df %>%
             upper = quantile(Pf.drought, 0.95, na.rm = TRUE),
             lower = quantile(Pf.drought, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist'))) %>%
+  
+  # plots start in 1902 the first full year
+  filter(year > 1901) %>% 
+  
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 

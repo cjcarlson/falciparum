@@ -20,23 +20,32 @@ future.to.graph %<>%
          upper = upper + base,
          lower = lower + base)
 
-graph.data <- bind_rows(hist.to.graph, future.to.graph %>% rename(scenario = RCP))
+graph.data <- bind_rows(hist.to.graph, future.to.graph %>% dplyr::rename(scenario = RCP))
 
 graph.data %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  
+  ### Start plotting in 1902 and 2016 because it's the first full year with lags incorporated right.
+  filter(!(year %in% c(1901, 2015))) %>% 
+  
+  ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
+  ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
+  ############ this is for plotting purposes ONLY and text stats give full CI's
+  mutate(lower = pmax(lower, -1.7)) %>%
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
   scale_color_manual(values = c("grey50", "#287DAB", "#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Historical counterfactual', 'Historical climate', 'Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                     labels = c('Historical counterfactual', 'Historical climate', 'Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 
   scale_fill_manual(values = c("grey50", "#287DAB", "#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Historical counterfactual', 'Historical climate', 'Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                    labels = c('Historical counterfactual', 'Historical climate', 'Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                     name = '') + 
   geom_vline(xintercept = 2014.5, linetype = 'dashed') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  xlab("Year") + ylab("Change in prevalence (%)") + 
+  xlab("Year") + ylab("Prevalence (%)") + 
   theme(axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 6),
         plot.margin = unit(c(0.5,0.5,1,1), "cm"), 
@@ -44,3 +53,4 @@ graph.data %>%
         legend.margin = margin(0, 0, 0, 0),
         legend.text=element_text(size=rel(0.8)),
         legend.title=element_blank()) -> s; s
+ 

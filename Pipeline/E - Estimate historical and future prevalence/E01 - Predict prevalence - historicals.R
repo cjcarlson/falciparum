@@ -26,14 +26,14 @@ read_plus <- function(flnm) {
 
 nat.files %>% 
   map_df(~read_plus(.)) %>% 
-  mutate(run = gsub('./ClimateCSVs/','', run)) %>%
+  mutate(run = gsub('./Historical/','', run)) %>%
   mutate(run = gsub('-nat.csv','', run)) %>% 
   mutate(scenario = 'nat') -> 
   natdf
 
 hist.files %>% 
   map_df(~read_plus(.)) %>% 
-  mutate(run = gsub('./ClimateCSVs/','', run)) %>%
+  mutate(run = gsub('./Historical/','', run)) %>%
   mutate(run = gsub('.csv','', run)) %>% 
   mutate(scenario = 'hist') -> 
   histdf

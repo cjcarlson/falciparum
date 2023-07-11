@@ -6,7 +6,7 @@ iter.df <- vroom("~/Github/falciparum/TempFiles/SuppFutureRegions.csv")
 iter.df %<>% 
   tidyr::extract(run, 
                  into = c('GCM','RCP'),
-                 regex = "(BCC-CSM2|BCC-CSM2-MR|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
+                 regex = "(ACCESS-CSM2|ACCESS-ESM1|BCC-CSM2-MR|CanESM5|FGOALS-g3|GFDL-ESM4|IPSL-CM6A-LR|MIROC6|MRI-ESM2-0|NorESM2-LM)-(rcp26|rcp45|rcp85)",
                  remove = FALSE) 
 
 #################################################################

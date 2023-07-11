@@ -6,7 +6,7 @@ iter.df <- vroom("~/Github/falciparum/TempFiles/SuppFutureBig.csv")
 iter.df %<>% 
   tidyr::extract(run, 
                  into = c('GCM','scenario'),
-                 regex = "(BCC-CSM2|BCC-CSM2-MR|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
+                 regex = "(ACCESS-CSM2|ACCESS-ESM1|BCC-CSM2-MR|CanESM5|FGOALS-g3|GFDL-ESM4|IPSL-CM6A-LR|MIROC6|MRI-ESM2-0|NorESM2-LM)-(rcp26|rcp45|rcp85)",
                  remove = FALSE) 
 
 iter.df %>% 
@@ -25,18 +25,22 @@ df %>%
             upper = quantile(Pred, 0.95, na.rm = TRUE),
             lower = quantile(Pred, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  
+  # plots start in 2016 the first full year
+  filter(year > 2016) %>% 
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
   scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 
   scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  xlab(NULL) + ylab("Predicted prevalence (%)") + 
+  xlab(NULL) + ylab("Prevalence (%)") + 
   theme(axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 6),
         plot.margin = unit(c(0.2,0.5,0.2,1), "cm"), 
@@ -58,14 +62,19 @@ df %>%
             upper = quantile(Pf.temp, 0.95, na.rm = TRUE),
             lower = quantile(Pf.temp, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  
+  # plots start in 2016 the first full year
+  filter(year > 2016) %>% 
+  
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
   scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 
   scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                    labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
@@ -91,14 +100,19 @@ df %>%
             upper = quantile(Pf.flood, 0.95, na.rm = TRUE),
             lower = quantile(Pf.flood, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  
+  # plots start in 2016 the first full year
+  filter(year > 2016) %>% 
+  
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
   scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 
   scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                    labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
@@ -125,14 +139,19 @@ df %>%
             upper = quantile(Pf.drought, 0.95, na.rm = TRUE),
             lower = quantile(Pf.drought, 0.05, na.rm = TRUE)) %>%
   mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  
+  # plots start in 2016 the first full year
+  filter(year > 2016) %>% 
+  
+  
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
   scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 
   scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Future climate (RCP 2.6)', 'Future climate (RCP 4.5)', 'Future climate (RCP 8.5)'),
+                    labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                     name = '') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
   geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +

@@ -24,7 +24,7 @@ read_plus <- function(flnm) {
 
 future.files %>% 
   map_df(~read_plus(.)) %>% 
-  mutate(run = gsub('./ClimateCSVs/','', run)) %>%
+  mutate(run = gsub('C:/Users/cjcar/Documents/Github/falciparum/Climate/Future/','', run)) %>%
   mutate(run = gsub('.csv','', run)) -> 
   future.df
 
@@ -35,7 +35,7 @@ future.df <- future.df[,-1]
 future.df %<>%
   tidyr::extract(run, 
           into = c('GCM','RCP'),
-          regex = "(BCC-CSM2|CanESM5|CESM2|CNRM-CM6|GFDL-ESM4|GISS-E2|HadGEM3|IPSL-CM6A|MIROC6|MRI-ESM2|NorESM2)-(rcp26|rcp45|rcp85)",
+          regex = "(ACCESS-CSM2|ACCESS-ESM1|BCC-CSM2-MR|CanESM5|FGOALS-g3|GFDL-ESM4|IPSL-CM6A-LR|MIROC6|MRI-ESM2-0|NorESM2-LM)-(rcp26|rcp45|rcp85)",
           remove = FALSE)
 future.df %<>% na.omit() 
 
@@ -155,7 +155,7 @@ iter.df %>%
   mutate(Pf.prec = (Pf.flood + Pf.drought)) %>%
   mutate(Pred = (Pf.temp + Pf.prec)) -> iter.df
 
-iter.df %>% select(OBJECTID, monthyr, run, Pred, Pf.temp, Pf.flood, Pf.drought)
+# iter.df %>% select(OBJECTID, monthyr, run, Pred, Pf.temp, Pf.flood, Pf.drought)
 
 # iter.df %>% 
 #   select(GCM, RCP, year, Pf.prec) %>%

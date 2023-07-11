@@ -40,7 +40,7 @@ cont <- readOGR('C:/Users/cjcar/Dropbox/MalariaAttribution/Data/AfricaADM1.shp')
 cont@data <- left_join(cont@data, slice.map1)
 
 sfcont <- st_as_sf(cont)
-sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5500)/5500) # make 55000 when 110000 runs
+sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5000)/5000) 
 
 colors <- scales::colour_ramp(
   colors = c(red = "#AC202F", purple = "#740280", blue = "#2265A3")
@@ -116,7 +116,7 @@ cont <- readOGR('C:/Users/cjcar/Dropbox/MalariaAttribution/Data/AfricaADM1.shp')
 cont@data <- left_join(cont@data, slice.map2)
 
 sfcont <- st_as_sf(cont)
-sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5500)/5500)
+sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5000)/5000)
 
 library(multiscales)
 ggplot(sfcont) + 
