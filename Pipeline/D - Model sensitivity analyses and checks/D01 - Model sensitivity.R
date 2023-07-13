@@ -330,7 +330,7 @@ p = plot_grid(c, p1, p2, p3, nrow=1)
 p
 
 dir.create(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_lags"), showWarnings = FALSE)
-save_plot(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_lags", "templags_cumulative_effects.pdf"), p, ncol = 1, base_asp = 3)
+save_plot(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_lags", "templags_cumulative_effects.pdf"), p, ncol = 1, base_asp = 4)
 
 ########################################################################
 # Sensitivity to definitions of drought and flood
