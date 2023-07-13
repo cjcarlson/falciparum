@@ -1,3 +1,16 @@
+rm(list = ls())
+
+user = "Tamma" #"Colin"
+if (user == "Colin") {
+  datadir = 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/' #location for data and output
+  repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
+} else if (user == "Tamma") {
+  datadir ='/Users/tammacarleton/Dropbox/MalariaAttribution/Data/'
+  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
+} else {
+  wd = NA
+  print('Script not configured for this user!')
+}
 
 library(ncdf4)
 library(raster)
@@ -5,7 +18,8 @@ library(rgdal)
 library(sp)
 library(velox)
 
-
+# This function takes in a raster that is in x=lat, y=lon format (native CRU is like this) and 
+# rotates it 90 degrees to be in x=lon, y=lat format. It also crops to the extent of Africa.
 swirl <- function(input.raster) {
   input.raster <- flip(t(input.raster),direction='y')
   extent(input.raster) <- c(-180,180,-90,90)
@@ -31,20 +45,28 @@ r0t <- function(T, na.rm=TRUE) {
   return(R0/87.13333) # that's the max
 }
 
-nct <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/tmp/cru_ts4.03.1901.2018.tmp.dat.nc/cru_ts4.03.1901.2018.tmp.dat.nc")
+nct <- nc_open(file.path(datadir,"CRU_TS403_data", "tmp", "cru_ts4.03.1901.2018.tmp.dat.nc", "cru_ts4.03.1901.2018.tmp.dat.nc"))
 
 g <- ncvar_get(nct, 'tmp')
+lons <- ncvar_get(nct,'lon')
+time <- ncvar_get(nct,'time')
 
 #############
 
-setwd('C:/Users/cjcar/Dropbox/MalariaAttribution/Data')
-cont <- readOGR('AfricaADM1.shp')
+cont <- readOGR(file.path(datadir,'AfricaADM1.shp'))
 month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
 
 
 ########################### R0
+# confirm input data format require swirl()
+if( dim(g)[1]==length(lons) ) {
+  print("Input format as expected for CRU (lat,lon); pipeline will rotate native raster to (lon,lat) format")
+} else {
+  stop("Input format not as expected for CRU; stopping process.")
+}
 
-for (i in 1:1416) {
+# loop over all time periods: note that time is in units of days since 1900-01-01, but are monthly intervals
+for (i in 1:dim(g)[3]) { 
   r <- swirl(raster(g[,,i]))
   name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'temp',sep='.')
   cont@data[,name] <- unlist(lapply(velox(r)$extract(cont,
@@ -86,11 +108,19 @@ for (i in 1:1416) {
 ####################
 
 
-ncp <- nc_open("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU_TS403_data/pr/cru_ts4.03.1901.2018.pre.dat.nc/cru_ts4.03.1901.2018.pre.dat.nc")
+ncp <- nc_open(file.path(datadir,"CRU_TS403_data", "pr", "cru_ts4.03.1901.2018.pre.dat.nc","cru_ts4.03.1901.2018.pre.dat.nc"))
 g <- ncvar_get(ncp, 'pre')
+lonsp <- ncvar_get(ncp,'lon')
 
+# confirm input data format require swirl()
+if( dim(g)[1]==length(lonsp) ) {
+  print("Input format as expected for CRU (lat,lon); pipeline will rotate native raster to (lon,lat) format")
+} else {
+  stop("Input format not as expected for CRU; stopping process.")
+}
 
-for (i in 1:1416) {
+# loop over all time periods: note that time is in units of days since 1900-01-01, but are monthly intervals
+for (i in 1:dim(g)[3]) {
   r <- swirl(raster(g[,,i]))
   name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'ppt',sep='.')
   cont@data[,name] <- unlist(lapply(velox(r)$extract(cont,
@@ -130,11 +160,6 @@ for (i in 1:1416) {
                                     mean,na.rm=TRUE))
   print(i)
 }
-
-
-
-
-
 
 
 ############
