@@ -21,6 +21,15 @@ if (user == "Colin") {
   print('Script not configured for this user!')
 }
 
+CRUversion = "4.06" # "4.03"
+if (CRUversion=="4.03") {
+  resdir = file.path(wd, "Results")
+} else if (CRUversion=="4.06") {
+  resdir = file.path(wd, "Results_CRU-TS4-06")
+} else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
+}
+
 setwd(wd)
 
 # source functions for easy plotting and estimation
@@ -119,8 +128,8 @@ stopImplicitCluster()
 
 # Save
 fn <- "scramble_time_placebo.rds"
-dir.create(file.path(wd, "Results", "Models", "randomization_tests/"), showWarnings = FALSE)
-saveRDS(placebo_out, file = paste0('Results/Models/randomization_tests/', fn))
+dir.create(file.path(resdir, "Models", "randomization_tests"), showWarnings = FALSE)
+saveRDS(placebo_out, file = file.path(resdir, "Models", "randomization_tests", fn))
 
 print("-------- Saved Rds of coefficients and p-values from randomization test with scrambled climate data --------")
 
@@ -128,7 +137,7 @@ print("-------- Saved Rds of coefficients and p-values from randomization test w
 # Show p-values from randomization versus main model
 ########################################################################
 
-placebo = readRDS(file.path("Results", "Models", "randomization_tests", "scramble_time_placebo.rds"))
+placebo = readRDS(file.path(resdir, "Models", "randomization_tests", "scramble_time_placebo.rds"))
 
 # main model
 mainmod = felm(data=complete, formula = myform)
@@ -159,14 +168,14 @@ p = ggplot(data = toplot[toplot$pval==FALSE & toplot$variable!="temp2",], aes(x=
   facet_wrap(~variable) +
   theme_bw()
 p
-dir.create(file.path(wd, "Results", "Figures", "Diagnostics", "Randomization_tests"), showWarnings = FALSE)
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Randomization_tests", "coefficients_time_randomiz.pdf"), plot = p, width = 7, height = 9)
+dir.create(file.path(resdir, "Figures", "Diagnostics", "Randomization_tests"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Randomization_tests", "coefficients_time_randomiz.pdf"), plot = p, width = 7, height = 9)
 
 p2 = ggplot(data = toplot[toplot$pval==FALSE & toplot$variable=="temp2",], aes(x=value)) +
   geom_histogram() + geom_vline(aes(xintercept = value_main), colour="red") +
   theme_bw()
 p2
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Randomization_tests", "coefficients_time_randomiz_TEMP2.pdf"), plot = p2, width = 7, height = 9)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Randomization_tests", "coefficients_time_randomiz_TEMP2.pdf"), plot = p2, width = 7, height = 9)
 
 # matrix of graphs: histogram of pvals from placebo, compared to pval in true (vertical line in red)
 p3 = ggplot(data = toplot[toplot$pval==TRUE,], aes(x=value)) +
@@ -174,4 +183,4 @@ p3 = ggplot(data = toplot[toplot$pval==TRUE,], aes(x=value)) +
   facet_wrap(~variable) +
   theme_bw()
 p3
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Randomization_tests", "pVals_time_randomiz.pdf"), plot = p3, width = 7, height = 9)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Randomization_tests", "pVals_time_randomiz.pdf"), plot = p3, width = 7, height = 9)

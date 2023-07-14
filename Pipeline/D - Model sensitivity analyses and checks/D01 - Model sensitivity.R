@@ -12,14 +12,23 @@ rm(list = ls())
 
 user = "Tamma" #"Colin"
 if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/' #location for data and output
+  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution' #location for data and output
   repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
 } else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
+  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution'
   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
 } else {
   wd = NA
   print('Script not configured for this user!')
+}
+
+CRUversion = "4.06" # "4.03"
+if (CRUversion=="4.03") {
+  resdir = file.path(wd, "Results")
+} else if (CRUversion=="4.06") {
+  resdir = file.path(wd, "Results_CRU-TS4-06")
+} else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
 }
 
 setwd(wd)
@@ -86,10 +95,11 @@ for (m in myforms) {
 
 # Combine into a single stargazer plot 
 mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
+dir.create(file.path(resdir,"Tables", "sensitivity"), showWarnings = FALSE)
 stargazer(modellist,
           title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = mycollabs,
           keep = c("temp", "flood", "drought", "intervention"),
-          out = file.path(wd, "Results", "Tables", "sensitivity","FixedEffects_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
+          out = file.path(resdir, "Tables", "sensitivity","FixedEffects_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 ########################################################################
@@ -113,8 +123,8 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[4]], figList[[5]], figList[[6]],
               figList[[7]], figList[[8]], figList[[9]], nrow=3)
 p
-
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Fixed_effects", "panelFE_FE_sensitivity.pdf"), plot = p, width = 7, height = 7)
+dir.create(file.path(resdir,"Figures", "Diagnostics","Fixed_effects"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Fixed_effects", "panelFE_FE_sensitivity.pdf"), plot = p, width = 7, height = 7)
 
 ########################################################################
 # Assessing temporal controls: At what spatial scale do we need to address long-run trends?
@@ -145,7 +155,7 @@ g = ggplot(data = complete, aes(x=datevar, PfPR2)) +
   labs(y = "PfPR2", x = "Date") + 
   facet_wrap(~ smllrgn)
 
-fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Fixed_effects/region_quad_trends.png')
+fn = file.path(resdir, 'Figures', 'Diagnostics', 'Fixed_effects','region_quad_trends.png')
 ggsave(filename = fn, plot = g, height = 6, width = 8)
 
 # 2. Show that trends appear a) nonlinear; and b) heterogeneous by country within GBOD regions,
@@ -172,7 +182,7 @@ for(r in 1:length(rlist)){
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2, 
               labels=c(as.character(rlist[1]), as.character(rlist[2]), as.character(rlist[3]), as.character(rlist[4])),
               label_size = 8, vjust = .5)
-fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Fixed_effects/country_quad_trends_by_GBOD_region.pdf')
+fn = file.path(resdir, 'Figures', 'Diagnostics', 'Fixed_effects','country_quad_trends_by_GBOD_region.pdf')
 ggsave(filename = fn, plot = p, height = 10, width = 10)
 
 # 3. Ensure we have sufficient data to identify GBOD region X year FEs,
@@ -208,7 +218,7 @@ g = ggplot(data=toplot, aes(x=monthnum, y=ymn)) + theme_classic() +
   labs(y = "PfPR2", x = "Month") 
 g
 
-fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Fixed_effects/region_seasonality.png')
+fn = file.path(resdir, 'Figures', 'Diagnostics', 'Fixed_effects','region_seasonality.png')
 ggsave(filename = fn, plot = g, height = 6, width = 8)
 
 ########################################################################
@@ -221,7 +231,7 @@ complete$residuals = main$residuals
 
 # residuals histogram
 g = ggplot(data = complete) + geom_histogram(aes(residuals)) + theme_classic()
-fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Main_model/residuals_cXt2intrXm.png')
+fn = file.path(resdir, 'Figures', 'Diagnostics', 'Main_model','residuals_cXt2intrXm.png')
 ggsave(filename = fn, plot = g)
 
 # residuals over time
@@ -229,7 +239,7 @@ g = ggplot(data=complete,aes(x=datevar, y=residuals)) + geom_point(size = 1, alp
   stat_smooth(method = "loess", formula = y ~ x, size = 1) +
   theme_classic()
 g
-fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Main_model/residuals_cXt2intrXm_overtime.png')
+fn = file.path(resdir, 'Figures', 'Diagnostics', 'Main_model','residuals_cXt2intrXm_overtime.png')
 ggsave(filename = fn, plot = g)
 summary(lm(residuals~datevar,data=complete)) #uncorrelated with time
 
@@ -237,7 +247,7 @@ summary(lm(residuals~datevar,data=complete)) #uncorrelated with time
 g = ggplot(data=complete,aes(x=datevar, y=residuals)) +  geom_point(size = .5, alpha=.3) + geom_hline(yintercept = 0, size = .5, color="red") +
   stat_smooth(method = "lm", formula = y ~ poly(x,3), size = .5) + theme_classic() + facet_wrap(~smllrgn) 
 g
-fn = file.path(wd, 'Results', 'Figures', 'Diagnostics', 'Main_model/residuals_cXt2intrXm_overtime_by_region.png')
+fn = file.path(resdir, 'Figures', 'Diagnostics', 'Main_model','residuals_cXt2intrXm_overtime_by_region.png')
 ggsave(filename = fn, plot = g)
 
 ########################################################################
@@ -294,10 +304,11 @@ for (m in myforms) {
 }
 
 # Combine into a single stargazer plot 
+dir.create(file.path(resdir,"Tables", "sensitivity"), showWarnings = FALSE)
 stargazer(modellist,
           title="Quadratic temperature: Leads and lags", align=TRUE, column.labels = mycollabs,
           keep = c("temp", "flood", "drought"),
-          out = file.path(wd, "Results", "Tables", "sensitivity", "panelFE_leads_lags.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
+          out = file.path(resdir, "Tables", "sensitivity", "panelFE_leads_lags.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 
 # Plot main model with SEs
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
@@ -329,8 +340,8 @@ p3 = plotPolynomialResponse(modellist[[4]], "temp", plotXtemp, polyOrder = 2, la
 p = plot_grid(c, p1, p2, p3, nrow=1)
 p
 
-dir.create(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_lags"), showWarnings = FALSE)
-save_plot(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_lags", "templags_cumulative_effects.pdf"), p, ncol = 1, base_asp = 3)
+dir.create(file.path(resdir, "Figures", "Diagnostics", "Temp_lags"), showWarnings = FALSE)
+save_plot(file.path(resdir, "Figures", "Diagnostics", "Temp_lags", "templags_cumulative_effects.pdf"), p, ncol = 1, base_asp = 4)
 
 ########################################################################
 # Sensitivity to definitions of drought and flood
@@ -388,8 +399,8 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[13]], figList[[14]], figList[[15]], nrow=5)
 p
 
-dir.create(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn"), showWarnings = FALSE)
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", "temp_responses_drought_flood_sensitivity.pdf"), plot = p, width = 7, height = 10)
+dir.create(file.path(resdir, "Figures", "Diagnostics", "Drought_flood_defn"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Drought_flood_defn", "temp_responses_drought_flood_sensitivity.pdf"), plot = p, width = 7, height = 10)
 
 ######## For each model, plot drought and flood coeffs ########
 
@@ -406,7 +417,7 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[13]], figList[[14]], figList[[15]], nrow=5)
 p
 
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", "drought_responses_sensitivity.pdf"), plot = p, width = 7, height = 10)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Drought_flood_defn", "drought_responses_sensitivity.pdf"), plot = p, width = 7, height = 10)
 
 # All flood figures
 figList = list()
@@ -421,7 +432,7 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[13]], figList[[14]], figList[[15]], nrow=5)
 p
 
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", "flood_responses_sensitivity.pdf"), plot = p, width = 7, height = 10)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Drought_flood_defn", "flood_responses_sensitivity.pdf"), plot = p, width = 7, height = 10)
 
 ########################################################################
 # Temperature functional form 
@@ -463,8 +474,8 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[4]], nrow=2)
 p
 
-dir.create(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_functionalForm"), showWarnings = FALSE)
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Temp_functionalForm", "temperature_poly_order.pdf"), plot = p, width = 10, height = 10)
+dir.create(file.path(resdir, "Figures", "Diagnostics", "Temp_functionalForm"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Temp_functionalForm", "temperature_poly_order.pdf"), plot = p, width = 10, height = 10)
 
 ########################################################################
 # Cumulative precipitation
@@ -500,5 +511,5 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[4]], nrow=2)
 p
 
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Drought_flood_defn", "precipitation_poly_order.pdf"), plot = p, width = 10, height = 10)
+ggsave(file.path(resdir, "Diagnostics", "Drought_flood_defn", "precipitation_poly_order.pdf"), plot = p, width = 10, height = 10)
 

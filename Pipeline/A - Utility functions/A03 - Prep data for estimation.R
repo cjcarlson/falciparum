@@ -1,6 +1,14 @@
 
 #### Climate data
-data <- read.csv('./Data/CRU-Reextraction-Aug2022.csv')
+# load data based on CRU version:
+if (CRUversion=="4.03") {
+  data <- read.csv('./Data/CRU-Reextraction-Aug2022.csv')
+} else if (CRUversion=="4.06") {
+  data <- read.csv('./Data/CRU-Reextraction-July2023-CRU4.06.csv')
+}  else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
+}
+
 
 #### Spatial data
 spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
@@ -52,7 +60,13 @@ rm(gbod, gboddf)
 ##### variable because we want to define climate over the whole period
 complete = computePrcpExtremes(dfclimate = data.reset, dfoutcome = complete, pctdrought = 0.10, pctflood = 0.90, yearcutoff = NA)
 complete = complete %>% arrange(OBJECTID, monthyr)
-complete %>% dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) %>% distinct() %>% write_csv("~/Github/falciparum/Climate/PrecipKey.csv")
+if (CRUversion=="4.03") {
+  complete %>% dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) %>% distinct() %>% write_csv(file.path(repo, "Climate", "PrecipKey.csv"))
+} else if (CRUversion=="4.06") {
+  complete %>% dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) %>% distinct() %>% write_csv(file.path(repo, "Climate", "PrecipKey_CRU-TS4-06.csv"))
+}  else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
+}
 
 # include: contemporaneous temp, then distributed lag in flood and drought
 floodvars = paste(colnames(complete)[grep("flood", colnames(complete))], collapse = " + ")
