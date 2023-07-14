@@ -11,14 +11,23 @@ rm(list = ls())
 
 user = "Tamma" #"Colin"
 if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/' #location for data and output
+  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution' #location for data and output
   repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
 } else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
+  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution'
   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
 } else {
   wd = NA
   print('Script not configured for this user!')
+}
+
+CRUversion = "4.06" # "4.06"
+if (CRUversion=="4.03") {
+  resdir = file.path(wd, "Results")
+} else if (CRUversion=="4.06") {
+  resdir = file.path(wd, "Results_CRU-TS4-06")
+} else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
 }
 
 setwd(wd)
@@ -57,6 +66,11 @@ Tmax = 40 #max T for x axis
 #### Call external script for data cleaning
 source(file.path(repo,'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
 
+#### Create necessary subfolders
+dir.create(file.path(resdir,"Tables"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Figures"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Models"), showWarnings = FALSE)
+
 ########################################################################
 # Estimation
 ########################################################################
@@ -68,17 +82,19 @@ cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", drou
 mainmod = felm(data = complete, formula = cXt2intrXm)
 coeffs = as.data.frame(mainmod$coefficients)
 vcov = as.data.frame(mainmod$clustervcv)
-bfn = file.path(wd,"Results", "Models", "reproducibility", "coefficients_cXt2intrXm.rds")
-vfn = file.path(wd,"Results", "Models", "reproducibility", "vcv_cXt2intrXm.rds")
+dir.create(file.path(resdir,"Models", "reproducibility"), showWarnings = FALSE)
+bfn = file.path(resdir, "Models", "reproducibility", "coefficients_cXt2intrXm.rds")
+vfn = file.path(resdir, "Models", "reproducibility", "vcv_cXt2intrXm.rds")
 saveRDS(coeffs, file=bfn)
 saveRDS(vcov, file=vfn)
 
 # Stargazer output
 mynote = "Country-specific quad. trends with intervention FE and country by month FE."
+dir.create(file.path(resdir,"Tables", "main"), showWarnings = FALSE)
 stargazer(mainmod,
           title="PfPR2 response to daily avg. temperature", align=TRUE, 
           keep = c("temp", "flood", "drought"),
-          out = file.path(wd, "Results", "Tables", "main", "main_specification_cXt2intrXm.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
+          out = file.path(resdir, "Tables", "main", "main_specification_cXt2intrXm.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
           notes.append = TRUE, notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 ########################################################################
@@ -95,5 +111,6 @@ fig =  plotPolynomialResponse(mainmod, "temp", plotXtemp, polyOrder = 2, cluster
                                          yLab = "Prevalence (%)", title = "Main spec: cXt2intrXm", yLim=c(-30,5), showYTitle = T)
 
 fig
-ggsave(file.path(wd, "Results", "Figures", "Diagnostics", "Main_model", "temp_response_cXt2intrXm.pdf"), plot = fig, width = 7, height = 7)
+dir.create(file.path(resdir,"Figures","Diagnostics","Main_model"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "temp_response_cXt2intrXm.pdf"), plot = fig, width = 7, height = 7)
 
