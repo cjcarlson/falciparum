@@ -21,6 +21,8 @@ if (user == "Colin") {
   print('Script not configured for this user!')
 }
 
+CRUversion = "4.03" # "4.06"
+
 setwd(wd)
 
 # source functions for easy plotting and estimation
