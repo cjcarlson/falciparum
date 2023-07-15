@@ -511,5 +511,5 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[4]], nrow=2)
 p
 
-ggsave(file.path(resdir, "Diagnostics", "Drought_flood_defn", "precipitation_poly_order.pdf"), plot = p, width = 10, height = 10)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Drought_flood_defn", "precipitation_poly_order.pdf"), plot = p, width = 10, height = 10)
 

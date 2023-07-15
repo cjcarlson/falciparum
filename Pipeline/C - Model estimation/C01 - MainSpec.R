@@ -21,7 +21,7 @@ if (user == "Colin") {
   print('Script not configured for this user!')
 }
 
-CRUversion = "4.06" # "4.06"
+CRUversion = "4.03" # "4.06"
 if (CRUversion=="4.03") {
   resdir = file.path(wd, "Results")
 } else if (CRUversion=="4.06") {
