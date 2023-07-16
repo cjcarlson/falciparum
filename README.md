@@ -2,7 +2,9 @@
 
 ---
 
-This repository contains code for Carlson, Carleton, Odoulami, and Trisos (2022),"The historical fingerprint and future impact of climate change on childhood malaria in Africa" (preprint forthcoming on _medRxiv_). Malaria data were previously published by Snow et al. (2017) and are available online; climate data are too large for Github but again available from other sources. All R scripts to execute the data analysis and visualization are stored in the Pipeline directory:
+This repository contains code for Carlson, Carleton, Odoulami, and Trisos (2022), "**The historical fingerprint and future impact of climate change on childhood malaria in Africa**" (preprint forthcoming on _medRxiv_). Malaria data were previously published by Snow et al. (2017) and are available online; climate data are too large for Github but again available from other sources. 
+
+All R scripts to execute the data analysis and visualization are stored in the Pipeline directory:
 
 ```
 A - Utility functions
