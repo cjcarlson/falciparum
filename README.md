@@ -1,4 +1,4 @@
-## The historical fingerprint and future impact of climate change on childhood malaria in Africa
+## Code from: The historical fingerprint and future impact of climate change on childhood malaria in Africa
 
 This repository contains code for Carlson, Carleton, Odoulami, and Trisos (2022), preprint forthcoming on medRxiv. 
 
@@ -41,18 +41,20 @@ F - Figure generation for main text
 ├─ F08 - Fig3 - Extract time series.R
 ├─ F09 - Fig3 - Maps.R
 ├─ F10 - Fig3 - Time series.R
-├─ F11 - Fig3 - Assembly.R
+├─ F11 - Fig3 - Elevation.R
+├─ F12 - Fig3 - Assembly.R
 |
 | ### in below scripts, pipeline reflects that 4.5 was added to figure later
-├─ F12 - Fig4 - Extract 2050 maps - 2.6 and 8.5.R
-├─ F13 - Fig4 - Extract 2100 maps - 2.6 and 8.5.R
-├─ F14 - Fig4 - Extract 2050 and 2100 maps - 4.5.R
-├─ F15 - Fig4 - Extract time series.R
-├─ F16 - Fig4 - 2050 maps - 2.6 and 8.5.R
-├─ F17 - Fig4 - 2100 maps - 2.6 and 8.5.R
-├─ F18 - Fig4 - 2050 and 2100 maps - 4.5.R
-├─ F19 - Fig4 - Time series.R
-└─ F20 - Fig4 - Assembly.R
+├─ F13 - Fig4 - Extract 2050 maps - 2.6 and 8.5.R
+├─ F14 - Fig4 - Extract 2100 maps - 2.6 and 8.5.R
+├─ F15 - Fig4 - Extract 2050 and 2100 maps - 4.5.R
+├─ F16 - Fig4 - Extract time series.R
+├─ F17 - Fig4 - 2050 maps - 2.6 and 8.5.R
+├─ F18 - Fig4 - 2100 maps - 2.6 and 8.5.R
+├─ F19 - Fig4 - 2050 and 2100 maps - 4.5.R
+├─ F20 - Fig4 - Time series.R
+├─ F21 - Fig4 - Assembly.R
+└─ F22 - Fig4 - Alternate 4.5 2100 and ladders.R ## this version currently in text
 
 G - Figure generation for supplement
 ├─ G01 - Visualize thermal curve expectations and data.R
@@ -60,7 +62,8 @@ G - Figure generation for supplement
 ├─ G03 - Historical partials.R
 ├─ G04 - Extract future data.R
 ├─ G05 - Future partials.R
-└─ G06 - Visualize background and sampled climate variability.R
+├─ G06 - Attributable map.R
+└─ G07 - Projections map.R
 
 H - Summary statistics for main text
 ├─ H01 - Thermal responses.R
