@@ -7,12 +7,13 @@ library(tidyverse)
 library(patchwork)
 library(data.table)
 library(vroom)
+library(here)
 
-hist.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig2Hist.csv")
-future.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig2Future.csv")
+hist.to.graph <- vroom(here::here("TempFiles", "Fig2Hist.csv"))
+future.to.graph <- vroom(here::here("TempFiles", "Fig2Future.csv"))
 
 hist.to.graph %>%
-  filter(scenario == 'hist', year %in% c(2010:2014)) %>%
+  filter(scenario == 'historical', year %in% c(2010:2014)) %>%
   pull(median) %>% mean() -> base
 
 future.to.graph %<>%
@@ -20,10 +21,18 @@ future.to.graph %<>%
          upper = upper + base,
          lower = lower + base)
 
-graph.data <- bind_rows(hist.to.graph, future.to.graph %>% dplyr::rename(scenario = RCP))
+graph.data <- bind_rows(hist.to.graph, future.to.graph) #%>% dplyr::rename(scenario = RCP))
+
+labels <- c(
+  'Historical counterfactual', 
+  'Historical climate',
+  'Future climate (SSP1-RCP2.6)',
+  'Future climate (SSP2-RCP4.5)', 
+  'Future climate (SSP5-RCP8.5)'
+)
 
 graph.data %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
+  mutate(scenario = factor(scenario, levels = c('hist-nat', 'historical', 'ssp126', 'ssp245', 'ssp585'))) %>%
   
   ### Start plotting in 1902 and 2016 because it's the first full year with lags incorporated right.
   filter(!(year %in% c(1901, 2015))) %>% 
@@ -37,10 +46,10 @@ graph.data %>%
   theme_bw() + 
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
   scale_color_manual(values = c("grey50", "#287DAB", "#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Historical counterfactual', 'Historical climate', 'Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
+                     labels = labels,
                      name = '') + 
   scale_fill_manual(values = c("grey50", "#287DAB", "#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Historical counterfactual', 'Historical climate', 'Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
+                    labels = labels,
                     name = '') + 
   geom_vline(xintercept = 2014.5, linetype = 'dashed') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 

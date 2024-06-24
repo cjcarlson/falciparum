@@ -4,22 +4,22 @@
 # as well as its uncertainty over 1,000 bootstrap samples 
 ########################################################################
 
-user = "Colin" # "Tamma" #
-if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum/'
-} else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
-  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-} else {
-  wd = NA
-  print('Script not configured for this user!')
-}
-
-setwd(wd)
+# user = "Colin" # "Tamma" #
+# if (user == "Colin") {
+#   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
+#   repo = 'C:/Users/cjcar/Documents/Github/falciparum/'
+# } else if (user == "Tamma") {
+#   wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
+#   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
+# } else {
+#   wd = NA
+#   print('Script not configured for this user!')
+# }
+# 
+# setwd(wd)
 
 # source functions from previous script
-source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
+# source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
 
 # packages
 library(ggplot2)
@@ -31,12 +31,20 @@ library(tidyr)
 library(zoo)
 library(lubridate)
 
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
+
 ########################################################################
 # A. Read in saved regression results
 ########################################################################
 
 # load main model (full sample)
-main <- readRDS("./Results/Models/coefficients_cXt2intrXm.rds")
+
+#### Bootstrap coefficients ----
+main <- file.path(datadir, "Results", "Models", "coefficients_cXt2intrXm.rds") |> 
+  readRDS() 
+
+# main <- readRDS("./Results/Models/coefficients_cXt2intrXm.rds")
 coefs <- main[,1]
 names(coefs) <- rownames(main)
 main <- as.data.frame(t(as.matrix(coefs)))
@@ -51,12 +59,12 @@ optT <- function(beta1, beta2){
 df = as.data.frame(main)
 df$model = "main"
 
-files = list.files(file.path("Results","Models","bootstrap"))
+files = list.files(file.path(datadir, "Results","Models","bootstrap"))
 stop = length(files)-1
 files=files[1:stop]
 
 for(f in 1:length(files)){
-  tmp = readRDS(file.path("Results","Models","bootstrap",files[f]))
+  tmp = readRDS(file.path(datadir, "Results","Models","bootstrap", files[f]))
   tmp = as.data.frame(tmp)
   tmp$model = paste0("boot",f)
   df = df %>% add_row(as.data.frame(tmp))
@@ -108,7 +116,7 @@ g = ggplot()  +
   geom_line(data = subset(plotData,model!="boot1"),
             aes(x = x, y = response, group = model), color = "#C1657C", alpha=.1) +
   geom_line(data = subset(plotData,model=="boot1"), 
-            mapping = aes(x = x, y = response), color = "black", size = 1) +
+            mapping = aes(x = x, y = response), color = "black", linewidth = 1) +
   theme_bw() + 
   labs(x = expression(paste("Mean temperature (",degree,"C)")), y = "Effect on prevalence (%)") + 
   xlim(Tmin,Tmax) + 
