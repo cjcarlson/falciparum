@@ -2,17 +2,23 @@
 library(sf)
 library(lubridate)
 library(magrittr)
-library(rgdal)
+# library(rgdal)
 library(tidyverse)
 library(patchwork)
 library(multiscales)
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/Fig3Big.csv")
+# iter.df <- vroom("~/Github/falciparum/TempFiles/Fig3Big.csv")
+# 
+# iter.df %>%
+#   mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
+#   mutate(GCM = str_replace_all(GCM,'./Future/','')) %>%
+#   mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
 
-iter.df %>%
-  mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
-  mutate(GCM = str_replace_all(GCM,'./Future/','')) %>%
-  mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+
+iter.df <- here::here("TempFiles", "Fig3Big.feather") |> 
+  arrow::read_feather() |>
+  dplyr::mutate(model = stringr::str_replace_all(model,'BCC-CSM2-MR','BCC-CSM2')) 
 
 ###########################################################################
 ###########################################################################
@@ -25,9 +31,9 @@ iter.df %>%
 iter.df %>% 
   filter(year == 2014) -> slices
 
-slices %>% pivot_wider(names_from = scenario, values_from = value) %>% 
-  mutate(diff = (hist - nat)) %>%
-  select(-c(hist,nat,year)) -> slices.runs
+slices %>% pivot_wider(names_from = scenario, values_from = Pred) %>% 
+  mutate(diff = (historical - `hist-nat`)) %>%
+  select(-c(historical, `hist-nat`, year)) -> slices.runs
 
 slices.runs %>% ungroup %>% group_by(OBJECTID) %>%
   summarize(mean.diff = mean(diff, na.rm = TRUE), 
@@ -41,10 +47,12 @@ slices.runs %>% ungroup %>% group_by(OBJECTID) %>%
 ###########################
 
 # Get the stuff 
+elev <- file.path(datadir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
+  readr::read_csv(show_col_types = FALSE) 
 
-elev <- read_csv("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/elevation/elevation_extracted_all_ADM1.csv")
+cont <- file.path(datadir, 'Data', 'AfricaADM1.shp') |> 
+  sf::read_sf()
 
-cont <- read_sf('C:/Users/cjcar/Dropbox/MalariaAttribution/Data/AfricaADM1.shp')
 latlon <- cont %>% 
   mutate(lon = map_dbl(geometry, ~st_point_on_surface(.x)[[1]]),
          lat = map_dbl(geometry, ~st_point_on_surface(.x)[[2]]))
@@ -53,7 +61,8 @@ latlon %>%
   select(OBJECTID, lat) %>%
   mutate(OBJECTID = as.numeric(OBJECTID)) -> lat
 
-temp <- read_csv("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU-Reextraction-Aug2022.csv")
+temp <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
+  readr::read_csv(show_col_types = FALSE) 
 temp %>% 
   filter(year %in% c(1901:1930)) %>%
   group_by(OBJECTID) %>% 
