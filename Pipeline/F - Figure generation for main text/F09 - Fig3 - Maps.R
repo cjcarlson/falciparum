@@ -1,8 +1,12 @@
 
+# install.packages("colorspace", repos = "http://R-Forge.R-project.org")
+# devtools::install_github("clauswilke/multiscales")
+
+library(sf)
+library(here)
 library(tidyverse)
 library(magrittr)
 library(data.table)
-library(sf)
 library(lubridate)
 library(patchwork)
 library(multiscales)
@@ -66,8 +70,8 @@ ggplot(sfcont) +
   theme_void() +
   theme(
     legend.title = element_text(hjust = 0.5),
-    legend.position.inside = c(0.18,0.3),
-    # legend.position = c(0.18,0.3),
+    # legend.position.inside = c(0.18,0.3),
+    legend.position = c(0.18,0.3),
     legend.key.size = grid::unit(0.8, "cm"),
     # legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
@@ -92,7 +96,8 @@ ggplot(sfcont) +
     #legend.key.size = grid::unit(1, "cm"),
     #legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
-  ) + ggtitle('B') + 
+  ) + 
+  ggtitle('B') + 
   theme(plot.title = element_text(size = 20)) -> 
   map.diff.no.legend 
 

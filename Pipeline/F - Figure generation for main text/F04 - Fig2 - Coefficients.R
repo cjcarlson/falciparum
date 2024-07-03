@@ -1,25 +1,7 @@
-
 ########################################################################
 # This script plots the main prevalence-temperature dose-response function 
 # as well as its uncertainty over 1,000 bootstrap samples 
 ########################################################################
-
-# user = "Colin" # "Tamma" #
-# if (user == "Colin") {
-#   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
-#   repo = 'C:/Users/cjcar/Documents/Github/falciparum/'
-# } else if (user == "Tamma") {
-#   wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
-#   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-# } else {
-#   wd = NA
-#   print('Script not configured for this user!')
-# }
-# 
-# setwd(wd)
-
-# source functions from previous script
-# source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
 
 # packages
 library(ggplot2)
@@ -30,6 +12,7 @@ library(cowplot)
 library(tidyr)
 library(zoo)
 library(lubridate)
+library(patchwork)
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
@@ -120,7 +103,8 @@ g = ggplot()  +
   theme_bw() + 
   labs(x = expression(paste("Mean temperature (",degree,"C)")), y = "Effect on prevalence (%)") + 
   xlim(Tmin,Tmax) + 
-  theme(axis.title.x = element_text(vjust = -3),
+  theme(
+    axis.title.x = element_text(vjust = -3),
         axis.title.y = element_text(vjust = 5),
         plot.margin = unit(c(0.3,0.3,1,1), units = "cm"))
 g
@@ -164,13 +148,17 @@ f = ggplot() +
              aes(x=factor(lag),y=response), 
              color = "black", alpha = 1, size = 4) +
   geom_vline(xintercept = -0.5, linetype="dashed") + 
-  ylab(NULL) + xlab("Flood (month lags)") + 
+  labs(x = "Flood (month lags)", y = NULL) +
+  # ylab(NULL) +
+  # xlab("Flood (month lags)") + 
   scale_y_continuous(breaks=c(-8, -4,  0, 4)) + 
   scale_x_discrete(breaks=c("-1","0","1","2","3"),
                    labels=c("cumulative", "0", "1", "2", "3")) +
-  theme(axis.title.x = element_text(vjust = -3),
-        axis.title.y = element_text(vjust = 5),
-        plot.margin = unit(c(0.3,0.3,1,0), units = "cm")) + ylim(-8,4)
+  theme(
+    axis.title.x = element_text(vjust = -1),
+    axis.title.y = element_text(vjust = 5),
+    plot.margin = unit(c(0.3,0.3,1,0), units = "cm")) + 
+  ylim(-8,4)
 f
 
 # plot- drought
@@ -184,18 +172,21 @@ d = ggplot() +
              aes(x=factor(lag),y=response), color = "black", 
              alpha = 1, size = 4) +
   geom_vline(xintercept = -0.5, linetype="dashed") + 
-  ylab(NULL) + xlab("Drought (month lags)") +
+  labs(x = "Drought (month lags)", y = NULL) +
+  # ylab(NULL) +
+  # xlab("Drought (month lags)") +
   scale_x_discrete(breaks=c("-1","0","1","2","3"),
                    labels=c("cumulative", "0", "1", "2", "3")) +
-  theme(axis.title.x = element_text(vjust = -3),
-        axis.title.y = element_text(vjust = 0),
-        plot.margin = unit(c(0.3,0.3,1,0), units = "cm")) + ylim(-8,4)
+  theme(
+    axis.title.x = element_text(vjust = -1),
+    axis.title.y = element_text(vjust = 0),
+    plot.margin = unit(c(0.3,0.3,1,0), units = "cm")) + 
+  ylim(-8,4)
 d
 
 ########################################################################
 # Middle row multipanel
 ########################################################################
 
-library(patchwork)
 g + f + d
 

@@ -4,31 +4,26 @@ library(magrittr)
 library(data.table)
 library(vroom)
 
-# data.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig3Regionals.csv")
-
-
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
 data.to.graph <- readr::read_csv(here::here("TempFiles", "Fig3Regionals.csv"))
 
-data.to.graph %>% 
-  mutate(scenario = factor(scenario, levels = c('hist-nat', 'historical'))) %>%
+data.to.graph |> 
+  mutate(scenario = factor(scenario, levels = c('hist-nat', 'historical'))) |>
   mutate(
     region = recode(
       region, !!!c(
         'Sub-Saharan Africa (Central)' = 'Central Africa',
         'Sub-Saharan Africa (East)' = 'East Africa',
         'Sub-Saharan Africa (Southern)' = 'Southern Africa',
-        'Sub-Saharan Africa (West)' = 'West Africa'))) %>%
+        'Sub-Saharan Africa (West)' = 'West Africa'))) |>
   ### Start plotting in 1902 because it's the first full year with lags incorporated right.
-  filter(year > 1901, !is.na(region)) %>% 
+  filter(year > 1901) |> 
   ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
   ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
   ############ this is for plotting purposes ONLY and text stats give full CI's
-  mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0)) %>%
-  
-  
-  ggplot(aes(x = year, group = scenario, color = scenario, fill = scenario)) + 
+  mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0)) |>
+    ggplot(aes(x = year, group = scenario, color = scenario, fill = scenario)) + 
   geom_line(aes(y=median), lwd = 1.25) + 
   geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) + 
   theme_classic() + 

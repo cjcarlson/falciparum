@@ -98,7 +98,8 @@ df %>%
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
         legend.position = 'n',
         plot.margin = margin(0,0,10,0)) + 
-  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g1
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> 
+  g1
 
 df %>%
   na.omit() %>%
@@ -113,7 +114,8 @@ df %>%
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
         legend.position = 'n',
         plot.margin = margin(0,0,0,0)) + 
-  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g2
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> 
+  g2
 
 df %>%
   na.omit() %>%
@@ -128,4 +130,5 @@ df %>%
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
         legend.position = 'n',
         plot.margin = margin(0,0,0,0)) + 
-  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g3
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) ->
+  g3

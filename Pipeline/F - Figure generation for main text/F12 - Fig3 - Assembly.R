@@ -15,14 +15,14 @@ map.diff + g3 + g1 + bottom +
   theme(plot.tag = element_text(size = 23))
 
 ggsave(
-  filename = "Figure3_06-2024.pdf",
+  filename = "Figure3_new.pdf",
   plot = last_plot(),
   device = cairo_pdf,
   path = here::here("Figures"),
   width = 11.63,
   height = 10.07,
   units = "in",
-  dpi = 600
+  dpi = 1200
 )
 
 

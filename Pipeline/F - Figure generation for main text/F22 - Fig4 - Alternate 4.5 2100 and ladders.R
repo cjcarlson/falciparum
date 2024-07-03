@@ -1,49 +1,43 @@
-
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
-
-
-library(tidyverse); library(magrittr); library(ggplot2); library(data.table)
+library(here)
 library(sf)
-library(lubridate)
-library(rgdal)
+library(tidyverse)
+library(data.table)
 library(patchwork)
 library(multiscales)
-library(vroom)
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/Fig4BigRCP45.csv")
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
-iter.df %>% pivot_wider(names_from = year, values_from = value) %>% 
-  mutate(diff = (`2100` - `2015`)) %>%
-  select(-c(`2100`,`2050`,`2015`,'RCP')) -> slices.runs
+iter.df <- here::here("TempFiles", "Fig4Big.feather") |> 
+  arrow::read_feather() |> 
+  dplyr::filter(scenario == "ssp245")
 
-slices.runs %>% ungroup %>% group_by(OBJECTID) %>%
-  summarize(mean.diff = mean(diff), runs.diff = sum(diff > 0), 
-            lower.diff = quantile(diff, 0.05, na.rm = TRUE), 
-            upper.diff = quantile(diff, 0.95, na.rm = TRUE)) ->
+iter.df |> 
+  tidyr::pivot_wider(names_from = year, values_from = Pred) |> 
+  dplyr::mutate(diff = (`2100` - `2015`)) |>
+  dplyr::select(-c(`2100`,`2050`,`2015`, scenario)) -> 
+  slices.runs
+
+slices.runs |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(OBJECTID) |>
+  dplyr::summarize(
+    mean.diff = mean(diff), runs.diff = sum(diff > 0), 
+    lower.diff = quantile(diff, 0.05, na.rm = TRUE), 
+    upper.diff = quantile(diff, 0.95, na.rm = TRUE)) |> 
+  dplyr::mutate(
+    OBJECTID = factor(OBJECTID), 
+    moe = 1 - abs(runs.diff-5500)/5500) ->
   slice.map2
 
-### ADD THE MAP
-
-slice.map2 %<>% mutate(OBJECTID = factor(OBJECTID))
-cont <- readOGR('C:/Users/cjcar/Dropbox/MalariaAttribution/Data/AfricaADM1.shp')
-cont@data <- left_join(cont@data, slice.map2)
-
-sfcont <- st_as_sf(cont)
-sfcont %<>% mutate(moe = 1 - abs(sfcont$runs.diff-5000)/5000)
+sfcont <- file.path(datadir, 'Data', 'AfricaADM1.shp') |>
+  sf::read_sf() |>
+  dplyr::left_join(slice.map2, by = join_by(OBJECTID))
 
 colors <- scales::colour_ramp(
   colors = c(red = "#AC202F", purple = "#740280", blue = "#2265A3")
 )((0:7)/7)
 
 colors <- rev(colors)
-
-library(multiscales)
 
 ggplot(sfcont) + 
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
@@ -61,9 +55,10 @@ ggplot(sfcont) +
   theme(
     legend.position = c(0.18,0.3),
     legend.key.size = grid::unit(0.8, "cm"),
-    legend.title.align = 0.5,
+    legend.title = element_text(hjust= 0.5),
     plot.margin = margin(0, 0, 0, 0)
-  ) -> map.rcp45.2100
+  ) ->
+  map.rcp45.2100
 
 
 ###########################################################################
@@ -74,30 +69,29 @@ ggplot(sfcont) +
 ###########################################################################
 ###########################################################################
 
-
-library(tidyverse); library(magrittr); library(ggplot2); library(data.table)
-library(vroom)
-
-data.to.graph <- vroom("~/Github/falciparum/TempFiles/Fig4Regionals.csv")
+data.to.graph <- here::here("TempFiles", "Fig4Regionals.csv") |> 
+  readr::read_csv(show_col_types = FALSE)
+  # arrow::read_feather()
 
 data.to.graph %>% 
-  mutate(Region = recode(Region, !!!c('Sub-Saharan Africa (Central)' = 'Central Africa',
-                                      'Sub-Saharan Africa (East)' = 'East Africa',
-                                      'Sub-Saharan Africa (Southern)' = 'Southern Africa',
-                                      'Sub-Saharan Africa (West)' = 'West Africa'))) %>%
+  mutate(
+    region = recode(
+      region, !!!c(
+        'Sub-Saharan Africa (Central)' = 'Central Africa',
+        'Sub-Saharan Africa (East)' = 'East Africa',
+        'Sub-Saharan Africa (Southern)' = 'Southern Africa',
+        'Sub-Saharan Africa (West)' = 'West Africa'))) %>%
   
   ### Start plotting in 2016 because it's the first full year with lags incorporated right.
   filter(year > 2015) %>% 
-  
-  
   ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
   ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
   ############ this is for plotting purposes ONLY and text stats give full CI's
-  mutate(lower = pmax(lower, -4.1), upper = pmin(upper, 2.1)) %>%
+  mutate(lower = pmax(lower, -4.3), upper = pmin(upper, 2.1)) %>%
   
-  ggplot(aes(x = year, group = RCP, color = RCP, fill = RCP)) + 
+  ggplot(aes(x = year, group = scenario, color = scenario, fill = scenario)) + 
   geom_line(aes(y=median), lwd = 1.25) + 
-  geom_ribbon(aes(ymin=lower, ymax=upper, fill = RCP), color = NA, alpha = 0.1) + 
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) + 
   scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
                      labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 
@@ -109,11 +103,11 @@ data.to.graph %>%
   xlab(NULL) + 
   ylab("Prevalence (%)") + 
   geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) + 
-  facet_wrap(Region ~ ., ncol = 4) + 
+  facet_wrap(region ~ ., ncol = 4) + 
   theme(legend.position = 'bottom') + 
-  theme(plot.title = element_text(size = 20)) -> bottom
+  theme(plot.title = element_text(size = 20)) -> 
+  bottom
 
-
 ###########################################################################
 ###########################################################################
 ###########################################################################
@@ -121,22 +115,25 @@ data.to.graph %>%
 ###########################################################################
 ###########################################################################
 ###########################################################################
-
 
 # Get the stuff 
 
-elev <- read_csv("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/elevation/elevation_extracted_all_ADM1.csv")
+elev <- file.path(datadir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
+  readr::read_csv(show_col_types = FALSE)
 
-cont <- read_sf('C:/Users/cjcar/Dropbox/MalariaAttribution/Data/AfricaADM1.shp')
+cont <- file.path(datadir, "Data", "AfricaADM1.shp") |>
+  read_sf()
 latlon <- cont %>% 
   mutate(lon = map_dbl(geometry, ~st_point_on_surface(.x)[[1]]),
          lat = map_dbl(geometry, ~st_point_on_surface(.x)[[2]]))
 latlon %>%
   as.data.frame() %>%
   select(OBJECTID, lat) %>%
-  mutate(OBJECTID = as.numeric(OBJECTID)) -> lat
+  mutate(OBJECTID = as.numeric(OBJECTID)) -> 
+  lat
 
-temp <- read_csv("C:/Users/cjcar/Dropbox/MalariaAttribution/Data/CRU-Reextraction-Aug2022.csv")
+temp <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
+  readr::read_csv(show_col_types = FALSE)
 temp %>% 
   filter(year %in% c(1901:1930)) %>%
   group_by(OBJECTID) %>% 
@@ -145,7 +142,8 @@ temp %>%
 slice.map2 %>%
   left_join(elev %>% select(OBJECTID, elevmn) %>% mutate(OBJECTID = as.factor(OBJECTID))) %>%
   left_join(lat %>% mutate(OBJECTID = as.factor(OBJECTID))) %>%
-  left_join(tmean %>% mutate(OBJECTID = as.factor(OBJECTID))) -> df
+  left_join(tmean %>% mutate(OBJECTID = as.factor(OBJECTID))) -> 
+  df
 
 # Generate a nice little significance color scheme
 df %>%
@@ -165,7 +163,8 @@ df %>%
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
         legend.position = 'n',
         plot.margin = margin(0,0,10,0)) + 
-  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g1
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) ->
+  g1
 
 df %>%
   na.omit() %>%
@@ -180,7 +179,8 @@ df %>%
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
         legend.position = 'n',
         plot.margin = margin(0,0,0,0)) + 
-  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g2
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> 
+  g2
 
 df %>%
   na.omit() %>%
@@ -195,10 +195,9 @@ df %>%
         axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
         legend.position = 'n',
         plot.margin = margin(0,0,0,0)) + 
-  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> g3
+  scale_color_manual(values = c("#2265A3","grey80","#AC202F")) -> 
+  g3
 
-
-
 ###########################################################################
 ###########################################################################
 ###########################################################################
@@ -207,244 +206,23 @@ df %>%
 ###########################################################################
 ###########################################################################
 
-
-layout <- "
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAABBCC
-AAAAAAAAA####
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-DDDDDDDDDDDDD
-"
-
+part1 <- paste0(replicate(151, "\nAAAAAAAAABBCC"), collapse = "")
+part2 <- "\nAAAAAAAAA####\n"
+part3 <- paste(replicate(80, "DDDDDDDDDDDDD\n"), collapse = "")
+layout <- paste(part1, part2, part3, sep = "")
 
 map.rcp45.2100 + g3 + g1 + bottom +
   plot_layout(design = layout) +
   plot_annotation(tag_levels = 'A') &
   theme(plot.tag = element_text(size = 23))
+
+ggsave(
+  filename = "Figure4_new.pdf",
+  plot = last_plot(),
+  device = cairo_pdf,
+  path = here::here("Figures"),
+  width = 11.63,
+  height = 10.07,
+  units = "in",
+  dpi = 1200
+)
