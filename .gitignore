@@ -26,6 +26,7 @@ IPSL-CM6A-LR*
 MIROC6*
 MRI-ESM2-0* 
 NorESM2-LM*
+*.feather
 
 Climate/CRU-Reextraction-Aug2022.csv
 Climate/Future/BCC-CSM2-rcp26.csv
