@@ -1,4 +1,7 @@
-### Functions needed throughout falciparum/ repo
+
+print("Loading A01 - Utility code for calculations.R")
+
+## Functions needed throughout falciparum/ repo
 
 swirl <- function(input.raster) {
   input.raster <- flip(t(input.raster),direction='y')
