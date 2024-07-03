@@ -1,95 +1,110 @@
 
 library(sf)
-library(lubridate)
-library(magrittr)
-library(rgdal)
+library(here)
 library(tidyverse)
 library(patchwork)
-library(multiscales)
-library(vroom)
 library(colorspace)
+library(multiscales)
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/Fig3Big.csv")
+###########################################################################.
+###########################################################################.
+###########################################################################.
+###########################################################################.
+###########################################################################.
+###########################################################################.
+###########################################################################.
 
-iter.df %>%
-  mutate(GCM = str_replace_all(GCM,'./Historical/','')) %>%
-  mutate(GCM = str_replace_all(GCM,'./Future/','')) %>%
-  mutate(GCM = str_replace_all(GCM,'BCC-CSM2-MR','BCC-CSM2')) -> iter.df
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
-###########################################################################
+cont <- sf::read_sf(file.path(datadir, 'Data', 'AfricaADM1.shp'))|> 
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
 
-iter.df %>% 
-  filter(year == 2014) -> slices
+iter.df <- here::here("TempFiles", "Fig3Big.feather")|> 
+  arrow::read_feather() |> 
+  dplyr::filter(year == 2014) |> 
+  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |> 
+  dplyr::mutate(diff = (historical - `hist-nat`)) |>
+  dplyr::group_by(OBJECTID) |>
+  dplyr::summarize(
+    mean.diff = mean(diff, na.rm = TRUE), 
+    lower.diff = quantile(diff, 0.05, na.rm = TRUE),
+    upper.diff = quantile(diff, 0.95, na.rm = TRUE)
+  ) 
 
-slices %>% pivot_wider(names_from = scenario, values_from = value) %>% 
-  mutate(diff = (hist - nat)) %>%
-  select(-c(hist,nat,year)) -> slices.runs
-
-slices.runs %>% ungroup %>% group_by(OBJECTID) %>%
-  summarize(mean.diff = mean(diff, na.rm = TRUE), 
-            lower.diff = quantile(diff, 0.05, na.rm = TRUE), 
-            upper.diff = quantile(diff, 0.95, na.rm = TRUE)) ->
-  slice.map1
-
-cont <- read_sf('C:/Users/cjcar/Dropbox/MalariaAttribution/Data/AfricaADM1.shp')
-
-cont %<>% left_join(slice.map1 %>% mutate(OBJECTID = as.character(OBJECTID)))
+cont <- dplyr::left_join(cont, iter.df)
 
 ggplot(cont) + 
   geom_sf(aes(fill = mean.diff), color = "gray30", size = 0.05) +
-  coord_sf(datum = NA, 
-           xlim = c(-17.5, 52),
-           ylim = c(-35.5, 37.5)) + 
-  theme_void() + 
+  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) + 
   scale_fill_continuous_divergingx(palette = "Geyser", na.value = "white") +
   labs(fill = "Change (%)") + 
-  theme(legend.position = c(0.15, 0.25)) -> g1
+  theme_void() + 
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(0.15, 0.25)
+  ) ->
+  g1
 
-cont %>%
-  mutate(sign = as.numeric(lower.diff > 0) + -1*as.numeric(upper.diff < 0)) %>%
+cont |>
+  mutate(sign = as.numeric(lower.diff > 0) + -1*as.numeric(upper.diff < 0)) |>
   mutate(sign = factor(sign)) -> cont
 
 ggplot(cont) + 
   geom_sf(aes(fill = sign), color = "gray30", size = 0.05) +
-  coord_sf(datum = NA, 
-           xlim = c(-17.5, 52),
-           ylim = c(-35.5, 37.5)) + 
-  theme_void() + 
-  scale_fill_manual(values = c("#00AFBB","grey80","#fa5340"), na.value = "white", na.translate = F,
-                    labels = c('Decline','Insignificant','Increase')) +
+  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) + 
+  scale_fill_manual(
+    values = c("#00AFBB","grey80","#fa5340"),
+    labels = c('Decline','Insignificant','Increase'),
+    na.value = "white", na.translate = F) +
   labs(fill = "Significance") + 
-  theme(legend.position = c(0.15, 0.25))  -> g2 
+  theme_void() + 
+  theme(
+    legend.position = "inside",
+    legend.position.inside =   c(0.15, 0.25)
+  )-> 
+  g2 
 
 g1 + g2 
 
-### Scratch space
+### Supplemental Figure 2
 
-cont %>%
-  mutate(sign = as.numeric(lower.diff > 0) + as.numeric(upper.diff < 0)) %>% 
-  mutate(sign = replace_na(sign, 0)) %>%
-  arrange(-sign) %>%
-  mutate(sign = as.factor(sign)) -> cont
+cont |>
+  mutate(sign = as.numeric(lower.diff > 0) + as.numeric(upper.diff < 0)) |>
+  mutate(sign = replace_na(sign, 0)) |>
+  arrange(-sign) |>
+  mutate(sign = as.factor(sign)) -> 
+  cont
 
-cont %>% select(sign) %>%
-  filter(sign == 1) %>% 
-  st_make_valid() %>% 
-  st_union() %>% 
-  st_make_valid() %>% 
-  st_union() -> top
+cont |> 
+  select(sign) |>
+  filter(sign == 1) |>
+  st_make_valid() |>
+  st_union() |>
+  st_make_valid() |>
+  st_union() -> 
+  top
 
-ggplot(cont) + 
+supp_2 <- ggplot(cont) +
   geom_sf(aes(fill = mean.diff), color = 'grey70', size = 0.05) +
-  coord_sf(datum = NA, 
+  coord_sf(datum = NA,
            xlim = c(-17.5, 52),
-           ylim = c(-35.5, 37.5)) + 
-  theme_void() + 
+           ylim = c(-35.5, 37.5)) +
+  theme_void() +
   scale_fill_continuous_divergingx(palette = "Geyser", na.value = "white") +
-  labs(fill = "Prevalence (%)") + 
-  theme(legend.position = c(0.25, 0.35)) + 
-  geom_sf(data = top, color = 'black', size = 0.25, fill = NA)
+  labs(fill = "Prevalence (%)")+
+  geom_sf(data = top, color = 'black', size = 0.25, fill = NA) +
+  theme(
+    legend.position = "inside",
+    legend.position.inside = c(0.25, 0.35)
+  ) 
+
+ggplot2::ggsave(
+  filename = "FigureS2_new.pdf",
+  plot = supp_2,
+  device = cairo_pdf,
+  path = here::here("Figures"),
+  width = 9.53,
+  height = 10.07,
+  units = "in",
+  dpi = 1200
+)

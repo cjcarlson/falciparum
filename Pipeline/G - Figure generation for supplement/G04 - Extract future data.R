@@ -1,11 +1,9 @@
 
-library(sf)
-library(lubridate)
+library(here)
 library(magrittr)
-library(rgdal)
 library(tidyverse)
-library(patchwork)
 library(data.table)
+library(tictoc)
 
 ###########################################################################
 ###########################################################################
@@ -15,22 +13,33 @@ library(data.table)
 ###########################################################################
 ###########################################################################
 
-setwd("D:/MalariaAfrica/FutureTempFiles")
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
-setDTthreads(1L)
-meta <- fread("RowMetadata.csv", select = c("year", "run"))
+iter_dir <- file.path(datadir, "IterationFiles", "FutureTempFiles")
+
+meta <- file.path(iter_dir, "RowMetadata.feather") |> 
+  arrow::read_feather(col_select = c(year, scenario, model)) 
 
 for (i in 1:1000) { 
-  iter <- fread(paste(paste("iter", i, sep=""), ".csv", sep = ""), select = c("Pred","Pf.temp","Pf.flood","Pf.drought"))
-  iter <- bind_cols(meta, iter)
-  iter <-  iter[,list(Pred = mean(Pred, na.rm = TRUE), 
-                      Pf.temp = mean(Pf.temp, na.rm = TRUE),
-                      Pf.flood = mean(Pf.flood, na.rm = TRUE),
-                      Pf.drought = mean(Pf.drought, na.rm = TRUE)), by = 'run,year']
+  tictoc::tic(i)
+  iter <- file.path(iter_dir, paste0("iter_", i, ".feather")) |> 
+    arrow::read_feather(col_select = c(Pred, Pf.temp, Pf.flood, Pf.drought)) |> 
+    data.table::as.data.table() |> 
+    dplyr::bind_cols(meta)
+  iter <-  iter[
+    , list(
+      Pred = mean(Pred, na.rm = TRUE), 
+      Pf.temp = mean(Pf.temp, na.rm = TRUE),
+      Pf.flood = mean(Pf.flood, na.rm = TRUE),
+      Pf.drought = mean(Pf.drought, na.rm = TRUE)
+    ),
+    by = 'scenario,model,year'
+  ]
   iter$iter <- i
   if(i==1) {iter.df <- iter} else {iter.df <- bind_rows(iter.df, iter)}
-  print(i)
+  tictoc::toc()
 } 
 
-iter.df %<>% as_tibble()
-vroom::vroom_write(iter.df, "~/Github/falciparum/TempFiles/SuppFutureBig.csv")
+iter.df <- tibble::as_tibble(iter.df)
+
+arrow::write_feather(iter.df, here::here("TempFiles", "SuppFutureBig.feather"))

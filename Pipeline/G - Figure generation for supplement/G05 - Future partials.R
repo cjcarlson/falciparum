@@ -1,167 +1,100 @@
-
-library(tidyverse); library(magrittr); library(ggplot2); library(data.table); library(vroom)
-
-iter.df <- vroom("~/Github/falciparum/TempFiles/SuppFutureBig.csv")
-
-iter.df %<>% 
-  tidyr::extract(run, 
-                 into = c('GCM','scenario'),
-                 regex = "(ACCESS-CSM2|ACCESS-ESM1|BCC-CSM2-MR|CanESM5|FGOALS-g3|GFDL-ESM4|IPSL-CM6A-LR|MIROC6|MRI-ESM2-0|NorESM2-LM)-(rcp26|rcp45|rcp85)",
-                 remove = FALSE) 
-
-iter.df %>% 
-  filter(year %in% c(2015:2020)) %>%
-  group_by(GCM, scenario, iter) %>%
-  summarize(BetaMean = mean(Pred, na.rm = TRUE)) -> bm
-iter.df %>% 
-  left_join(bm) %>% 
-  mutate(Pred = (Pred-BetaMean)) %>%
-  select(-BetaMean) -> df
-
-df %>%
-  mutate(scenario = factor(scenario)) %>% 
-  group_by(scenario, year) %>%
-  summarize(median = median(Pred, na.rm = TRUE),
-            upper = quantile(Pred, 0.95, na.rm = TRUE),
-            lower = quantile(Pred, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
-  
-  # plots start in 2016 the first full year
-  filter(year > 2016) %>% 
-  
-  ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
-  theme_bw() + 
-  geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                     name = '') + 
-  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                     name = '') + 
-  geom_line(aes(x = year, y = median), lwd = 1.3) + 
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  xlab(NULL) + ylab("Prevalence (%)") + 
-  theme(axis.title.x = element_text(vjust = -3),
-        axis.title.y = element_text(vjust = 6),
-        plot.margin = unit(c(0.2,0.5,0.2,1), "cm"), 
-        legend.position = c(0.2, 0.27),
-        legend.title = element_blank()) -> s1; s1
-
-iter.df %>% 
-  filter(year %in% c(2015:2020)) %>%
-  group_by(GCM, scenario, iter) %>%
-  summarize(BetaMean = mean(Pf.temp, na.rm = TRUE)) -> bm
-iter.df %>% 
-  left_join(bm) %>% 
-  mutate(Pf.temp = (Pf.temp-BetaMean)) %>%
-  select(-BetaMean) -> df
-
-df %>%
-  group_by(scenario, year) %>%
-  summarize(median = median(Pf.temp, na.rm = TRUE),
-            upper = quantile(Pf.temp, 0.95, na.rm = TRUE),
-            lower = quantile(Pf.temp, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
-  
-  # plots start in 2016 the first full year
-  filter(year > 2016) %>% 
-  
-  
-  ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
-  theme_bw() + 
-  geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                     name = '') + 
-  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                    name = '') + 
-  geom_line(aes(x = year, y = median), lwd = 1.3) + 
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  xlab(NULL) + ylab("Partial effect of temperature") + 
-  theme(axis.title.x = element_text(vjust = -3),
-        axis.title.y = element_text(vjust = 6),
-        plot.margin = unit(c(0.2,0.5,0.2,1), "cm"), 
-        legend.position = "none",
-        legend.title = element_blank()) -> s2; s2
-
-iter.df %>% 
-  filter(year %in% c(2015:2020)) %>%
-  group_by(GCM, scenario, iter) %>%
-  summarize(BetaMean = mean(Pf.flood, na.rm = TRUE)) -> bm
-iter.df %>% 
-  left_join(bm) %>% 
-  mutate(Pf.flood = (Pf.flood-BetaMean)) %>%
-  select(-BetaMean) -> df
-
-df %>%
-  group_by(scenario, year) %>%
-  summarize(median = median(Pf.flood, na.rm = TRUE),
-            upper = quantile(Pf.flood, 0.95, na.rm = TRUE),
-            lower = quantile(Pf.flood, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
-  
-  # plots start in 2016 the first full year
-  filter(year > 2016) %>% 
-  
-  
-  ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
-  theme_bw() + 
-  geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                     name = '') + 
-  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                    name = '') + 
-  geom_line(aes(x = year, y = median), lwd = 1.3) + 
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  xlab(NULL) + ylab("Partial effect of floods") + 
-  theme(axis.title.x = element_text(vjust = -3),
-        axis.title.y = element_text(vjust = 6),
-        plot.margin = unit(c(0.2,0.5,0.2,1), "cm"), 
-        legend.position = "none",
-        legend.title = element_blank()) -> s3; s3
-
-
-iter.df %>% 
-  filter(year %in% c(2015:2020)) %>%
-  group_by(GCM, scenario, iter) %>%
-  summarize(BetaMean = mean(Pf.drought, na.rm = TRUE)) -> bm
-iter.df %>% 
-  left_join(bm) %>% 
-  mutate(Pf.drought = (Pf.drought-BetaMean)) %>%
-  select(-BetaMean) -> df
-
-df %>%
-  group_by(scenario, year) %>%
-  summarize(median = median(Pf.drought, na.rm = TRUE),
-            upper = quantile(Pf.drought, 0.95, na.rm = TRUE),
-            lower = quantile(Pf.drought, 0.05, na.rm = TRUE)) %>%
-  mutate(scenario = factor(scenario, levels = c('nat', 'hist', 'rcp26', 'rcp45', 'rcp85'))) %>%
-  
-  # plots start in 2016 the first full year
-  filter(year > 2016) %>% 
-  
-  
-  ggplot(aes(x = year, y = median, group = scenario, color = scenario)) + 
-  theme_bw() + 
-  geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
-  scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                     labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                     name = '') + 
-  scale_fill_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
-                    labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
-                    name = '') + 
-  geom_line(aes(x = year, y = median), lwd = 1.3) + 
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  xlab(NULL) + ylab("Partial effect of droughts") + 
-  theme(axis.title.x = element_text(vjust = -3),
-        axis.title.y = element_text(vjust = 6),
-        plot.margin = unit(c(0.2,0.5,0.2,1), "cm"), 
-        legend.position = "none",
-        legend.title = element_blank()) -> s4; s4
-
+library(here)
+library(tidyverse)
+library(data.table)
 library(patchwork)
 
-s1 / s2 / s3 / s4
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+
+calculate_baseline_mean <- function(df, variable) {
+  df |>
+    dplyr::filter(year %in% 2015:2020) |>
+    dplyr::group_by(model, scenario, iter) |>
+    dplyr::summarize(BetaMean = mean({{variable}}, na.rm = TRUE))
+}
+
+adjust_data <- function(df, bm, variable) {
+  df |>
+    dplyr::left_join(bm) |>
+    dplyr::mutate({{variable}} := ({{variable}} - BetaMean)) |>
+    dplyr::select(-BetaMean)
+}
+
+summarize_data <- function(df, variable) {
+  df |>
+    dplyr::group_by(scenario, year) |>
+    dplyr::summarize(
+      median = median({{variable}}, na.rm = TRUE),
+      upper = quantile({{variable}}, 0.95, na.rm = TRUE),
+      lower = quantile({{variable}}, 0.05, na.rm = TRUE)) |>
+    dplyr::mutate(scenario = factor(scenario, levels = c('ssp126', 'ssp245', 'ssp585'))) |>
+    dplyr::filter(year > 2016)
+}
+
+create_plot <- function(data, y_label, show_legend = FALSE) {
+  colors <- c("#4d5f8e", "#C582B2", "#325756")
+  labels <- c(
+    'Future climate (SSP1-RCP2.6)',
+    'Future climate (SSP2-RCP4.5)', 
+    'Future climate (SSP5-RCP8.5)'
+  )
+  p <- ggplot(data, aes(x = year, y = median, group = scenario, color = scenario)) +
+    theme_bw() +
+    geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) +
+    scale_color_manual(
+      values = c(colors),
+      labels = c(labels),
+      name = '') +
+    scale_fill_manual(
+      values = c(colors),
+      labels = c(labels),
+      name = '') +
+    geom_line(aes(x = year, y = median), lwd = 1.3) +
+    geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
+    xlab(NULL) + ylab(y_label) +
+    theme(axis.title.x = element_text(vjust = -3),
+          axis.title.y = element_text(vjust = 6),
+          plot.margin = unit(c(0.2,0.5,0.2,1), "cm"),
+          legend.title = element_blank())
+  
+  if (show_legend) {
+    p <- p + theme(legend.position = c(0.2, 0.27))
+  } else {
+    p <- p + theme(legend.position = "none")
+  }
+  
+  return(p)
+}
+
+iter.df <- here::here("TempFiles", "SuppFutureBig.feather") |>
+  arrow::read_feather()
+
+variables <- list(
+  list(name = "Pred", label = "Prevalence (%)"),
+  list(name = "Pf.temp", label = "Partial effect of temperature"),
+  list(name = "Pf.flood", label = "Partial effect of floods"),
+  list(name = "Pf.drought", label = "Partial effect of droughts")
+)
+
+plots <- list()
+
+for (i in seq_along(variables)) {
+  var <- variables[[i]]
+  bm <- calculate_baseline_mean(iter.df, !!sym(var$name))
+  df <- adjust_data(iter.df, bm, !!sym(var$name))
+  data <- summarize_data(df, !!sym(var$name))
+  plots[[i]] <- create_plot(data, var$label, i == 1)
+}
+
+combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]]
+print(combined_plot)
+
+ggplot2::ggsave(
+  filename = "FigureS5_new.pdf",
+  plot = combined_plot,
+  device = cairo_pdf,
+  path = here::here("Figures"),
+  width = 7.42,
+  height = 10.07,
+  units = "in",
+  dpi = 1200
+)
