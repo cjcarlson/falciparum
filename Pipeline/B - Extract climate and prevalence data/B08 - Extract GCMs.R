@@ -14,7 +14,7 @@ source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
 
 numCores <- 100
 
-overwrite <- TRUE
+overwrite <- FALSE
 
 cl <- makeCluster(numCores, outfile="")
 
@@ -52,7 +52,6 @@ for (scenario in scenarios) {
       .export = c(
         "datadir",
         "bc_cruts_output_dir",
-        # "bc_cruts_old_output_dir",
         "scenario", 
         "prc_fn", 
         "tmp_fn"
@@ -73,15 +72,20 @@ for (scenario in scenarios) {
         nct <- terra::rast(file.path(bc_cruts_output_dir, scenario, tmp_fn))
         ncp <- terra::rast(file.path(bc_cruts_output_dir, scenario, prc_fn))
         
-        r <- nct[[i]] # terra is far slower than exactextractr
-        # temp_ex <- terra::extract(r, cont, fun = mean, na.rm = TRUE)[, 2]
-        temp_ex <- exactextractr::exact_extract(x = r, y = cont, fun = 'mean', progress = FALSE)
+        temp <- nct[[i]] 
+        temp_ex <- exactextractr::exact_extract(
+          x = temp, y = cont, fun = 'mean', progress = FALSE
+        )
         
-        c <- r * r
-        temp2_ex <- exactextractr::exact_extract(x = c, y = cont, fun = 'mean', progress = FALSE)
+        temp2 <- temp * temp
+        temp2_ex <- exactextractr::exact_extract(
+          x = temp2, y = cont, fun = 'mean', progress = FALSE
+        )
         
-        r <- ncp[[i]]
-        ppt_ex <- exactextractr::exact_extract(x = r, y = cont, fun = 'mean', progress = FALSE)
+        ppt <- ncp[[i]]
+        ppt_ex <- exactextractr::exact_extract(
+          x = ppt, y = cont, fun = 'mean', progress = FALSE
+        )
         
         dummy_df <- tibble::tibble(
           OBJECTID = cont$OBJECTID, 
@@ -120,25 +124,4 @@ for (scenario in scenarios) {
 }
 tictoc::toc()
 stopCluster(cl)
-
-# hist_months <- 1368 
-# future_months <- 1032
-# 
-# hist_scenarios <- 2
-# future_scenarios <- 3
-# 
-# models <- length(models)
-# 
-# adms <- 600
-# 
-# hist_calc <- hist_months * hist_scenarios * models * adms
-# 
-# future_calc <- future_months * future_scenarios * models * adms
-# 
-# hist_calc + future_calc
-# 
-# 
-# n_samples <- 1000
-# 
-# hist_calc * n_samples + future_calc * n_samples
 
