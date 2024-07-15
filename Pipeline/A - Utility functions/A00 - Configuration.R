@@ -68,6 +68,39 @@ scenarios <- c(
 )
 
 
-historic_scenarios <- scenarios[1:2]
+region_names <- c(
+  "Sub-Saharan Africa (continent-wide)" = "Sub-Saharan Africa\n(continent-wide)",
+  "Sub-Saharan Africa (Southern)" = "Southern Africa",
+  "Sub-Saharan Africa (West)" = "West Africa",
+  "Sub-Saharan Africa (East)" = "East Africa",
+  "Sub-Saharan Africa (Central)" = "Central Africa"
+)
 
-future_scenarios <- scenarios[3:5]
+historical_scenario_names <- c(
+  "historical" = "Historical",
+  "hist-nat" = "Historical natural"
+)
+
+future_scenario_names <- c(
+  "ssp126" = "SSP1-RCP2.6",
+  "ssp245" = "SSP2-RCP4.5",
+  "ssp585" = "SSP5-RCP8.5"
+)
+
+region_formulas <- purrr::map2(
+  names(region_names), 
+  unname(region_names),
+  rlang::new_formula
+)
+
+future_scenario_formulas <- purrr::map2(
+  names(future_scenario_names),
+  unname(future_scenario_names),
+  rlang::new_formula
+)
+
+historical_scenario_formulas <- purrr::map2(
+  names(historical_scenario_names), 
+  unname(historical_scenario_names), 
+  rlang::new_formula
+)
