@@ -4,39 +4,26 @@
 # as well as its uncertainty over 1,000 bootstrap samples 
 ########################################################################
 
-user = "Colin" # "Tamma" #
-if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum/'
-} else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
-  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-} else {
-  wd = NA
-  print('Script not configured for this user!')
-}
-
-setwd(wd)
+# packages
+library(lfe)
+library(zoo)
+library(here)
+library(reshape)
+library(cowplot)
+library(tidyverse)
+library(lubridate)
 
 # source functions from previous script
-source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
-
-# packages
-library(ggplot2)
-library(lfe)
-library(reshape)
-library(tidyverse)
-library(cowplot)
-library(tidyr)
-library(zoo)
-library(lubridate)
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
 ########################################################################
 # A. Read in saved regression results
 ########################################################################
 
 # load main model (full sample)
-main <- readRDS("./Results/Models/coefficients_cXt2intrXm.rds")
+main <- file.path(datadir, "Results", "Models", "coefficients_cXt2intrXm.rds") |>
+  readRDS()
 coefs <- main[,1]
 names(coefs) <- rownames(main)
 main <- as.data.frame(t(as.matrix(coefs)))
@@ -51,12 +38,12 @@ optT <- function(beta1, beta2){
 df = as.data.frame(main)
 df$model = "main"
 
-files = list.files(file.path("Results","Models","bootstrap"))
+files = list.files(file.path(datadir, "Results","Models","bootstrap"))
 stop = length(files)-1
 files=files[1:stop]
 
 for(f in 1:length(files)){
-  tmp = readRDS(file.path("Results","Models","bootstrap",files[f]))
+  tmp = readRDS(file.path(datadir, "Results","Models","bootstrap",files[f]))
   tmp = as.data.frame(tmp)
   tmp$model = paste0("boot",f)
   df = df %>% add_row(as.data.frame(tmp))
@@ -84,16 +71,16 @@ plotData = data.frame(x = xValsT[,1] + Tref, response = response)
 #plotData$model = "main"    
 
 # loop over all bootstraps, add to dataframe
-for(mod in 1:dim(df)[1]){ #dim(df)[1]
+
+for(mod in 1:dim(df)[1]){
   sub = df[mod,]
   b = as.matrix(c(sub$temp,sub$temp2))
-  boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
+  boot = as.data.frame(as.matrix(xValsT) %*% b)
   colnames(boot) = paste0("boot",mod)
   plotData = cbind(plotData, boot)
   
-  # progress
-  if(mod/100==round(mod/100)) {
-    print(paste0('--------- DONE WITH ITERATION ', mod, ' of 1000 --------'))
+  if(mod %% 100 == 0) {
+    message(sprintf('--------- DONE WITH ITERATION %d of 1000 --------', mod))
   }
 }
 
@@ -108,14 +95,17 @@ colnames(plotData) = c("temp", "model","response")
 
 plotData %>% 
   group_by(model) %>%
-  filter(response == max(response)) -> temps
+  filter(response == max(response)) -> 
+  temps
 
-temps
+print(temps)
 
 temps %>% 
   filter(!(model=='boot1')) %>% 
-  pull(temp) -> temps
-fivenum(temps)
+  pull(temp) -> 
+  temps
 
-quantile(temps, 0.025)
-quantile(temps, 0.975)
+print(fivenum(temps))
+
+print(quantile(temps, 0.025))
+print(quantile(temps, 0.975))

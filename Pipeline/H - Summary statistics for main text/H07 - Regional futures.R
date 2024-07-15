@@ -1,154 +1,95 @@
+library(tidyverse)
+library(vroom)
+library(here)
 
-library(tidyverse); library(magrittr); library(ggplot2); library(data.table); library(vroom)
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
-iter.df <- vroom("~/Github/falciparum/TempFiles/SuppFutureRegions.csv")
-
-iter.df %<>% 
-  tidyr::extract(run, 
-                 into = c('GCM','RCP'),
-                 regex = "(ACCESS-CSM2|ACCESS-ESM1|BCC-CSM2-MR|CanESM5|FGOALS-g3|GFDL-ESM4|IPSL-CM6A-LR|MIROC6|MRI-ESM2-0|NorESM2-LM)-(rcp26|rcp45|rcp85)",
-                 remove = FALSE) 
-
-#################################################################
-#################################################################
-#################################################################
+process_data <- function(data, region_name = NULL) {
   
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (Southern)",
-         year %in% c(2015:2020)) %>%
-  group_by(GCM, RCP, iter) %>%
-  summarize(BetaMean = mean(Pred, na.rm = TRUE)) -> bm
+  if (!is.null(region_name)) {
+    data <- data |> filter(region == region_name)
+  }
+  
+  bm <- data |>
+    filter(year %in% 2015:2020) |>
+    group_by(model, scenario, iter) |>
+    summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
+  
+  df <- data |>
+    left_join(bm, by = c("model", "scenario", "iter")) |>
+    mutate(Pred = Pred - BetaMean) |>
+    select(-BetaMean)
+  
+  results <- bind_rows(
+    df |>
+      filter(year %in% 2048:2052) |>
+      mutate(period = "2048-2052"),
+    df |>
+      filter(year %in% 2096:2100) |>
+      mutate(period = "2096-2100")
+  ) |>
+    group_by(iter, model, scenario, period) |>
+    summarize(Pred = mean(Pred), .groups = "drop") |>
+    group_by(scenario, period) |>
+    summarize(
+      mean = mean(Pred),
+      lower = quantile(Pred, 0.025),
+      upper = quantile(Pred, 0.975),
+      .groups = "drop"
+    )  
+  
+  if (!is.null(region_name)) {
+      results <- results |> mutate(region = region_name)
+  } else {
+    results <- results |> mutate(region = "Sub-Saharan Africa (continent-wide)")
+  }
+  
+  return(results)
+}
 
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (Southern)") %>% 
-  left_join(bm) %>% 
-  mutate(Pred = (Pred-BetaMean)) %>%
-  select(-BetaMean) -> df
+iter.df <- here::here("TempFiles", "SuppFutureBig.feather") |>
+  arrow::read_feather()
 
-df %>% 
-  filter(year %in% c(2048:2052)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
+global_results <- process_data(iter.df)
 
-df %>% 
-  filter(year %in% c(2096:2100)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
+iter.df <- here::here("TempFiles", "SuppFutureRegions.csv") |> 
+  vroom(show_col_types = FALSE)
 
-#################################################################
-#################################################################
-#################################################################
+results <- names(region_names)[2:5] |>
+  map(~process_region(iter.df, .x)) |>
+  list_rbind()
 
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (West)",
-         year %in% c(2015:2020)) %>%
-  group_by(GCM, RCP, iter) %>%
-  summarize(BetaMean = mean(Pred, na.rm = TRUE)) -> bm
+# Prepare the data for output
+output_data <- global_results |>
+  bind_rows(results) |>
+  pivot_wider(
+    names_from = period,
+    values_from = c(mean, lower, upper),
+    names_sep = "_"
+  ) |>
+  select(
+    Region = region,
+    Scenario = scenario,
+    Estimate_2048_2052 = `mean_2048-2052`,
+    CI_low_2048_2052 = `lower_2048-2052`,
+    CI_high_2048_2052 = `upper_2048-2052`,
+    Estimate_2096_2100 = `mean_2096-2100`,
+    CI_low_2096_2100 = `lower_2096-2100`,
+    CI_high_2096_2100 = `upper_2096-2100`
+  ) |>   
+  mutate(    
+    Region = case_match(Region, !!!region_formulas),
+    Scenario = case_match(Scenario, !!!future_scenario_formulas)
+  ) |> 
+  arrange(factor(Region, levels = unname(region_names))) |>
+  mutate(
+    CI_2048_2052 = sprintf("(%.3f, %.3f)", CI_low_2048_2052, CI_high_2048_2052),
+    CI_2096_2100 = sprintf("(%.3f, %.3f)", CI_low_2096_2100, CI_high_2096_2100)
+  ) |>
+  select(
+    Region, Scenario,
+    Estimate_2048_2052, CI_2048_2052,
+    Estimate_2096_2100, CI_2096_2100
+  )
 
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (West)") %>% 
-  left_join(bm) %>% 
-  mutate(Pred = (Pred-BetaMean)) %>%
-  select(-BetaMean) -> df
-
-df %>% 
-  filter(year %in% c(2048:2052)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
-
-df %>% 
-  filter(year %in% c(2096:2100)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
-
-#################################################################
-#################################################################
-#################################################################
-
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (East)",
-         year %in% c(2015:2020)) %>%
-  group_by(GCM, RCP, iter) %>%
-  summarize(BetaMean = mean(Pred, na.rm = TRUE)) -> bm
-
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (East)") %>% 
-  left_join(bm) %>% 
-  mutate(Pred = (Pred-BetaMean)) %>%
-  select(-BetaMean) -> df
-
-df %>% 
-  filter(year %in% c(2048:2052)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
-
-df %>% 
-  filter(year %in% c(2096:2100)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
-
-#################################################################
-#################################################################
-#################################################################
-
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (Central)",
-         year %in% c(2015:2020)) %>%
-  group_by(GCM, RCP, iter) %>%
-  summarize(BetaMean = mean(Pred, na.rm = TRUE)) -> bm
-
-iter.df %>% 
-  filter(Region == "Sub-Saharan Africa (Central)") %>% 
-  left_join(bm) %>% 
-  mutate(Pred = (Pred-BetaMean)) %>%
-  select(-BetaMean) -> df
-
-df %>% 
-  filter(year %in% c(2048:2052)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
-
-df %>% 
-  filter(year %in% c(2096:2100)) %>%
-  group_by(iter, GCM, RCP) %>%
-  summarize(Pred = mean(Pred)) %>% 
-  ungroup() %>%
-  group_by(RCP) %>% 
-  summarize(mean = mean(Pred),
-            lower = quantile(Pred, 0.025),
-            upper = quantile(Pred, 0.975))
+write_csv(output_data, here::here("TempFiles", "Supp_Future_Regions_Summary.csv"))
