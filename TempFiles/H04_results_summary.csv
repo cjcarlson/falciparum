@@ -1,0 +1,7 @@
+MeanDifference,ScaledMeanDifference,Quantile_025,Quantile_975,ProportionPositive,Region
+0.0873,87.2706,-0.3002,0.5068,0.6604,"Sub-Saharan Africa
+(continent-wide)"
+0.6278,627.8293,-0.0378,1.4017,0.9667,Southern Africa
+-0.3785,-378.5316,-0.8953,0.0184,0.0293,West Africa
+0.333,333.0405,-0.1369,0.871,0.9116,East Africa
+0.1757,175.7316,-0.186,0.6054,0.8261,Central Africa
