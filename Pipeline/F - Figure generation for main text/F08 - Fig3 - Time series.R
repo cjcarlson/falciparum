@@ -40,6 +40,6 @@ data.to.graph |>
     values = c("grey50", "#287DAB"), 
     labels = c('Historical counterfactual', 'Historical climate'),
     name = '') + 
-  theme(legend.position = 'bottom') + # ggtitle('C') + 
+  theme(legend.position = 'bottom') + 
   theme(plot.title = element_text(size = 20)) -> 
   bottom
