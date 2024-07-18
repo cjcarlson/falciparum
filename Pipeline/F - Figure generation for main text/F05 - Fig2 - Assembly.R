@@ -4,7 +4,7 @@
 
 
 ggsave(
-  filename = "Figure2_new.pdf",
+  filename = "Figure2.pdf",
   plot = last_plot(),
   device = cairo_pdf,
   path = here::here("Figures"),
