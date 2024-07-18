@@ -5,8 +5,6 @@
 library(sf)
 library(here)
 library(tidyverse)
-library(magrittr)
-library(data.table)
 library(lubridate)
 library(patchwork)
 library(multiscales)
@@ -62,8 +60,8 @@ ggplot(sfcont) +
   theme_void() +
   theme(
     legend.title = element_text(hjust = 0.5),
-    # legend.position.inside = c(0.18,0.3),
-    legend.position = c(0.18,0.3),
+    legend.position = "inside",
+    legend.position.inside = c(0.18,0.3),
     legend.key.size = grid::unit(0.8, "cm"),
     # legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)

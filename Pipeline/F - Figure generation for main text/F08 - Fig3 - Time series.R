@@ -1,11 +1,4 @@
 
-library(tidyverse)
-library(magrittr)
-library(data.table)
-library(vroom)
-
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-
 data.to.graph <- readr::read_csv(here::here("TempFiles", "Fig3Regionals.csv"))
 
 data.to.graph |> 

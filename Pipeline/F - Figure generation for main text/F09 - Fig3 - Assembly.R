@@ -1,8 +1,4 @@
 
-library(patchwork)
-
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-
 map.diff + g3 + g1 + bottom +
   plot_layout(design = fig_3_4_layout) +
   plot_annotation(tag_levels = 'A') &

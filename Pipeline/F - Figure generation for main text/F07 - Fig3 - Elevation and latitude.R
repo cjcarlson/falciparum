@@ -1,13 +1,4 @@
 
-library(sf)
-library(lubridate)
-library(magrittr)
-library(tidyverse)
-library(patchwork)
-library(multiscales)
-
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-
 iter.df <- here::here("TempFiles", "Fig3Big.feather") |> 
   arrow::read_feather() |>
   dplyr::mutate(model = stringr::str_replace_all(model,'BCC-CSM2-MR','BCC-CSM2')) 

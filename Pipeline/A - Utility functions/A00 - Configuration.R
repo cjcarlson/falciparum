@@ -59,6 +59,10 @@ models <- c(
   "NorESM2-LM"
 )
 
+part1 <- paste0(replicate(151, "\nAAAAAAAAABBCC"), collapse = "")
+part2 <- "\nAAAAAAAAA####\n"
+part3 <- paste(replicate(80, "DDDDDDDDDDDDD\n"), collapse = "")
+fig_3_4_layout <- paste(part1, part2, part3, sep = "")
 
 scenario_labels <- c(
   'Historical counterfactual', 
