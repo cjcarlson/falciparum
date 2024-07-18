@@ -1,7 +1,5 @@
 
-
 (g + f + d) / s + plot_annotation(tag_levels = 'A')
-
 
 ggsave(
   filename = "Figure2.pdf",

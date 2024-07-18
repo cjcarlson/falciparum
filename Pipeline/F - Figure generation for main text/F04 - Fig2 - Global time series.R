@@ -1,15 +1,4 @@
 
-library(sf)
-library(here)
-library(vroom)
-library(lubridate)
-library(magrittr)
-library(tidyverse)
-library(patchwork)
-library(data.table)
-
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-
 hist.to.graph <- here::here("TempFiles", "Fig2Hist.csv") |>
   vroom::vroom(show_col_types = FALSE)
 
@@ -22,7 +11,7 @@ hist.to.graph |>
   mean() -> 
   base
 
-future.to.graph %<>%
+future.to.graph <- future.to.graph |> 
   mutate(median = median + base,
          upper = upper + base,
          lower = lower + base)
@@ -59,7 +48,8 @@ graph.data |>
     axis.title.x = element_text(vjust = -3),
     axis.title.y = element_text(vjust = 6),
     plot.margin = unit(c(0.5,0.5,1,1), "cm"), 
-    legend.position = c(0.13, 0.29),
+    legend.position = "inside",
+    legend.position.inside = c(0.13, 0.29),
     legend.margin = margin(0, 0, 0, 0),
     legend.text=element_text(size=rel(0.8)),
     legend.title=element_blank()) -> 
