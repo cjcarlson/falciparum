@@ -67,3 +67,75 @@ write_csv(results, output_file)
 cat("Results have been saved to:", output_file, "\n")
 
 print(results)
+
+
+### Check Historical Predictions that can be attributed to climate change
+### Greater Rift Valley countries
+# grv_countries <- c(
+#   "Burundi", "Djibouti", "Eritrea", "Ethiopia", "Kenya", "Malawi", "Mozambique", 
+#   "Rwanda", "Somalia", "South Sudan", "Sudan", "Tanzania", "Uganda", "Zambia", "Zimbabwe"
+# )
+
+library(sf)
+library(here)
+library(tidyverse)
+
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+
+iter.df <- here::here("TempFiles", "Fig3Big.feather") |> 
+  arrow::read_feather() |>
+  dplyr::mutate(model = stringr::str_replace_all(model,'BCC-CSM2-MR','BCC-CSM2')) 
+
+iter.df |> 
+  dplyr::filter(year == 2014) -> 
+  slices
+
+slices |> 
+  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |> 
+  dplyr::mutate(diff = (historical - `hist-nat`)) |>
+  dplyr::select(-c(historical, `hist-nat`, year)) -> 
+  slices.runs
+
+slices.runs |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(OBJECTID) |>
+  dplyr::summarize(mean.diff = mean(diff), runs.diff = sum(diff > 0)) |> 
+  dplyr::mutate(OBJECTID = factor(OBJECTID)) ->
+  slice.map1
+
+elev <- file.path(datadir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
+  readr::read_csv(show_col_types = FALSE)
+
+sfcont <- file.path(datadir, 'Data', 'AfricaADM1.shp') |> 
+  sf::read_sf() |> 
+  dplyr::left_join(slice.map1, by = join_by(OBJECTID)) |> 
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID))  |> 
+  dplyr::mutate(moe = 1 - abs(runs.diff-5000)/5000) |> 
+  dplyr::left_join(elev, by = join_by(OBJECTID)) |> 
+  tibble::as_tibble() |> 
+  dplyr::select(OBJECTID, NAME_0, NAME_1, elevmin, elevmn, elevmax, mean.diff) 
+
+
+## Ethiopia
+eth <- sfcont |> 
+  dplyr::filter(NAME_0 == "Ethiopia") |> 
+  dplyr::arrange(mean.diff) |>
+  View()
+
+## Sudan and South Sudan
+sud <- sfcont |> 
+  dplyr::filter(NAME_0 %in% c("Sudan", "South Sudan")) |>
+  dplyr::arrange(mean.diff) |>
+  View()
+
+## Eritrea
+eri <- sfcont |> 
+  dplyr::filter(NAME_0 == "Eritrea") |> 
+  dplyr::arrange(mean.diff) |>
+  View()
+
+## Djibouti
+dji <- sfcont |> 
+  dplyr::filter(NAME_0 == "Djibouti") |> 
+  dplyr::arrange(mean.diff) |>
+  View()
