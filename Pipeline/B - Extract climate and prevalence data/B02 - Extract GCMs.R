@@ -44,8 +44,14 @@ for (scenario in scenarios) {
       TRUE ~ "gn"
     )
     
-    prc_fn <- paste0("pr_Amon_", model, "_", scenario, "_r1i1p1f1_", grid, date_range, "BC_lonlat.nc")
-    tmp_fn <- paste0("tas_Amon_", model, "_", scenario, "_r1i1p1f1_", grid, date_range, "BC_lonlat.nc")
+    prc_fn <- paste0(
+      "pr_Amon_", model, "_", scenario,
+      "_r1i1p1f1_", grid, date_range, "BC_lonlat.nc"
+    )
+    tmp_fn <- paste0(
+      "tas_Amon_", model, "_", scenario, 
+      "_r1i1p1f1_", grid, date_range, "BC_lonlat.nc"
+    )
     
     foreach(
       i = 1:year_mon,
@@ -58,9 +64,15 @@ for (scenario in scenarios) {
       )
     ) %dopar% {
       
-      month_year <- paste(month.abb[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+year_start, sep='.')
+      month_year <- paste(
+        month.abb[(i-1)%%12 + 1], 
+        ((i-1 - (i-1)%%12)/12) + year_start, 
+        sep='.'
+      )
       
-      output_path <- file.path(datadir, "int", scenario, paste0(model, "_", i, ".csv"))
+      output_path <- file.path(
+        datadir, "int", scenario, paste0(model, "_", i, ".csv")
+      )
       output_dir <- dirname(output_path)
       
       if (!dir.exists(output_dir)) {dir.create(output_dir, recursive = TRUE)}    
@@ -105,7 +117,10 @@ for (scenario in scenarios) {
     }
     print(paste0("Finished: ", model, "\nConsilidating intermediate files"))
     
-    files <- list.files(file.path(datadir, "int", scenario), pattern = model, full.names = TRUE)
+    files <- list.files(
+      file.path(datadir, "int", scenario),
+      pattern = model, full.names = TRUE
+    )
     file_name <- file.path(datadir, "Climate", scenario, paste0(model, ".csv"))
     file_dir <- dirname(file_name)
     
