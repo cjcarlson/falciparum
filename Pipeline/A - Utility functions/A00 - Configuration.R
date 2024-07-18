@@ -59,6 +59,15 @@ models <- c(
   "NorESM2-LM"
 )
 
+
+scenario_labels <- c(
+  'Historical counterfactual', 
+  'Historical climate',
+  'Future climate (SSP1-RCP2.6)',
+  'Future climate (SSP2-RCP4.5)', 
+  'Future climate (SSP5-RCP8.5)'
+)
+
 scenarios <- c(
   "historical",
   "hist-nat", 

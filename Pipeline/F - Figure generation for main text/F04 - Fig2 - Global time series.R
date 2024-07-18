@@ -8,6 +8,8 @@ library(tidyverse)
 library(patchwork)
 library(data.table)
 
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+
 hist.to.graph <- here::here("TempFiles", "Fig2Hist.csv") |>
   vroom::vroom(show_col_types = FALSE)
 
@@ -27,14 +29,6 @@ future.to.graph %<>%
 
 graph.data <- bind_rows(hist.to.graph, future.to.graph) #|> dplyr::rename(scenario = RCP))
 
-labels <- c(
-  'Historical counterfactual', 
-  'Historical climate',
-  'Future climate (SSP1-RCP2.6)',
-  'Future climate (SSP2-RCP4.5)', 
-  'Future climate (SSP5-RCP8.5)'
-)
-
 graph.data |>
   mutate(scenario = factor(scenario, levels = c('hist-nat', 'historical', 'ssp126', 'ssp245', 'ssp585'))) |>
   
@@ -51,11 +45,11 @@ graph.data |>
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) + 
   scale_color_manual(
     values = c("grey50", "#287DAB", "#4d5f8e", "#C582B2", "#325756"), 
-    labels = labels,
+    labels = scenario_labels,
     name = '') + 
   scale_fill_manual(
     values = c("grey50", "#287DAB", "#4d5f8e", "#C582B2", "#325756"), 
-    labels = labels,
+    labels = scenario_labels,
     name = '') + 
   geom_vline(xintercept = 2014.5, linetype = 'dashed') + 
   geom_line(aes(x = year, y = median), lwd = 1.3) + 
