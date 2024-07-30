@@ -1,3 +1,17 @@
+#############################################################################-
+#### Use the following code to extract GCM data for temperature and precipitation
+#### from the CRU-TS4.03 dataset. The code extracts the data for 5 climate scenarios
+#### and 10 climate models. The code extracts the data for each month from 1901 to
+#### 2100. The code saves the data in CSV format for each month and each model. The
+#### code also consolidates the data into a single CSV file for each scenario and
+#### model. The code uses N cores to parallelize, which is chosen by the user.
+#### Finally, the code saves the data in the 'Climate' directory.
+#### -----------------------------------------------------------------------. 
+#### Written by: Cullen Molitor
+#### Date: 2024-06-29
+#### Email: cullen_molitor@ucsb.edu
+#############################################################################-
+
 library(here)
 library(terra)
 library(tidyr)
