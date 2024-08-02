@@ -101,12 +101,12 @@ g = ggplot()  +
   geom_line(data = subset(plotData,model=="boot1"), 
             mapping = aes(x = x, y = response), color = "black", linewidth = 1) +
   theme_bw() + 
-  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = "Effect on prevalence (%)") + 
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = "Prevalence (%)") + 
   xlim(Tmin,Tmax) + 
   theme(
     axis.title.x = element_text(vjust = -3),
-        axis.title.y = element_text(vjust = 5),
-        plot.margin = unit(c(0.3,0.3,1,1), units = "cm"))
+    axis.title.y = element_text(vjust = 5),
+    plot.margin = unit(c(0.3,0.3,1,1), units = "cm"))
 g
 
 ########################################################################
@@ -153,7 +153,7 @@ f = ggplot() +
   # xlab("Flood (month lags)") + 
   scale_y_continuous(breaks=c(-8, -4,  0, 4)) + 
   scale_x_discrete(breaks=c("-1","0","1","2","3"),
-                   labels=c("cumulative", "0", "1", "2", "3")) +
+                   labels=c("cumulative\neffect", "0", "1", "2", "3")) +
   theme(
     axis.title.x = element_text(vjust = -1),
     axis.title.y = element_text(vjust = 5),
@@ -176,7 +176,7 @@ d = ggplot() +
   # ylab(NULL) +
   # xlab("Drought (month lags)") +
   scale_x_discrete(breaks=c("-1","0","1","2","3"),
-                   labels=c("cumulative", "0", "1", "2", "3")) +
+                   labels=c("cumulative\neffect", "0", "1", "2", "3")) +
   theme(
     axis.title.x = element_text(vjust = -1),
     axis.title.y = element_text(vjust = 0),

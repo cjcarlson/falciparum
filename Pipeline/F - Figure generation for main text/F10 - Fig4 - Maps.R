@@ -51,8 +51,13 @@ ggplot(sfcont) +
                   breaks = list(c(-3, -1.5, 0, 1.5, 3), c(0, 0.25, 0.5, 0.75, 1)),
                   labels = list(waiver(), scales::percent),
                   guide = "colourfan") +
+  labs(
+    title = "Impact of future anthropogenic climate change on prevalence",
+    subtitle = "(2096-2100; SSP2-RPC4.5)") +
   theme_void() +
   theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
     legend.position = "inside",
     legend.position.inside = c(0.18,0.3),
     legend.key.size = grid::unit(0.8, "cm"),
