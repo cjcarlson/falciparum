@@ -22,8 +22,11 @@ slices.runs |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
     mean.diff = mean(diff), runs.diff = sum(diff > 0), 
-    lower.diff = quantile(diff, 0.05, na.rm = TRUE), 
-    upper.diff = quantile(diff, 0.95, na.rm = TRUE)) |> 
+    lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE), 
+    upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
+    lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
+    upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
+    ) |> 
   dplyr::mutate(
     OBJECTID = factor(OBJECTID), 
     moe = 1 - abs(runs.diff-5500)/5500) ->
@@ -44,15 +47,16 @@ ggplot(sfcont) +
   scale_x_continuous(limits = c(-17,52), expand = c(0, 0)) +
   scale_y_continuous(limits = c(-36, 38), expand = c(0, 0)) +
   coord_sf(datum = NA) +
-  bivariate_scale("fill",
-                  pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
-                  name = c("Prevalence (%)", "sign uncertainty"),
-                  limits = list(c(-3, 3), c(0, 1)),
-                  breaks = list(c(-3, -1.5, 0, 1.5, 3), c(0, 0.25, 0.5, 0.75, 1)),
-                  labels = list(waiver(), scales::percent),
-                  guide = "colourfan") +
+  bivariate_scale(
+    "fill",
+    pal_vsup(values = colors, max_desat = 0.8, pow_desat = 0.2, max_light = 0.7, pow_light = 1),
+    name = c("Prevalence (%)", "sign uncertainty"),
+    limits = list(c(-3, 3), c(0, 1)),
+    breaks = list(c(-3, -1.5, 0, 1.5, 3), c(0, 0.25, 0.5, 0.75, 1)),
+    labels = list(waiver(), scales::percent),
+    guide = "colourfan") +
   labs(
-    title = "Impact of future anthropogenic climate change on prevalence",
+    title = "Future impact of anthropogenic climate change on prevalence",
     subtitle = "(2096-2100; SSP2-RPC4.5)") +
   theme_void() +
   theme(

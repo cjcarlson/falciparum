@@ -1,5 +1,6 @@
 
-data.to.graph <- readr::read_csv(here::here("TempFiles", "Fig3Regionals.csv"))
+data.to.graph <- here::here("TempFiles", "Fig3Regionals.csv") |> 
+  readr::read_csv(show_col_types = FALSE) 
 
 data.to.graph |> 
   mutate(scenario = factor(scenario, levels = c('hist-nat', 'historical'))) |>

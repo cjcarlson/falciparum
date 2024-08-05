@@ -58,7 +58,7 @@ ggplot(sfcont) +
     labels = list(waiver(), scales::percent),
     guide = "colourfan") +
   labs(
-    title = "Impact of historical anthropogenic climate change on prevalence",
+    title = "Historical impact of anthropogenic climate change on prevalence",
     subtitle = "(2010-2014)") +
   theme_void() +
   theme(
