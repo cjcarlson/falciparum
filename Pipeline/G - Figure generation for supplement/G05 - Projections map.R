@@ -65,7 +65,7 @@ many_maps <- (
 ) + plot_annotation(tag_levels = 'A')
 
 ggplot2::ggsave(
-  filename = "FigureS3_new.pdf",
+  filename = "FigureS3.pdf",
   plot = many_maps,
   device = cairo_pdf,
   path = here::here("Figures"),

@@ -2,22 +2,24 @@
 library(sf)
 library(lubridate)
 library(magrittr)
-library(rgdal)
+# library(rgdal)
 library(tidyverse)
 library(patchwork)
 
-setwd('C:/Users/cjcar/Dropbox/MalariaAttribution')
+# setwd('C:/Users/cjcar/Dropbox/MalariaAttribution')
 
-gbod <- readOGR(file.path("Data", "OriginalGBD", "WorldRegions.shp"))
-gbod@proj4string <- CRS('+proj=longlat +datum=WGS84 +no_defs')
+gbod <- sf::read_sf(file.path(datadir, "Data", "OriginalGBD", "WorldRegions.shp"))
+# gbod@proj4string <- CRS('+proj=longlat +datum=WGS84 +no_defs')
 
-prev<- read.csv('./Data/dataverse_files/00 Africa 1900-2015 SSA PR database (260617).csv')
-prev <- SpatialPointsDataFrame(coords=prev[,c('Long','Lat')], data=prev[,c('MM','YY','Pf','PfPR2.10')])
-prev@proj4string <- CRS('+proj=longlat +datum=WGS84 +no_defs')
+# prev<- read.csv('./Data/dataverse_files/00 Africa 1900-2015 SSA PR database (260617).csv')
+# prev <- SpatialPointsDataFrame(coords=prev[,c('Long','Lat')], data=prev[,c('MM','YY','Pf','PfPR2.10')])
+# prev@proj4string <- CRS('+proj=longlat +datum=WGS84 +no_defs')
 
-o <- over(prev, gbod)
+# o <- over(prev, gbod)
 
-df <- tibble(prev@data) 
+o <- st_join(prev_sf, gbod)
+
+df <- tibble(prev_sf) 
 df$region <- o$SmllRgn
 
 df %<>% unite("monthyr", MM:YY, sep=' 1 ', remove=FALSE) 
@@ -57,3 +59,15 @@ ts
 library(patchwork)
 
 ((map.n / map.p) | ts)  + plot_layout(widths = c(1.5, 1)) + plot_annotation(tag_levels = 'A')
+
+
+ggsave(
+  filename = "Figure1.pdf",
+  plot = last_plot(),
+  device = cairo_pdf,
+  path = here::here("Figures"),
+  width = 9,
+  height = 10,
+  units = "in",
+  dpi = 1200
+)

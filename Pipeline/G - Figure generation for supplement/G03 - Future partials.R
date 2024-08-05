@@ -89,7 +89,7 @@ combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]]
 print(combined_plot)
 
 ggplot2::ggsave(
-  filename = "FigureS5_new.pdf",
+  filename = "FigureS5.pdf",
   plot = combined_plot,
   device = cairo_pdf,
   path = here::here("Figures"),
