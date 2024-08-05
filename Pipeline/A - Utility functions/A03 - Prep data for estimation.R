@@ -1,17 +1,22 @@
 
+
+
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+
 #### Climate data
 # load data based on CRU version:
 if (CRUversion=="4.03") {
-  data <- read.csv('./Data/CRU-Reextraction-Aug2022.csv')
+  data_fp <- file.path(datadir, 'Data', 'CRU-Reextraction-Aug2022.csv')
 } else if (CRUversion=="4.06") {
-  data <- read.csv('./Data/CRU-Reextraction-July2023-CRU4.06.csv')
+  data_fp <- file.path(datadir, 'Data', 'CRU-Reextraction-July2023-CRU4.06.csv')
 }  else {
   print('CRU version not supported! Use 4.03 or 4.06.')
 }
 
+data <- readr::read_csv(data_fp, show_col_types = FALSE)
 
 #### Spatial data
-spatial <- read.csv('./Dataframe backups/shapefile-backup.csv')
+spatial <- read.csv(file.path(datadir, 'Dataframe backups', 'shapefile-backup.csv'))
 countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
 data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
 data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
@@ -32,12 +37,14 @@ complete <- data.reset[complete.cases(data.reset),]
 # Define Global Burden of Disease regions 
 ########################################################################
 
-gbod <- readOGR(file.path("./Data/OriginalGBD/WorldRegions.shp"))
-head(gbod@data)
+gbod <- sf::read_sf(file.path(datadir, "Data", "OriginalGBD", "WorldRegions.shp"))
+# head(gbod@data)
 
-gboddf = as.data.frame(gbod@data)
+gboddf = as.data.frame(gbod)
 gboddf = gboddf %>% dplyr::select("ISO", "NAME_0", "Region", "SmllRgn")
-gboddf = gboddf %>% group_by(ISO, NAME_0) %>% summarize(Region = first(Region), SmllRgn = first(SmllRgn)) # note that the small regions are homogenous within country
+gboddf = gboddf %>% 
+  group_by(ISO, NAME_0) %>% 
+  summarize(Region = first(Region), SmllRgn = first(SmllRgn)) # note that the small regions are homogenous within country
 colnames(gboddf) = c("ISO", "country", "region", "smllrgn")
 gboddf$country = as.character(gboddf$country)
 
@@ -61,9 +68,15 @@ rm(gbod, gboddf)
 complete = computePrcpExtremes(dfclimate = data.reset, dfoutcome = complete, pctdrought = 0.10, pctflood = 0.90, yearcutoff = NA)
 complete = complete %>% arrange(OBJECTID, monthyr)
 if (CRUversion=="4.03") {
-  complete %>% dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) %>% distinct() %>% write_csv(file.path(repo, "Climate", "PrecipKey.csv"))
+  complete %>% 
+    dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) %>% 
+    distinct() %>% 
+    write_csv(file.path(repo, "Climate", "PrecipKey.csv"))
 } else if (CRUversion=="4.06") {
-  complete %>% dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) %>% distinct() %>% write_csv(file.path(repo, "Climate", "PrecipKey_CRU-TS4-06.csv"))
+  complete %>% 
+    dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) %>% 
+    distinct() %>% 
+    write_csv(file.path(repo, "Climate", "PrecipKey_CRU-TS4-06.csv"))
 }  else {
   print('CRU version not supported! Use 4.03 or 4.06.')
 }

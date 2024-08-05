@@ -2,35 +2,19 @@
 # This script makes all four panels of Figure S1.
 ############################################################
 
-rm(list = ls())
-
-user = "Tamma" #"Colin"
-if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum'
-} else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
-  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-} else {
-  wd = NA
-  print('Script not configured for this user!')
-}
-
-setwd(wd)
-
-# source functions from previous script
-source(file.path(repo,'Pipeline/A - Utility functions/A01 - Utility code for calculations.R'))
-source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
-
 # packages
-library(ggplot2)
 library(lfe)
+library(zoo)
+library(here)
 library(reshape)
 library(tidyverse)
-library(zoo)
 library(lubridate)
 library(patchwork)
+library(cowplot)
 
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
+source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
 #######################################################################
 # S1A: Theoretical
@@ -38,7 +22,8 @@ library(patchwork)
 
 #### Read in the data backup
 
-data <- read.csv(file.path(wd,"Data/CRU-Reextraction-Aug2022.csv"))
+data <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
+  read.csv()
 # Keep an eye out for logical data parse issue
 
 # Generate the R0 curves:
@@ -51,7 +36,8 @@ data %>%
   xlim(c(15,35)) + 
   labs(x = expression(paste("Temperature (",degree,"C)")),
        y = expression('R'[0]*' predicted')) + 
-  theme_bw() -> g1
+  theme_bw() -> 
+  g1
 
 
 #######################################################################
@@ -66,9 +52,13 @@ data %>%
   xlim(c(15,35)) +
   labs(x = expression(paste("Temperature (",degree,"C)")),
        y = "Prevalence (%, raw data)")  + 
-  theme_bw() -> g2 
+  theme_bw() -> 
+  g2 
+
 ggplot_build(g2)$data[[2]] -> sm
+
 sm$x[sm$y == max(sm$y)] -> optg2
+
 data %>%
   ggplot(aes(x = temp, y = predR0)) + 
   geom_vline(xintercept = 25.56, color = 'dark grey', lwd = 0.7, linetype = 'longdash') +
@@ -77,7 +67,8 @@ data %>%
   xlim(c(15,35)) + 
   labs(x = expression(paste("Temperature (",degree,"C)")),
        y = "Prevalence (%, raw data)") + 
-  theme_bw() -> g2 
+  theme_bw() -> 
+  g2 
 
 #######################################################################
 # S1C: Econometric model + uncertainty
@@ -87,11 +78,17 @@ data %>%
 rm(data)
 
 #### Call external script for data cleaning
-CRUversion = "4.03"
-source(file.path(repo,'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
+# CRUversion = "4.03"
+source(file.path(repo, 'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
 
 # Formula & estimation
-cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intrXm = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars,
+    " + I(intervention) + country:monthyr + country:monthyr2",
+    "| OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
 mainmod = felm(data = complete, formula = cXt2intrXm)
 beta = mainmod$coefficients ##See if this works
 vars = rownames(beta)
@@ -129,7 +126,7 @@ g3 = ggplot(data = plotData) + #geom_ribbon(aes(x, ymin = lb, ymax = ub), alpha 
        y = "Prevalence (%, modeled)") + 
   theme_bw()
 g3
-  
+
 #######################################################################
 # S1D: Distribution of peak temperatures in econometric model
 #######################################################################
@@ -141,13 +138,13 @@ optT <- function(beta1, beta2){
 }
 
 # upload bootstraps 
-boots = as.data.frame(readRDS(file.path(wd, "Results",'Models','block_bootstrap_cXt2intrXm.rds')))
+boots = as.data.frame(readRDS(file.path(datadir, "Results",'Models','block_bootstrap_cXt2intrXm.rds')))
 boots = boots %>% mutate(peakT = optT(temp,temp2))
 
 meanpeak = mean(boots$peakT)
 
 g4 = ggplot(data=boots) + geom_histogram(aes(x=peakT, y=..density..),color="light grey",fill="light grey",
-                                        show.legend = FALSE) + 
+                                         show.legend = FALSE) + 
   labs(x = expression(paste("Optimum temperature (",degree,"C)")),
        y = "Density") +
   geom_vline(xintercept = meanpeak, color= "#C1657C",lwd = 0.7, linetype = 'longdash') + theme_bw() 

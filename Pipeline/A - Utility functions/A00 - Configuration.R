@@ -6,6 +6,8 @@ print("Loading A00 - Configuration.R")
 # user = "Tamma"
 user = "Cullen" 
 
+print(paste0("User set to: ", user))
+
 ##### location for data and output
 datadir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
@@ -15,6 +17,7 @@ datadir <- dplyr::case_when(
 )
 
 print(paste0("data directory set to: ", datadir))
+
 
 ##### location for cloned repo 
 repo <- dplyr::case_when(
@@ -26,6 +29,9 @@ repo <- dplyr::case_when(
 
 print(paste0("repository directory set to: ", repo))
 
+CRUversion <- "4.03" 
+# CRUversion <- "4.06"
+print(paste0("CRU version set to: ", CRUversion))
 
 pipeline_A_dir <- here::here("Pipeline", "A - Utility functions")
 pipeline_B_dir <- here::here("Pipeline", "B - Extract climate and prevalence data")
@@ -59,6 +65,19 @@ models <- c(
   "NorESM2-LM"
 )
 
+part1 <- paste0(replicate(151, "\nAAAAAAAAABBCC"), collapse = "")
+part2 <- "\nAAAAAAAAA####\n"
+part3 <- paste(replicate(80, "DDDDDDDDDDDDD\n"), collapse = "")
+fig_3_4_layout <- paste(part1, part2, part3, sep = "")
+
+scenario_labels <- c(
+  'Historical counterfactual', 
+  'Historical climate',
+  'Future climate (SSP1-RCP2.6)',
+  'Future climate (SSP2-RCP4.5)', 
+  'Future climate (SSP5-RCP8.5)'
+)
+
 scenarios <- c(
   "historical",
   "hist-nat", 
@@ -68,6 +87,39 @@ scenarios <- c(
 )
 
 
-historic_scenarios <- scenarios[1:2]
+region_names <- c(
+  "Sub-Saharan Africa (continent-wide)" = "Sub-Saharan Africa\n(continent-wide)",
+  "Sub-Saharan Africa (Southern)" = "Southern Africa",
+  "Sub-Saharan Africa (West)" = "West Africa",
+  "Sub-Saharan Africa (East)" = "East Africa",
+  "Sub-Saharan Africa (Central)" = "Central Africa"
+)
 
-future_scenarios <- scenarios[3:5]
+historical_scenario_names <- c(
+  "historical" = "Historical",
+  "hist-nat" = "Historical natural"
+)
+
+future_scenario_names <- c(
+  "ssp126" = "SSP1-RCP2.6",
+  "ssp245" = "SSP2-RCP4.5",
+  "ssp585" = "SSP5-RCP8.5"
+)
+
+region_formulas <- purrr::map2(
+  names(region_names), 
+  unname(region_names),
+  rlang::new_formula
+)
+
+future_scenario_formulas <- purrr::map2(
+  names(future_scenario_names),
+  unname(future_scenario_names),
+  rlang::new_formula
+)
+
+historical_scenario_formulas <- purrr::map2(
+  names(historical_scenario_names), 
+  unname(historical_scenario_names), 
+  rlang::new_formula
+)
