@@ -2,26 +2,6 @@
 # This script makes all four panels of Figure S1.
 ############################################################
 
-# rm(list = ls())
-# 
-# user = "Tamma" #"Colin"
-# if (user == "Colin") {
-#   wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/'
-#   repo = 'C:/Users/cjcar/Documents/Github/falciparum'
-# } else if (user == "Tamma") {
-#   wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
-#   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-# } else {
-#   wd = NA
-#   print('Script not configured for this user!')
-# }
-# 
-# setwd(wd)
-# 
-# # source functions from previous script
-# source(file.path(repo,'Pipeline/A - Utility functions/A01 - Utility code for calculations.R'))
-# source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
-
 # packages
 library(lfe)
 library(zoo)
@@ -30,6 +10,7 @@ library(reshape)
 library(tidyverse)
 library(lubridate)
 library(patchwork)
+library(cowplot)
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
@@ -41,7 +22,7 @@ source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for p
 
 #### Read in the data backup
 
-data <- file.path(datadir,"Data", "CRU-Reextraction-Aug2022.csv") |> 
+data <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
   read.csv()
 # Keep an eye out for logical data parse issue
 
@@ -97,8 +78,8 @@ data %>%
 rm(data)
 
 #### Call external script for data cleaning
-CRUversion = "4.03"
-source(file.path(repo,'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
+# CRUversion = "4.03"
+source(file.path(repo, 'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
 
 # Formula & estimation
 cXt2intrXm = as.formula(
@@ -157,7 +138,7 @@ optT <- function(beta1, beta2){
 }
 
 # upload bootstraps 
-boots = as.data.frame(readRDS(file.path(wd, "Results",'Models','block_bootstrap_cXt2intrXm.rds')))
+boots = as.data.frame(readRDS(file.path(datadir, "Results",'Models','block_bootstrap_cXt2intrXm.rds')))
 boots = boots %>% mutate(peakT = optT(temp,temp2))
 
 meanpeak = mean(boots$peakT)

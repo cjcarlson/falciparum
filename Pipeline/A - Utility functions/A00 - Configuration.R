@@ -6,6 +6,8 @@ print("Loading A00 - Configuration.R")
 # user = "Tamma"
 user = "Cullen" 
 
+print(paste0("User set to: ", user))
+
 ##### location for data and output
 datadir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
@@ -15,6 +17,7 @@ datadir <- dplyr::case_when(
 )
 
 print(paste0("data directory set to: ", datadir))
+
 
 ##### location for cloned repo 
 repo <- dplyr::case_when(
@@ -26,6 +29,9 @@ repo <- dplyr::case_when(
 
 print(paste0("repository directory set to: ", repo))
 
+CRUversion <- "4.03" 
+# CRUversion <- "4.06"
+print(paste0("CRU version set to: ", CRUversion))
 
 pipeline_A_dir <- here::here("Pipeline", "A - Utility functions")
 pipeline_B_dir <- here::here("Pipeline", "B - Extract climate and prevalence data")
