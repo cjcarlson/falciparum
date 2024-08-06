@@ -8,11 +8,19 @@ map.rcp45.2100 + g3 + g1 + bottom +
 ggsave(
   filename = "Figure4.pdf",
   plot = last_plot(),
-  device = cairo_pdf,
   path = here::here("Figures"),
   width = 11.63,
   height = 10.07,
   units = "in",
+  device = cairo_pdf,
   dpi = 1200
 )
 
+ggsave(
+  filename = "Figure4.jpg",
+  plot = last_plot(),
+  path = here::here("Figures"),
+  width = 11.63,
+  height = 10.07,
+  units = "in"
+)

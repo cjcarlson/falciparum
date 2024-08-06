@@ -67,10 +67,19 @@ many_maps <- (
 ggplot2::ggsave(
   filename = "FigureS3.pdf",
   plot = many_maps,
-  device = cairo_pdf,
   path = here::here("Figures"),
   width = 9.53,
   height = 10.07,
   units = "in",
+  device = cairo_pdf,
   dpi = 1200
+)
+
+ggplot2::ggsave(
+  filename = "FigureS3.jpg",
+  plot = many_maps,
+  path = here::here("Figures"),
+  width = 9.53,
+  height = 10.07,
+  units = "in"
 )

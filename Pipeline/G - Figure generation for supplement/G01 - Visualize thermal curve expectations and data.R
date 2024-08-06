@@ -158,5 +158,21 @@ g4
 p = plot_grid(g1, g2, g3, g4, nrow = 2, 
               label_size = 12, labels = c('A', 'B', 'C','D'))
 p
-fn = file.path(repo, 'Figures', 'FigureS1.pdf')
-ggsave(filename = fn, plot = p, height = 10, width = 10)
+
+ggsave(
+  filename = 'FigureS1.pdf', 
+  path = file.path(repo, 'Figures'),
+  plot = p,
+  height = 10, 
+  width = 10,
+  device = cairo_pdf,
+  dpi = 1200
+)
+
+ggsave(
+  filename = 'FigureS1.jpg', 
+  path = file.path(repo, 'Figures'),
+  plot = p,
+  height = 10, 
+  width = 10
+  )

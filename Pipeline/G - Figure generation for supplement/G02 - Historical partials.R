@@ -87,10 +87,19 @@ print(combined_plot)
 ggplot2::ggsave(
   filename = "FigureS4.pdf",
   plot = combined_plot,
-  device = cairo_pdf,
   path = here::here("Figures"),
   width = 7.42,
   height = 10.07,
   units = "in",
+  device = cairo_pdf,
   dpi = 1200
+)
+
+ggplot2::ggsave(
+  filename = "FigureS4.jpg",
+  plot = combined_plot,
+  path = here::here("Figures"),
+  width = 7.42,
+  height = 10.07,
+  units = "in"
 )

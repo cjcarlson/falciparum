@@ -64,10 +64,19 @@ library(patchwork)
 ggsave(
   filename = "Figure1.pdf",
   plot = last_plot(),
-  device = cairo_pdf,
   path = here::here("Figures"),
   width = 9,
   height = 10,
   units = "in",
+  device = cairo_pdf,
   dpi = 1200
+)
+
+ggsave(
+  filename = "Figure1.jpg",
+  plot = last_plot(),
+  path = here::here("Figures"),
+  width = 9,
+  height = 10,
+  units = "in"
 )
