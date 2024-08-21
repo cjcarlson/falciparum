@@ -9,45 +9,30 @@
 
 rm(list = ls())
 
-user = "Tamma" #"Colin"
-if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution' #location for data and output
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
-} else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution'
-  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-} else {
-  wd = NA
-  print('Script not configured for this user!')
-}
-
-CRUversion = "4.03" # "4.06"
-if (CRUversion=="4.03") {
-  resdir = file.path(wd, "Results")
-} else if (CRUversion=="4.06") {
-  resdir = file.path(wd, "Results_CRU-TS4-06")
-} else {
-  print('CRU version not supported! Use 4.03 or 4.06.')
-}
-
-setwd(wd)
-
-# source functions for easy plotting and estimation
-source(file.path(repo,'Pipeline/A - Utility functions/A01 - Utility code for calculations.R'))
-source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
-
 # packages
-library(ggplot2)
+library(here)
 library(lfe)
 library(reshape)
 library(stargazer)
 library(tidyverse)
 library(zoo)
 library(lubridate)
-library(rgdal)
 library(cowplot)
 library(multcomp)
-library(dplyr)
+
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
+source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
+
+# CRUversion = "4.03" # "4.06"
+if (CRUversion=="4.03") {
+  resdir = file.path(datadir, "Results")
+} else if (CRUversion=="4.06") {
+  resdir = file.path(datadir, "Results_CRU-TS4-06")
+} else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
+}
 
 ############################################################
 # Plotting toggles
@@ -64,10 +49,10 @@ Tmax = 40 #max T for x axis
 ########################################################################
 
 #### Call external script for data cleaning
-source(file.path(repo,'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
+source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
 
 #### Create necessary subfolders
-dir.create(file.path(resdir,"Tables"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Tables"), showWarnings = FALSE)
 dir.create(file.path(resdir, "Figures"), showWarnings = FALSE)
 dir.create(file.path(resdir, "Models"), showWarnings = FALSE)
 
@@ -82,7 +67,7 @@ cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", drou
 mainmod = felm(data = complete, formula = cXt2intrXm)
 coeffs = as.data.frame(mainmod$coefficients)
 vcov = as.data.frame(mainmod$clustervcv)
-dir.create(file.path(resdir,"Models", "reproducibility"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Models", "reproducibility"), showWarnings = FALSE)
 bfn = file.path(resdir, "Models", "reproducibility", "coefficients_cXt2intrXm.rds")
 vfn = file.path(resdir, "Models", "reproducibility", "vcv_cXt2intrXm.rds")
 saveRDS(coeffs, file=bfn)

@@ -10,45 +10,31 @@
 
 rm(list = ls())
 
-user = "Tamma" #"Colin"
-if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution' #location for data and output
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
-} else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution'
-  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-} else {
-  wd = NA
-  print('Script not configured for this user!')
-}
-
-CRUversion = "4.06" # "4.03"
-if (CRUversion=="4.03") {
-  resdir = file.path(wd, "Results")
-} else if (CRUversion=="4.06") {
-  resdir = file.path(wd, "Results_CRU-TS4-06")
-} else {
-  print('CRU version not supported! Use 4.03 or 4.06.')
-}
-
-setwd(wd)
-
-# source functions for easy plotting and estimation
-source(file.path(repo,'Pipeline/A - Utility functions/A01 - Utility code for calculations.R'))
-source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
 
 # packages
-library(ggplot2)
+library(here)
 library(lfe)
 library(reshape)
 library(stargazer)
 library(tidyverse)
 library(zoo)
 library(lubridate)
-library(rgdal)
 library(cowplot)
 library(multcomp)
-library(dplyr)
+
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
+source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
+
+# CRUversion = "4.03" # "4.06"
+if (CRUversion=="4.03") {
+  resdir = file.path(datadir, "Results")
+} else if (CRUversion=="4.06") {
+  resdir = file.path(datadir, "Results_CRU-TS4-06")
+} else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
+}
 
 ############################################################
 # Plotting toggles
@@ -65,7 +51,7 @@ Tmax = 40 #max T for x axis
 ########################################################################
 
 #### Call external script for data cleaning
-source(file.path(repo,'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
+source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
 
 ########################################################################
 # Estimation
@@ -95,7 +81,7 @@ for (m in myforms) {
 
 # Combine into a single stargazer plot 
 mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
-dir.create(file.path(resdir,"Tables", "sensitivity"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
 stargazer(modellist,
           title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = mycollabs,
           keep = c("temp", "flood", "drought", "intervention"),
@@ -123,7 +109,7 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
               figList[[4]], figList[[5]], figList[[6]],
               figList[[7]], figList[[8]], figList[[9]], nrow=3)
 p
-dir.create(file.path(resdir,"Figures", "Diagnostics","Fixed_effects"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Figures", "Diagnostics","Fixed_effects"), showWarnings = FALSE)
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Fixed_effects", "panelFE_FE_sensitivity.pdf"), plot = p, width = 7, height = 7)
 
 ########################################################################
