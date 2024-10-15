@@ -9,39 +9,25 @@
 
 rm(list = ls())
 
-user = "Tamma" #"Colin"
-if (user == "Colin") {
-  wd = 'C:/Users/cjcar/Dropbox/MalariaAttribution/' #location for data and output
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
-} else if (user == "Tamma") {
-  wd ='/Users/tammacarleton/Dropbox/MalariaAttribution/'
-  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-} else {
-  wd = NA
-  print('Script not configured for this user!')
-}
-
-CRUversion = "4.06" # "4.03"
 if (CRUversion=="4.03") {
-  resdir = file.path(wd, "Results")
+  resdir = file.path(datadir, "Results")
 } else if (CRUversion=="4.06") {
-  resdir = file.path(wd, "Results_CRU-TS4-06")
+  resdir = file.path(datadir, "Results_CRU-TS4-06")
 } else {
   print('CRU version not supported! Use 4.03 or 4.06.')
 }
 
-setwd(wd)
-
 # source functions for easy plotting and estimation
-source(file.path(repo,'Pipeline/A - Utility functions/A01 - Utility code for calculations.R'))
-source(file.path(repo,'Pipeline/A - Utility functions/A02 - Utility code for plotting.R'))
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
+source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
 # packages
 library(lfe)
 library(tidyverse)
 library(zoo)
 library(lubridate)
-library(rgdal)
 library(dplyr)
 library(data.table)
 library(doParallel)
@@ -51,11 +37,15 @@ library(doParallel)
 ########################################################################
 
 #### Call external script for data cleaning
-source(file.path(repo,'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
+source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
 
 # Main specification: cXt2intrXm (country specific quadratic trends, intervention dummies, GBOD region by month FE)
-myform = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
-                           " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"))
+myform = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
 
 ########################################################################
 # Randomly reassign weather within each panel unit
