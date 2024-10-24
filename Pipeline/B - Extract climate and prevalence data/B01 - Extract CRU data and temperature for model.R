@@ -136,7 +136,11 @@ prev_df <- file.path(
       Pf = col_double(),
       `PfPR2-10` = col_double()
     )
+  ) |> 
+  dplyr::mutate(
+    METHOD = str_to_upper(METHOD)
   )
+
 
 # Convert to sf object with POINT geometry
 prev_sf <- sf::st_as_sf(
@@ -146,23 +150,23 @@ prev_sf <- sf::st_as_sf(
 # Join the prevalence data to the continent shapefile
 prev_with_cont <- sf::st_join(prev_sf, cont)
 
-# Summarise the prevalence data to the ADM 1 level
-aggregated_data <- prev_with_cont %>%
-  tibble::as_tibble() %>%
-  dplyr::select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) %>%
-  dplyr::mutate(
-    month = factor(MM, levels = 1:12, labels = month.abb),
-    year = YY
-  ) %>%
-  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
-  dplyr::summarise(
-    Pf = mean(Pf, na.rm = TRUE),
-    PfPR2 = mean(`PfPR2-10`, na.rm = TRUE),
-    .groups = 'drop'
-  ) |> 
-  dplyr::mutate(
-    year = as.character(year),
-    month = as.character(month))
+# # Summarise the prevalence data to the ADM 1 level
+# aggregated_data <- prev_with_cont %>%
+#   tibble::as_tibble() %>%
+#   dplyr::select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) %>%
+#   dplyr::mutate(
+#     month = factor(MM, levels = 1:12, labels = month.abb),
+#     year = YY
+#   ) %>%
+#   dplyr::group_by(OBJECTID, year, month, METHOD) %>%
+#   dplyr::summarise(
+#     Pf = mean(Pf, na.rm = TRUE),
+#     PfPR2 = mean(`PfPR2-10`, na.rm = TRUE),
+#     .groups = 'drop'
+#   ) |> 
+#   dplyr::mutate(
+#     year = as.character(year),
+#     month = as.character(month))
 
 
 # aggregated_data <- prev_with_cont %>%
