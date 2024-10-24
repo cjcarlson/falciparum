@@ -149,12 +149,12 @@ prev_with_cont <- sf::st_join(prev_sf, cont)
 # Summarise the prevalence data to the ADM 1 level
 aggregated_data <- prev_with_cont %>%
   tibble::as_tibble() %>%
-  dplyr::select(OBJECTID, MM, YY, Pf, `PfPR2-10`) %>%
+  dplyr::select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) %>%
   dplyr::mutate(
     month = factor(MM, levels = 1:12, labels = month.abb),
     year = YY
   ) %>%
-  dplyr::group_by(OBJECTID, year, month) %>%
+  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
   dplyr::summarise(
     Pf = mean(Pf, na.rm = TRUE),
     PfPR2 = mean(`PfPR2-10`, na.rm = TRUE),
@@ -163,6 +163,69 @@ aggregated_data <- prev_with_cont %>%
   dplyr::mutate(
     year = as.character(year),
     month = as.character(month))
+
+
+# aggregated_data <- prev_with_cont %>%
+#   as_tibble() %>%
+#   # select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) %>%
+#   mutate(
+#     month = factor(MM, levels = 1:12, labels = month.abb),
+#     year = YY
+#   ) %>%
+#   group_by(OBJECTID, year, month) %>%
+#   summarise( n_methods = n_distinct(METHOD)) |> 
+#   dplyr::filter(n_methods > 1)
+
+
+# Calculate Mean Pf and PfPR2-10 per ADM1, Year, Month
+mean_data <- prev_with_cont %>%
+  as_tibble() %>%
+  dplyr::select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) %>%
+  dplyr::mutate(
+    month = factor(MM, levels = 1:12, labels = month.abb),
+    year = YY
+  ) %>%
+  dplyr::group_by(OBJECTID, year, month) %>%
+  dplyr::summarise(
+    Pf_mean = mean(Pf, na.rm = TRUE),
+    PfPR2_mean = mean(`PfPR2-10`, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# Determine Dominant Method per ADM1, Year, Month
+dominant_method <- prev_with_cont %>%
+  as_tibble() %>%
+  dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
+  dplyr::mutate(
+    month = factor(MM, levels = 1:12, labels = month.abb),
+    year = YY
+  ) %>%
+  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
+  dplyr::summarise(
+    PfPR2_sum = sum(`PfPR2-10`, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  dplyr::group_by(OBJECTID, year, month) %>%
+  dplyr::slice_max(order_by = PfPR2_sum, n = 1, with_ties = FALSE) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD)
+
+readr::write_csv(
+  dominant_method, 
+  file.path(
+    datadir, 
+    "Data", 
+    paste0('dominant_diagnostic_method_summary.csv')
+  )
+)
+
+# Merge Mean Data with Dominant Method
+aggregated_data <- mean_data %>%
+  left_join(dominant_method, by = c("OBJECTID", "year", "month")) %>%
+  mutate(
+    year = as.character(year),
+    month = as.character(month)
+  )
 
 # Join the temperature, precipitation, and prevalence data
 complete_df <- dplyr::left_join(
