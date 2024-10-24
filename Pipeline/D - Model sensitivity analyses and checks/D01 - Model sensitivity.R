@@ -58,16 +58,19 @@ source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for esti
 ########################################################################
 
 # Formulas: all fixed effects (main spec = cXt2intrXm)
+
+# Formula (see other files for robustness/sensitivity checks)
 cym = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + year + month | 0 | OBJECTID"))
 cXt2m = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID  + month | 0 | OBJECTID"))
 cXt2cXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID + country:month | 0 | OBJECTID"))
 cXt2intm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID  + intervention + month | 0 | OBJECTID"))
 cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intrXmDM = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + dominant_METHOD + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 cXt2intcXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + country:month | 0 | OBJECTID"))
 rXyrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXycXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXyrXmcXt = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
-myforms = c(cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt) 
+myforms = c(cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, cXt2intrXmDM, cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt) 
 #mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
 mycollabs = c("cnty + yr + mo FEs.", "cnty trd, mo FEs.", "cnty trd, cnty-mo FEs.", "cnty trd, int + mo FEs.", "cnty trd, int + rgn-mo FEs.", "cnty trd, int + cnty-mo FEs.", "rgn-yr + rgn-mo FEs.", "rgn-yr + cnty-mo FEs.", "rgn-yr+rgn-mo FEs., cnty trd")
 
@@ -79,12 +82,14 @@ for (m in myforms) {
   modellist[[i]] = felm(data = complete, formula = m)
 }
 
+felm(data = complete, formula = cXt2intrXmDM)
+
 # Combine into a single stargazer plot 
 mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
 dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
 stargazer(modellist,
           title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = mycollabs,
-          keep = c("temp", "flood", "drought", "intervention"),
+          keep = c("temp", "flood", "drought", "intervention", "dominant_METHOD"),
           out = file.path(resdir, "Tables", "sensitivity","FixedEffects_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
