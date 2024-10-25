@@ -206,12 +206,9 @@ dominant_method <- prev_with_cont %>%
     year = YY
   ) %>%
   dplyr::group_by(OBJECTID, year, month, METHOD) %>%
-  dplyr::summarise(
-    PfPR2_sum = sum(`PfPR2-10`, na.rm = TRUE),
-    .groups = 'drop'
-  ) %>%
+  dplyr::summarise(count = n(), .groups = 'drop') %>%
   dplyr::group_by(OBJECTID, year, month) %>%
-  dplyr::slice_max(order_by = PfPR2_sum, n = 1, with_ties = FALSE) %>%
+  dplyr::slice_max(order_by = count, n = 1, with_ties = FALSE) %>%
   dplyr::ungroup() %>%
   dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) |> 
   dplyr::mutate(
