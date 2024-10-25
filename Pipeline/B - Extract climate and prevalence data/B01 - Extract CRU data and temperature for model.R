@@ -197,6 +197,7 @@ mean_data <- prev_with_cont %>%
   )
 
 # Determine Dominant Method per ADM1, Year, Month
+# Add a simplified method to limit the number of categories
 dominant_method <- prev_with_cont %>%
   as_tibble() %>%
   dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
@@ -212,7 +213,14 @@ dominant_method <- prev_with_cont %>%
   dplyr::group_by(OBJECTID, year, month) %>%
   dplyr::slice_max(order_by = PfPR2_sum, n = 1, with_ties = FALSE) %>%
   dplyr::ungroup() %>%
-  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD)
+  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) |> 
+  dplyr::mutate(
+    simplified_METHOD = case_when(
+      dominant_METHOD %in% c("RDT", "RDT/SLIDE CONFIRMED", "RDT/PCR CONFIRMED") ~ "RDT",
+      dominant_METHOD %in% c("MICROSCOPY", "MICROSCOPY/PCR CONFIRMED") ~ "MICROSCOPY",
+      TRUE ~ dominant_METHOD
+    )
+  )
 
 readr::write_csv(
   dominant_method, 
