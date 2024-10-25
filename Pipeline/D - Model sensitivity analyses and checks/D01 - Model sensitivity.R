@@ -42,9 +42,9 @@ if (CRUversion=="4.03") {
 # as minimum and maximum for range of temperature
 ############################################################
 
-Tref = 25 #reference temperature - curve gets recentered to 0 here
-Tmin = 10 #min T for x axis
-Tmax = 40 #max T for x axis
+Tref = 25 # reference temperature - curve gets recentered to 0 here
+Tmin = 10 # min T for x axis
+Tmax = 40 # max T for x axis
 
 ########################################################################
 # Data clean up
@@ -53,6 +53,8 @@ Tmax = 40 #max T for x axis
 #### Call external script for data cleaning
 source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
 
+complete <- filter(complete, dominant_METHOD != "LAMP")
+
 ########################################################################
 # Estimation
 ########################################################################
@@ -60,19 +62,36 @@ source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for esti
 # Formulas: all fixed effects (main spec = cXt2intrXm)
 
 # Formula (see other files for robustness/sensitivity checks)
-cym = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + year + month | 0 | OBJECTID"))
-cXt2m = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID  + month | 0 | OBJECTID"))
-cXt2cXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID + country:month | 0 | OBJECTID"))
-cXt2intm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr + country:monthyr2 | OBJECTID  + intervention + month | 0 | OBJECTID"))
-cXt2intrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-cXt2intrXmDM = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + dominant_METHOD + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-cXt2intcXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + country:month | 0 | OBJECTID"))
-rXyrXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
-rXycXm = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, "| OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))
-rXyrXmcXt = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
-myforms = c(cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, cXt2intrXmDM, cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt) 
+
+common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
+country_time <- "country:monthyr + country:monthyr2"
+
+cym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | OBJECTID"))
+cXt2m = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + month | 0 | OBJECTID"))
+cXt2cXm = as.formula(paste0(common, " + ", country_time, " | OBJECTID + country:month | 0 | OBJECTID"))
+cXt2intm = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + intervention + month | 0 | OBJECTID"))
+cXt2intrXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intrXmDM = as.formula(paste0(common, " + dominant_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intrXmSM = as.formula(paste0(common, " + simplified_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intcXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + country:month | 0 | OBJECTID"))
+rXyrXm = as.formula(paste0(common, " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
+rXycXm = as.formula(paste0(common, " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))
+rXyrXmcXt = as.formula(paste0(common, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
+myforms = c(cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, cXt2intrXmDM, cXt2intrXmSM, cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt) 
 #mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
-mycollabs = c("cnty + yr + mo FEs.", "cnty trd, mo FEs.", "cnty trd, cnty-mo FEs.", "cnty trd, int + mo FEs.", "cnty trd, int + rgn-mo FEs.", "cnty trd, int + cnty-mo FEs.", "rgn-yr + rgn-mo FEs.", "rgn-yr + cnty-mo FEs.", "rgn-yr+rgn-mo FEs., cnty trd")
+mycollabs = c(
+  "cnty + yr + mo FEs.", 
+  "cnty trd, mo FEs.", 
+  "cnty trd, cnty-mo FEs.",
+  "cnty trd, int + mo FEs.", 
+  "cnty trd, int + rgn-mo FEs.", # Main Spec
+  "cnty trd, int + rgn-mo FEs. + DM", # Main Spec with dominant method
+  "cnty trd, int + rgn-mo FEs. + SM", # Main Spec with simplified method
+  "cnty trd, int + cnty-mo FEs.", 
+  "rgn-yr + rgn-mo FEs.", 
+  "rgn-yr + cnty-mo FEs.", 
+  "rgn-yr+rgn-mo FEs., cnty trd"
+)
 
 # Run all models
 modellist = list()
@@ -82,14 +101,12 @@ for (m in myforms) {
   modellist[[i]] = felm(data = complete, formula = m)
 }
 
-felm(data = complete, formula = cXt2intrXmDM)
-
 # Combine into a single stargazer plot 
 mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
 dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
 stargazer(modellist,
           title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = mycollabs,
-          keep = c("temp", "flood", "drought", "intervention", "dominant_METHOD"),
+          keep = c("temp", "flood", "drought", "intervention", "METHOD"),
           out = file.path(resdir, "Tables", "sensitivity","FixedEffects_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
@@ -268,21 +285,21 @@ complete <- left_join(complete, templags, by=c("OBJECTID", "monthyr", "month", "
 complete$month=as.factor(complete$month)
 
 # Formulas
-cont = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cont = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 lg1 = as.formula(paste0("PfPR2 ~ temp + temp2 + temp.lag + temp2.lag +", 
-                        floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+                        floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 lg2 = as.formula(paste0("PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lag2 + temp2.lag2 +", 
-                        floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+                        floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 lg3 = as.formula(paste0("PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lag2 + temp2.lag2 + temp.lag3 + temp2.lag3 +", 
-                        floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+                        floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 ld1lg1 = as.formula(paste0("PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +", 
-                           floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+                           floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 ld2lg2 = as.formula(paste0("PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +  temp.lag2 + temp2.lag2 + temp.lead2 + temp2.lead2 + ", 
-                           floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+                           floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 ld3lg3 = as.formula(paste0("PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +  temp.lag2 + temp2.lag2 + temp.lead2 + temp2.lead2 + temp.lag3 + temp2.lag3 + temp.lead3 + temp2.lead3 +", 
-                           floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+                           floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 ld1lg3 = as.formula(paste0("PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +  temp.lag2 + temp2.lag2 + temp.lag3 + temp2.lag3 +", 
-                           floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"))
+                           floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"))
 myforms = c(cont, lg1, lg2, lg3, ld1lg1, ld2lg2, ld3lg3, ld1lg3) 
 mycollabs = c("cont", "lg1", "lg2", "lg3", "ld1lg1", "ld2lg2", "ld3lg3", "ld1lg3")
 
@@ -360,7 +377,7 @@ for (dd in dlist) {
     droughtvars = paste(colnames(complete)[grep("drought", colnames(complete))], collapse = " + ")
     
     # regression formula (main spec)
-    mymod = as.formula(paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+    mymod = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
     
     # run regression, store results
     modellist[[i]] = felm(data = newdf, formula = mymod)
@@ -435,15 +452,15 @@ modellist[[1]] = felm(data = complete, formula = cXt2intrXm)
 modellist[[2]] = felm(data = complete, formula = 
                         as.formula(paste0("PfPR2 ~ temp + temp2 + temp3 +", floodvars,
                                           " + ", droughtvars, 
-                                          " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+                                          " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
 modellist[[3]] = felm(data = complete, formula = 
                         as.formula(paste0("PfPR2 ~ temp + temp2 + temp3 + temp4 +", floodvars,
                                           " + ", droughtvars, 
-                                          " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+                                          " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
 modellist[[4]] = felm(data = complete, formula = 
                         as.formula(paste0("PfPR2 ~ temp + temp2 + temp3 + temp4 + temp5 +", floodvars,
                                           " + ", droughtvars, 
-                                          " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+                                          " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
 # plot
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2, seq(Tmin,Tmax)^3,seq(Tmin,Tmax)^4,seq(Tmin,Tmax)^5)
 modellabs = c("Quadratic", "Cubic", "Quartic", "Quintic")
@@ -475,13 +492,13 @@ ggsave(file.path(resdir, "Figures", "Diagnostics", "Temp_functionalForm", "tempe
 # estimate polynomial orders up to 5
 modellist = list()
 modellist[[1]] = felm(data = complete, formula = 
-                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
 modellist[[2]] = felm(data = complete, formula = 
-                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
 modellist[[3]] = felm(data = complete, formula = 
-                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
 modellist[[4]] = felm(data = complete, formula = 
-                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + ppt5 + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
+                        as.formula(paste0("PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + ppt5 + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID")))
 # plot
 Tmin = 0
 Tmax = 600

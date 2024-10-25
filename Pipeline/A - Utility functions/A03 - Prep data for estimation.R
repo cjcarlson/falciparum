@@ -1,5 +1,9 @@
-
-
+############################################################
+# This script prepares the climate and prevalence data for 
+# estimation. It calculates the drought and flood variables
+# and makes the categorical variables into factors where
+# necessary. 
+############################################################
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
@@ -107,5 +111,7 @@ complete$month = as.factor(complete$month)
 complete$year = as.factor(complete$year)
 
 complete$dominant_METHOD = as.factor(complete$dominant_METHOD)
+complete$simplified_METHOD = as.factor(complete$simplified_METHOD)
 
 unique(complete$dominant_METHOD)
+unique(complete$simplified_METHOD)
