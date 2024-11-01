@@ -53,7 +53,7 @@ Tmax = 40 # max T for x axis
 #### Call external script for data cleaning
 source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
 
-complete <- filter(complete, dominant_METHOD != "LAMP")
+# complete <- filter(complete, dominant_METHOD != "LAMP")
 
 ########################################################################
 # Estimation
@@ -71,13 +71,17 @@ cXt2m = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + month | 0
 cXt2cXm = as.formula(paste0(common, " + ", country_time, " | OBJECTID + country:month | 0 | OBJECTID"))
 cXt2intm = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + intervention + month | 0 | OBJECTID"))
 cXt2intrXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-cXt2intrXmDM = as.formula(paste0(common, " + dominant_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-cXt2intrXmSM = as.formula(paste0(common, " + simplified_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+# cXt2intrXmDM = as.formula(paste0(common, " + dominant_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+# cXt2intrXmSM = as.formula(paste0(common, " + simplified_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 cXt2intcXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + country:month | 0 | OBJECTID"))
 rXyrXm = as.formula(paste0(common, " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXycXm = as.formula(paste0(common, " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXyrXmcXt = as.formula(paste0(common, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
-myforms = c(cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, cXt2intrXmDM, cXt2intrXmSM, cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt) 
+myforms = c(
+  cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, 
+  # cXt2intrXmDM, cXt2intrXmSM, 
+  cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt
+) 
 #mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
 mycollabs = c(
   "cnty + yr + mo FEs.", 
@@ -85,8 +89,8 @@ mycollabs = c(
   "cnty trd, cnty-mo FEs.",
   "cnty trd, int + mo FEs.", 
   "cnty trd, int + rgn-mo FEs.", # Main Spec
-  "cnty trd, int + rgn-mo FEs. + DM", # Main Spec with dominant method
-  "cnty trd, int + rgn-mo FEs. + SM", # Main Spec with simplified method
+  # "cnty trd, int + rgn-mo FEs. + DM", # Main Spec with dominant method
+  # "cnty trd, int + rgn-mo FEs. + SM", # Main Spec with simplified method
   "cnty trd, int + cnty-mo FEs.", 
   "rgn-yr + rgn-mo FEs.", 
   "rgn-yr + cnty-mo FEs.", 
