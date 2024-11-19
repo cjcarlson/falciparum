@@ -1,5 +1,9 @@
-
-
+############################################################
+# This script prepares the climate and prevalence data for 
+# estimation. It calculates the drought and flood variables
+# and makes the categorical variables into factors where
+# necessary. 
+############################################################
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
@@ -13,7 +17,16 @@ if (CRUversion=="4.03") {
   print('CRU version not supported! Use 4.03 or 4.06.')
 }
 
-data <- readr::read_csv(data_fp, show_col_types = FALSE)
+dominant_method <- file.path(
+  datadir, 
+  "Data", 
+  paste0('dominant_diagnostic_method_summary.csv')
+) |> 
+  readr::read_csv(show_col_types = FALSE)
+
+
+data <- readr::read_csv(data_fp, show_col_types = FALSE) |> 
+  dplyr::left_join(dominant_method, by = join_by(OBJECTID, month, year))
 
 #### Spatial data
 spatial <- read.csv(file.path(datadir, 'Dataframe backups', 'shapefile-backup.csv'))
@@ -96,3 +109,9 @@ complete$intervention = as.factor(complete$intervention)
 # classes: important for ensuring felm is treating these correctly
 complete$month = as.factor(complete$month)
 complete$year = as.factor(complete$year)
+
+complete$dominant_METHOD = as.factor(complete$dominant_METHOD)
+complete$simplified_METHOD = as.factor(complete$simplified_METHOD)
+
+unique(complete$dominant_METHOD)
+unique(complete$simplified_METHOD)
