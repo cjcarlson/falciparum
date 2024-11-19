@@ -53,8 +53,6 @@ Tmax = 40 # max T for x axis
 #### Call external script for data cleaning
 source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
 
-# complete <- filter(complete, dominant_METHOD != "LAMP")
-
 ########################################################################
 # Estimation
 ########################################################################
@@ -71,15 +69,12 @@ cXt2m = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + month | 0
 cXt2cXm = as.formula(paste0(common, " + ", country_time, " | OBJECTID + country:month | 0 | OBJECTID"))
 cXt2intm = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + intervention + month | 0 | OBJECTID"))
 cXt2intrXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-# cXt2intrXmDM = as.formula(paste0(common, " + dominant_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-# cXt2intrXmSM = as.formula(paste0(common, " + simplified_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 cXt2intcXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + country:month | 0 | OBJECTID"))
 rXyrXm = as.formula(paste0(common, " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXycXm = as.formula(paste0(common, " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXyrXmcXt = as.formula(paste0(common, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
 myforms = c(
   cym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, 
-  # cXt2intrXmDM, cXt2intrXmSM, 
   cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt
 ) 
 #mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
@@ -89,8 +84,6 @@ mycollabs = c(
   "cnty trd, cnty-mo FEs.",
   "cnty trd, int + mo FEs.", 
   "cnty trd, int + rgn-mo FEs.", # Main Spec
-  # "cnty trd, int + rgn-mo FEs. + DM", # Main Spec with dominant method
-  # "cnty trd, int + rgn-mo FEs. + SM", # Main Spec with simplified method
   "cnty trd, int + cnty-mo FEs.", 
   "rgn-yr + rgn-mo FEs.", 
   "rgn-yr + cnty-mo FEs.", 
@@ -137,6 +130,81 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]],
 p
 dir.create(file.path(resdir, "Figures", "Diagnostics","Fixed_effects"), showWarnings = FALSE)
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Fixed_effects", "panelFE_FE_sensitivity.pdf"), plot = p, width = 7, height = 7)
+
+
+########################################################################
+# Estimation of Diagnostic Method Models 
+########################################################################
+
+complete_dm <- filter(complete, dominant_METHOD != "LAMP")
+
+cXt2intrXmDM = as.formula(paste0(common, " + dominant_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intrXmSM = as.formula(paste0(common, " + simplified_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+
+myforms = c(cXt2intrXm, cXt2intrXmDM, cXt2intrXmSM) 
+
+mycollabs = c(
+  "cnty trd, int + rgn-mo FEs.", # Main Spec
+  "cnty trd, int + rgn-mo FEs. + DM", # Main Spec with dominant method
+  "cnty trd, int + rgn-mo FEs. + SM" # Main Spec with simplified method
+)
+
+modellist = list()
+i=0
+for (m in myforms) {
+  i=i+1
+  modellist[[i]] = felm(data = complete_dm, formula = m)
+}
+
+mynote = "Column specifications: (1) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (2) country-specific quad. trends, intervention year FE, GBOD region-by-month FE, and diagnostic method FE; (3) country-specific quad. trends, intervention year FE, GBOD region-by-month FE, and simplified diagnostic method FE."
+dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
+stargazer(
+  modellist,
+  title = "Quadratic temperature: FE sensitivity", 
+  align = TRUE, 
+  column.labels = mycollabs,
+  keep = c("temp", "flood", "drought", "intervention", "METHOD"),
+  out = file.path(resdir, "Tables", "sensitivity","FixedEffects_sensitivity.tex"),  
+  omit.stat = c("f", "ser"), 
+  out.header = FALSE,
+  type = "latex", 
+  float = F,
+  notes.append = TRUE, 
+  digits = 2,
+  notes.align = "l", 
+  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}")
+)
+
+########################################################################
+# Plot temperature response functions for diagnostic method specifications
+########################################################################
+
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
+
+figList = list()
+for(m in 1:length(modellist)) {
+  coefs = summary(modellist[[m]])$coefficients[1:2]
+  myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
+  figList[[m]] = plotPolynomialResponse(
+    modellist[[m]], "temp", plotXtemp,
+    polyOrder = 2, cluster = T, xRef = myrefT,
+    xLab = expression(paste("Mean temperature (",degree,"C)")), 
+    yLab = "Prevalence (%)", title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
+    theme(plot.title = element_text(size = 10))
+}
+
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], nrow=1)
+p
+
+fe_fig_dir <- file.path(resdir, "Figures", "Diagnostics","Fixed_effects")
+dir.create(fe_fig_dir, showWarnings = FALSE)
+ggsave(
+  filename = "diagnostic_method_sensitivity.pdf",
+  path = fe_fig_dir, 
+  plot = p, 
+  width = 9, 
+  height = 3
+)
 
 ########################################################################
 # Assessing temporal controls: At what spatial scale do we need to address long-run trends?
