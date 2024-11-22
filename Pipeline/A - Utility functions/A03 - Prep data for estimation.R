@@ -24,7 +24,6 @@ dominant_method <- file.path(
 ) |> 
   readr::read_csv(show_col_types = FALSE)
 
-
 data <- readr::read_csv(data_fp, show_col_types = FALSE) |> 
   dplyr::left_join(dominant_method, by = join_by(OBJECTID, month, year))
 

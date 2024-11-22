@@ -59,7 +59,7 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, lag
   ### yLim limits y-axis values
   ### showYTitle turns on and off the y-axis label
   
-  beta = mod$coefficients ##See if this works
+  beta = mod$coefficients 
   vars = rownames(beta)
   
   #Get the variables that we're plotting
