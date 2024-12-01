@@ -234,6 +234,94 @@ p
 
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "split_sample_1995.pdf"), plot = p, width = 9, height = 5)
 
+########################################################################
+# R3: Overlay main spec and CIs with results from models with other FE
+########################################################################
 
+#setup 
+Tref = 24
+Tmin = 10
+Tmax = 40
+int = 0.1
+plotXtemp = cbind(seq(Tmin,Tmax,by=int), seq(Tmin,Tmax,by=int)^2)
+xValsT = genRecenteredXVals_polynomial(plotXtemp,Tref,2)
 
+# point estimate and CIs for main spec
+beta = mainmod$coefficients 
+vars = rownames(beta)
+plotVars = vars[grepl(pattern = "temp", x = vars)] 
+b = as.matrix(beta[rownames(beta) %in% plotVars])
+vcov = getVcov(mainmod$clustervcv, plotVars)
+response = as.matrix(xValsT) %*% b #Prediction
+length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
+lb = response - length
+ub = response + length
+
+#Plotgin dataframe -- add back in the reference temperature so it's centered at xRef
+plotData = data.frame(x = xValsT[,1] + Tref, response = response, lb = lb, ub = ub)
+sub = plotData[plotData$x>=10 & plotData$x<=30,]
+maxX = max(sub$x[sub$response==max(sub$response)])
+
+# point estimates for all other FE checks
+cym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | OBJECTID"))
+cXt2m = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + month | 0 | OBJECTID"))
+cXt2cXm = as.formula(paste0(common, " + ", country_time, " | OBJECTID + country:month | 0 | OBJECTID"))
+cXt2intm = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + intervention + month | 0 | OBJECTID"))
+cXt2intcXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + country:month | 0 | OBJECTID"))
+rXyrXm = as.formula(paste0(common, " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
+rXycXm = as.formula(paste0(common, " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))
+rXyrXmcXt = as.formula(paste0(common, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
+myforms = c(
+  cym, cXt2m, cXt2cXm, cXt2intm, 
+  cXt2intcXm, rXyrXm, rXycXm, rXyrXmcXt
+) 
+mycollabs = c(
+  "cym", "cXt2m", "cXt2cXm", "cXt2intm", 
+  "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt"
+)
+
+# Run all robustness models
+modellist = list()
+i=0
+for (m in myforms) {
+  i=i+1
+  modellist[[i]] = felm(data = complete, formula = m)
+}
+
+# loop over all other FE models, add to plotting dataframe
+for(mod in 1:length(modellist)){ 
+  beta = modellist[[mod]]$coefficients 
+  vars = rownames(beta)
+  plotVars = vars[grepl(pattern = "temp", x = vars)] 
+  b = as.matrix(beta[rownames(beta) %in% plotVars])
+  response = as.data.frame(as.matrix(xValsT) %*% b) 
+  colnames(response) = paste0(mycollabs[mod])
+  plotData = cbind(plotData, response)
+}
+
+# reshape
+plotmain = plotData %>% dplyr::select(x,response,lb,ub)
+plotFE = plotData %>% dplyr::select(x,cym:rXyrXmcXt)
+plotFE = plotFE %>% gather(plotFE, response, cym:rXyrXmcXt)  
+colnames(plotFE) = c("x", "model","response")  
+
+# plot
+g = ggplot()  +
+  geom_hline(yintercept = 0, color="darkgrey",alpha=.5) + 
+  geom_ribbon(data = plotmain, # CIs main spec
+              mapping = aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = "#C1657C") +
+  geom_line(data = plotFE, # point estimate other specs
+            aes(x = x, y = response, group = model), color = "seagreen", alpha=0.8) +
+  geom_line(data = plotmain, # point estimate main spec
+            mapping = aes(x = x, y = response), color = "black", linewidth = 1) +
+  theme_classic() + 
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = "Prevalence (%)") + 
+  xlim(Tmin,Tmax) + 
+  theme(
+    axis.title.x = element_text(vjust = -3),
+    axis.title.y = element_text(vjust = 5),
+    plot.margin = unit(c(0.3,0.3,1,1), units = "cm"))
+g
+
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "overlaid_specifications_Tresponse.pdf"), plot = g, width = 4.5, height = 5)
 
