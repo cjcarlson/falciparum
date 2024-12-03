@@ -181,7 +181,7 @@ ph = ggplot() +
   theme_classic()
 ph
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "res_corr_countries.pdf"), plot = g, width = 7, height = 7)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "res_corr_countries.pdf"), plot = ph, width = 7, height = 7)
 
 #boxplot of residuals by country
 g= ggplot(complete, aes(x=country, y=res)) + 
