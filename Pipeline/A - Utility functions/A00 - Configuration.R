@@ -3,15 +3,15 @@ print("Loading A00 - Configuration.R")
 
 ##### Pick one of the following users
 # user = "Colin" 
-# user = "Tamma"
-user = "Cullen" 
+ user = "Tamma"
+#user = "Cullen" 
 
 print(paste0("User set to: ", user))
 
 ##### location for data and output
 datadir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
-  user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution/Data/',
+  user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "Cullen" ~ '/home/emlab/data/malaria-attribution',
   TRUE ~ NA_character_
 )
