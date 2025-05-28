@@ -197,28 +197,6 @@ ggsave(
 )
 
 ########################################################################
-# R2: Correlated errors
-########################################################################
-
-# Are residuals correlated within countries? 
-resCntry = felm(res ~ monthyr + I(country), data=complete)
-pvals = summary(resCntry)$coefficients[,"Pr(>|t|)"]
-ph = ggplot() + 
-  geom_histogram(aes(x=pvals), color= "seagreen", fill = "seagreen") + 
-  xlab("p-values by country") +
-  theme_classic()
-ph
-
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "res_corr_countries.pdf"), plot = ph, width = 7, height = 7)
-
-#boxplot of residuals by country
-g= ggplot(complete, aes(x=country, y=res)) + 
-  geom_boxplot() + 
-  theme_classic() + ylab("residuals") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
-g
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "res_boxplot_countries.pdf"), plot = g, width = 9, height = 5)
-
-########################################################################
 # R2: Data imbalance: responses on different subsamples? 
 ########################################################################
 
