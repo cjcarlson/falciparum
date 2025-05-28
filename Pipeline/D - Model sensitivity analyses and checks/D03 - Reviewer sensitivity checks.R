@@ -53,6 +53,36 @@ Tmax = 40 # max T for x axis
 source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
 
 ########################################################################
+# Check for missing values if we were to use prevalence lag
+########################################################################
+
+# First ensure that for each OBJECTID and year we have months 1 through 12
+# and years 1902 through 2016 (1 row for each month of each year).
+# This intentionally introduces many NAs, but allows us to calculate the lag.
+complete_expanded <- complete %>% 
+  mutate(year = as.numeric(as.character(year)),
+         month = as.character(month),
+         month = match(month, month.abb)) |> 
+  group_by(OBJECTID) %>% 
+  complete(year = 1902:2016, month = 1:12) %>%
+  ungroup()
+
+# Add prevalence lag to complete
+complete_with_lag <- complete_expanded %>%
+  arrange(OBJECTID, year, month) %>%
+  mutate(PfPR2_lag = dplyr::lag(PfPR2)) |> 
+  tidyr::drop_na(PfPR2)
+
+# Drop rows with missing lag values
+complete_with_complete_lags <- tidyr::drop_na(complete_with_lag)
+
+# Calculate the percentage of observations lost
+starting_obs <- length(complete$OBJECTID)
+obs_after_lag <- length(complete_with_complete_lags$OBJECTID)
+difference <- starting_obs - obs_after_lag
+percent_lost <- (difference / starting_obs) * 100
+
+########################################################################
 # R1, Comment 1: Do count of surveys respond to T and P shocks? 
 # Implementable immediately: Does diagnostic method change with T and P shocks? 
 ########################################################################
