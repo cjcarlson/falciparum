@@ -1,7 +1,5 @@
 ############################################################
-# This script conducts additional robustness checks requested
-# by reviewers in round 1 of Nature submission 
-# Date: November 2024
+# This script conducts additional robustness checks 
 # This script should be incorporated into D01 when a subset of 
 # tests are included in the main text and/or Supplement.
 ############################################################
