@@ -26,7 +26,7 @@ source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
 source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
-# CRUversion = "4.03" # "4.06"
+ CRUversion = "4.03" # "4.06"
 if (CRUversion=="4.03") {
   resdir = file.path(datadir, "Results")
 } else if (CRUversion=="4.06") {
@@ -83,7 +83,7 @@ difference <- starting_obs - obs_after_lag
 percent_lost <- (difference / starting_obs) * 100
 
 ########################################################################
-# R1, Comment 1: Do count of surveys respond to T and P shocks? 
+# Do count of surveys respond to T and P shocks? 
 # Implementable immediately: Does diagnostic method change with T and P shocks? 
 ########################################################################
 
@@ -120,8 +120,8 @@ g <- ggplot(data=complete) +
   theme_classic()
 g
 
-dir.create(file.path(resdir, "Figures", "Diagnostics","Reviewer_comments"), showWarnings = FALSE)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "model_residuals.pdf"), plot = g, width = 7, height = 7)
+dir.create(file.path(resdir, "Figures", "Diagnostics","Residuals"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = g, width = 7, height = 7)
 
 ########################################################################
 # R1: Control for diagnostic method?
@@ -197,7 +197,7 @@ ggsave(
 )
 
 ########################################################################
-# R2: Data imbalance: responses on different subsamples? 
+# Data imbalance: responses on different subsamples? 
 ########################################################################
 
 complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
@@ -238,7 +238,7 @@ for(m in 1:length(modellist)) {
 p = plot_grid(figList[[1]], figList[[2]], nrow=1)
 p
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "split_sample_1995.pdf"), plot = p, width = 9, height = 5)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Subsamples", "split_sample_1995.pdf"), plot = p, width = 9, height = 5)
 
 ########################################################################
 # R3: Overlay main spec and CIs with results from models with other FE
@@ -329,5 +329,5 @@ g = ggplot()  +
     plot.margin = unit(c(0.3,0.3,1,1), units = "cm"))
 g
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "overlaid_specifications_Tresponse.pdf"), plot = g, width = 4.5, height = 5)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Fixed_effects", "overlaid_specifications_Tresponse.pdf"), plot = g, width = 4.5, height = 5)
 
