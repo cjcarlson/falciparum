@@ -109,7 +109,7 @@ stargazer(Micromod,
           out = file.path(resdir, "Tables", "sensitivity","Microscopy_sample_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 
 ########################################################################
-# R1: Overdispersion?
+# Overdispersion?
 ########################################################################
 
 # Plot model residuals
@@ -124,7 +124,7 @@ dir.create(file.path(resdir, "Figures", "Diagnostics","Residuals"), showWarnings
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = g, width = 7, height = 7)
 
 ########################################################################
-# R1: Control for diagnostic method?
+# Control for diagnostic method
 ########################################################################
 
 ###### Estimate regressions #######
@@ -197,7 +197,7 @@ ggsave(
 )
 
 ########################################################################
-# Data imbalance: responses on different subsamples? 
+# Data imbalance: responses on temporal subsamples
 ########################################################################
 
 complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
@@ -209,8 +209,8 @@ g
 complete = complete |> mutate(post1995 = (yearnum>=1995))
 complete %>% count(post1995)
 
-# formula (remove intervention dummies for temporal subsampling)
-cXt2rXm = as.formula(paste0(common, " +  ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+# formula (different intervention dummies for each temporal subsample)
+cXt2rXm = as.formula(paste0(common, " + I(intervention) +  ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 
 pre1995 = felm(data = subset(complete, post1995==FALSE), formula = cXt2rXm)
 post1995 = felm(data = subset(complete, post1995==TRUE), formula = cXt2rXm)
@@ -241,7 +241,52 @@ p
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Subsamples", "split_sample_1995.pdf"), plot = p, width = 9, height = 5)
 
 ########################################################################
-# R3: Overlay main spec and CIs with results from models with other FE
+# Data imbalance: responses on spatial subsamples
+########################################################################
+
+# Regression for each region, no regionXmo FE because we are using region-specific models
+regions = unique(complete$smllrgn)
+cXt2int = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(month) | 0 | OBJECTID"))
+
+modellist = list()
+for (i in 1:length(regions)) {
+  mydf = subset(complete, smllrgn==regions[i])
+  modellist[[i]] = felm(data = mydf, formula = cXt2int)
+}
+
+# Plot them all next to each other
+mycollabs = c(
+  paste0(regions[1]),paste0(regions[2]),paste0(regions[3]),paste0(regions[4])
+)
+
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
+figList = list()
+for(m in 1:length(modellist)) {
+  coefs = summary(modellist[[m]])$coefficients[1:2]
+  myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
+  figList[[m]] = plotPolynomialResponse(
+    modellist[[m]], "temp", plotXtemp,
+    polyOrder = 2, cluster = T, xRef = myrefT,
+    xLab = expression(paste("Mean temperature (",degree,"C)")),
+    yLab = "Prevalence (%)", title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
+    theme(plot.title = element_text(size = 10))
+}
+p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow=1)
+p
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Subsamples", "split_GBOD.pdf"), plot = p, width = 9, height = 5)
+
+test = subset(mydf,smllrgn==regions[1])
+testform = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + temp3 +", floodvars, " + ", droughtvars, 
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
+
+# TO DO: Add histograms of temp underneath each curve; add 3rd order polynomial and it's SE on top of the existing ones (ala urban/rural)
+
+########################################################################
+# Overlay main spec and CIs with results from models with other FE
 ########################################################################
 
 #setup 
