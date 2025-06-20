@@ -1,0 +1,253 @@
+############################################################
+# This script estimates the main empirical specification linking
+# PfPR2 to drought, flood, and temperature.
+############################################################
+
+############################################################
+# Set up
+############################################################
+
+rm(list = ls())
+
+# packages
+library(here)
+library(lfe)
+library(reshape)
+library(stargazer)
+library(tidyverse)
+library(zoo)
+library(lubridate)
+library(cowplot)
+library(multcomp)
+
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here(
+  "Pipeline",
+  "A - Utility functions",
+  "A01 - Utility code for calculations.R"
+))
+source(here::here(
+  "Pipeline",
+  "A - Utility functions",
+  "A02 - Utility code for plotting.R"
+))
+
+# CRUversion = "4.03" # "4.06"
+if (CRUversion == "4.03") {
+  resdir = file.path(datadir, "Results")
+} else if (CRUversion == "4.06") {
+  resdir = file.path(datadir, "Results_CRU-TS4-06")
+} else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
+}
+
+############################################################
+# Plotting toggles
+# Choose reference temperature for response function, as well
+# as minimum and maximum for range of temperature
+############################################################
+
+Tref = 24 #reference temperature - curve gets recentered to 0 here
+Tmin = 10 #min T for x axis
+Tmax = 40 #max T for x axis
+
+########################################################################
+# Data clean up
+########################################################################
+
+#### Call external script for data cleaning
+# source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
+
+complete <- readr::read_csv(
+  file.path(
+    datadir,
+    "Data",
+    paste0('CRU-', CRUversion, '-Points-Reextraction-May2025.csv')
+  ),
+  show_col_types = FALSE
+)
+
+# cont <- sf::read_sf(here::here(datadir, 'Data', 'AfricaADM1.shp'))
+
+# # Convert to sf object with POINT geometry
+# prev_sf <- sf::st_as_sf(
+#   prev_df,
+#   coords = c("Long", "Lat"),
+#   crs = 4326
+# )
+
+# # Join the prevalence data to the continent shapefile
+# prev_with_cont <- sf::st_join(prev_sf, cont)
+
+# include: contemporaneous temp, then distributed lag in flood and drought
+floodvars = paste(
+  colnames(complete)[grep("flood", colnames(complete))],
+  collapse = " + "
+)
+droughtvars = paste(
+  colnames(complete)[grep("drought", colnames(complete))],
+  collapse = " + "
+)
+
+# need this for country specific quadratic trends
+complete$monthyr2 = complete$monthyr^2
+
+# define key intervention periods
+complete$intervention = ifelse(
+  complete$yearnum >= 1955 & complete$yearnum <= 1969,
+  1,
+  0
+)
+complete$intervention[complete$yearnum >= 2000 & complete$yearnum <= 2015] = 2
+complete$intervention = as.factor(complete$intervention)
+
+# classes: important for ensuring felm is treating these correctly
+complete$month = as.factor(complete$month)
+complete$year = as.factor(complete$year)
+
+complete <- dplyr::rename(complete, country = COUNTRY)
+
+
+gbod <- sf::read_sf(
+  file.path(
+    datadir,
+    "Data",
+    "OriginalGBD",
+    "WorldRegions.shp"
+  )
+)
+# head(gbod@data)
+
+gboddf = as.data.frame(gbod)
+gboddf = gboddf %>% dplyr::select("ISO", "NAME_0", "Region", "SmllRgn")
+gboddf = gboddf %>%
+  group_by(ISO, NAME_0) %>%
+  summarize(Region = first(Region), SmllRgn = first(SmllRgn)) # note that the small regions are homogenous within country
+colnames(gboddf) = c("ISO", "country", "region", "smllrgn")
+gboddf$country = as.character(gboddf$country)
+
+# clean to merge
+gboddf$country = ifelse(
+  gboddf$country == "Cote D'Ivoire",
+  "Côte d'Ivoire",
+  gboddf$country
+)
+
+complete$country = as.character(complete$country)
+complete = left_join(complete, gboddf, by = "country")
+complete$country = as.factor(complete$country)
+
+# complete$dominant_METHOD = as.factor(complete$dominant_METHOD)
+# complete$simplified_METHOD = as.factor(complete$simplified_METHOD)
+
+#### Create necessary subfolders
+dir.create(file.path(resdir, "Tables"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Figures"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Models"), showWarnings = FALSE)
+
+########################################################################
+# Estimation
+########################################################################
+
+# Formula (see other files for robustness/sensitivity checks)
+cXt2intrXm = as.formula(
+  paste0(
+    "`PfPR2-10` ~ temp + temp2 + ",
+    floodvars,
+    " + ",
+    droughtvars,
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
+
+# Estimation & save model results
+mainmod = felm(data = complete, formula = cXt2intrXm)
+coeffs = as.data.frame(mainmod$coefficients)
+vcov = as.data.frame(mainmod$clustervcv)
+dir.create(file.path(resdir, "Models", "reproducibility"), showWarnings = FALSE)
+bfn = file.path(
+  resdir,
+  "Models",
+  "reproducibility",
+  "coefficients_cXt2intrXm_highres.rds"
+)
+vfn = file.path(
+  resdir,
+  "Models",
+  "reproducibility",
+  "vcv_cXt2intrXm-highres.rds"
+)
+saveRDS(coeffs, file = bfn)
+saveRDS(vcov, file = vfn)
+
+# Stargazer output
+mynote = "High Resolution Model: Country-specific quad. trends with intervention FE and country by month FE."
+dir.create(file.path(resdir, "Tables", "main"), showWarnings = FALSE)
+stargazer(
+  mainmod,
+  title = "PfPR2 response to daily avg. temperature",
+  align = TRUE,
+  keep = c("temp", "flood", "drought", "intervention"),
+  out = file.path(
+    resdir,
+    "Tables",
+    "main",
+    "main_specification_cXt2intrXm-highres.tex"
+  ),
+  omit.stat = c("f", "ser"),
+  out.header = FALSE,
+  type = "latex",
+  float = F,
+  notes.append = TRUE,
+  notes.align = "l",
+  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}")
+)
+
+########################################################################
+# Plot (Note: analogous to Fig 2A but with analytically derived confidence intervals
+# in place of bootstrap runs shown in Fig 2A)
+########################################################################
+
+# Temperature support
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+
+coefs = summary(mainmod)$coefficients[1:2]
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+
+beta <- mainmod$coefficients
+vars <- rownames(beta)
+patternForPlotVars <- "temp"
+plotVars <- vars[grepl(patternForPlotVars, vars)]
+
+fig = plotPolynomialResponse(
+  mainmod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = "High resolution: cXt2intrXm",
+  yLim = c(-30, 5),
+  showYTitle = T
+)
+
+fig
+dir.create(
+  file.path(resdir, "Figures", "Diagnostics", "Main_model"),
+  showWarnings = FALSE
+)
+ggsave(
+  file.path(
+    resdir,
+    "Figures",
+    "Diagnostics",
+    "Main_model",
+    "temp_response_cXt2intrXm-highres.pdf"
+  ),
+  plot = fig,
+  width = 7,
+  height = 7
+)

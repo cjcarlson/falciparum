@@ -205,35 +205,39 @@ plotPolynomialResponse <- function(
 
   # 11) add the “max” vertical line if requested
   if (plotmax) {
-    # find the peak on the main effect curve (e.g. rural)
-    sub = plotData[plotData$x >= 10 & plotData$x <= 30, ]
+    if (any(grepl(":", plotVars))) {
+      # find the peak on the main effect curve (e.g. rural)
+      sub = plotData[plotData$x >= 10 & plotData$x <= 30, ]
 
-    rural_sub <- filter(sub, group == "Rural")
-    urban_sub <- filter(sub, group == "Urban")
+      rural_sub <- filter(sub, group == "Rural")
+      urban_sub <- filter(sub, group == "Urban")
 
-    rural_maxX <- max(rural_sub$x[
-      rural_sub$response == max(rural_sub$response)
-    ])
-    urban_maxX <- max(urban_sub$x[
-      urban_sub$response == max(urban_sub$response)
-    ])
+      rural_maxX <- max(rural_sub$x[
+        rural_sub$response == max(rural_sub$response)
+      ])
+      urban_maxX <- max(urban_sub$x[
+        urban_sub$response == max(urban_sub$response)
+      ])
 
-    cat(
-      "Rural max at",
-      rural_maxX,
-      "C\nUrban max at",
-      urban_maxX,
-      "C\n"
-    )
+      cat(
+        "Rural max at",
+        rural_maxX,
+        "C\nUrban max at",
+        urban_maxX,
+        "C\n"
+      )
 
-    maxX = rural_maxX
+      maxX = rural_maxX
+    } else {
+      maxX = max(plotData$x[plotData$response == max(plotData$response)])
+    }
 
     g <- g +
       geom_vline(xintercept = maxX, colour = "grey39") +
       annotate(
         geom = "text",
         x = maxX + 3.5,
-        y = 7.55,
+        y = 2.55,
         label = paste0(maxX, " C"),
         color = "grey39",
         size = 3

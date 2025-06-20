@@ -1,4 +1,4 @@
-(g + f + d) / s + plot_annotation(tag_levels = 'A')
+f2 <- (g + f + d) / s + plot_annotation(tag_levels = 'A')
 
 # (combined_plot + f + d) / s + plot_annotation(tag_levels = 'A')
 
@@ -16,49 +16,60 @@
 #   rel_heights = c(10, 1)     # tall curve, short histogram
 # )
 
-upper_row <- plot_grid(
-  combined_plot,
-  f,
-  d,
-  nrow = 1,
-  # align       = "h",
-  # axis        = "tb",
-  rel_widths = c(1, 1, 1),
-  rel_heights = c(.9, 1, 1),
-  labels = c("A", "B", "C"),
-  label_size = 12,
-  label_fontface = "bold"
-)
-
-final_fig <- plot_grid(
-  upper_row,
-  s,
-  ncol = 1,
-  align = "h",
-  rel_heights = c(1, 1), # upper row twice the height of bottom row
-  labels = c("", "D"), # only “D” on the bottom panel
-  label_size = 12,
-  label_fontface = "bold"
-)
-
-# Preview
-final_fig
-
-
-# ggsave(
-#   filename = "Figure2_revision.pdf",
-#   plot = last_plot(),
-#   path = here::here("Figures"),
-#   width = 10.32,
-#   height = 7.69,
-#   units = "in",
-#   device = cairo_pdf,
-#   dpi = 1200
+# upper_row <- plot_grid(
+#   combined_plot,
+#   f,
+#   d,
+#   nrow = 1,
+#   # align       = "h",
+#   # axis        = "tb",
+#   rel_widths = c(1, 1, 1),
+#   rel_heights = c(.9, 1, 1),
+#   labels = c("A", "B", "C"),
+#   label_size = 12,
+#   label_fontface = "bold"
 # )
 
+# final_fig <- plot_grid(
+#   upper_row,
+#   s,
+#   ncol = 1,
+#   align = "h",
+#   rel_heights = c(1, 1), # upper row twice the height of bottom row
+#   labels = c("", "D"), # only “D” on the bottom panel
+#   label_size = 12,
+#   label_fontface = "bold"
+# )
+
+# # Preview
+# final_fig
+
 ggsave(
-  filename = "Figure2_revision.jpg",
-  plot = last_plot(),
+  filename = "Figure2a.pdf",
+  plot = combined_plot,
+  path = here::here("Figures"),
+  width = 5,
+  height = 5,
+  units = "in",
+  device = cairo_pdf,
+  dpi = 1200
+)
+
+
+ggsave(
+  filename = "Figure2.pdf",
+  plot = f2,
+  path = here::here("Figures"),
+  width = 10.32,
+  height = 7.69,
+  units = "in",
+  device = cairo_pdf,
+  dpi = 1200
+)
+
+ggsave(
+  filename = "Figure2.jpg",
+  plot = f2,
   path = here::here("Figures"),
   width = 10.32,
   height = 7.69,

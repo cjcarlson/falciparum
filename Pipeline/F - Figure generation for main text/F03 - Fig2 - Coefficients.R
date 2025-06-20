@@ -128,6 +128,18 @@ median_temps <- complete %>%
 
 g <- ggplot() +
   geom_hline(yintercept = 0, color = "darkgrey", alpha = .5) +
+  geom_segment(
+    data = median_temps,
+    aes(
+      x = median_temp, # start & end x at the median
+      xend = median_temp,
+      y = 0, # start just above the curves
+      yend = min(subset(plotData, model != "boot1")$response, na.rm = T)
+    ),
+    linewidth = .5,
+    linetype = "solid",
+    colour = "black"
+  ) +
   geom_line(
     data = subset(plotData, model != "boot1"),
     aes(x = x, y = response, group = model),
@@ -153,25 +165,6 @@ g <- ggplot() +
     color = "black",
     linewidth = 0.5,
     linetype = "dashed"
-  ) +
-  # geom_vline(
-  #   data = median_temps,
-  #   aes(xintercept = median_temp),
-  #   linewidth = 0.5,
-  #   linetype = "solid",
-  #   colour = "black"
-  # ) +
-  geom_segment(
-    data = median_temps,
-    aes(
-      x = median_temp, # start & end x at the median
-      xend = median_temp,
-      y = 0, # start just above the curves
-      yend = min(subset(plotData, model != "boot1")$response, na.rm = T)
-    ),
-    linewidth = .5,
-    linetype = "solid",
-    colour = "black"
   ) +
   geom_text(
     data = median_temps,

@@ -61,12 +61,14 @@ complete <- data.reset[complete.cases(data.reset[, cols_to_check]), ]
 # Define Global Burden of Disease regions
 ########################################################################
 
-gbod <- sf::read_sf(file.path(
-  datadir,
-  "Data",
-  "OriginalGBD",
-  "WorldRegions.shp"
-))
+gbod <- sf::read_sf(
+  file.path(
+    datadir,
+    "Data",
+    "OriginalGBD",
+    "WorldRegions.shp"
+  )
+)
 # head(gbod@data)
 
 gboddf = as.data.frame(gbod)
