@@ -121,5 +121,32 @@ write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals
 
 # TBD
 
+########################################################################
+# Robustness to country level clusters?
+########################################################################
+
+# Formula 
+cntryclus = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | country"
+  )
+)
+
+# Estimation
+cntry = felm(data = complete, formula = cntryclus)
+summary(cntry)
+
+# Plot
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
+
+coefs = summary(cntry)$coefficients[1:2]
+myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+fig =  plotPolynomialResponse(cntry, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                              yLab = "Prevalence (%)", title = "Main spec: country clustering", yLim=c(-30,5), showYTitle = T)
+
+fig
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_country_clustering.pdf"), plot = fig, width = 7, height = 7)
+
 
 
