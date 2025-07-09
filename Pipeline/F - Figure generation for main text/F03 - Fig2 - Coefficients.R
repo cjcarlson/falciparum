@@ -150,7 +150,7 @@ g <- ggplot() +
     data = subset(plotData, model == "boot1"),
     mapping = aes(x = x, y = response),
     color = "black",
-    linewidth = 1
+    linewidth = .5
   ) +
   geom_line(
     data = percentile_data,
@@ -312,8 +312,8 @@ f = ggplot() +
     stat = "identity",
     color = "#43A7BA",
     fill = "#43A7BA",
-    alpha = 0.25,
-    size = 1,
+    alpha = 0.35,
+    size = 0.5,
     width = 0.3
   ) +
   # geom_boxplot(
@@ -337,7 +337,7 @@ f = ggplot() +
     aes(x = factor(lag), y = response),
     color = "black",
     alpha = 1,
-    size = 1
+    size = .5
   ) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Flood (month lags)", y = NULL) +
@@ -378,8 +378,8 @@ d = ggplot() +
     stat = "identity",
     color = "#C99776",
     fill = "#C99776",
-    alpha = 0.25,
-    size = 1,
+    alpha = 0.35,
+    size = 0.5,
     width = 0.3
   ) +
   # geom_boxplot(
@@ -403,7 +403,7 @@ d = ggplot() +
     aes(x = factor(lag), y = response),
     color = "black",
     alpha = 1,
-    size = 1
+    size = .5
   ) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Drought (month lags)", y = NULL) +

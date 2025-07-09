@@ -55,7 +55,6 @@ ggsave(
   dpi = 1200
 )
 
-
 ggsave(
   filename = "Figure2.pdf",
   plot = f2,

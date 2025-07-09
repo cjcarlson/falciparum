@@ -1,7 +1,27 @@
-hist.to.graph <- here::here("TempFiles", "Fig2Hist-revision.csv") |>
+library(zoo)
+library(here)
+# library(reshape)
+library(tidyverse)
+library(lubridate)
+library(patchwork)
+library(cowplot)
+
+source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here(
+  "Pipeline",
+  "A - Utility functions",
+  "A01 - Utility code for calculations.R"
+))
+source(here::here(
+  "Pipeline",
+  "A - Utility functions",
+  "A02 - Utility code for plotting.R"
+))
+
+hist.to.graph <- here::here("TempFiles", "Fig2Hist-monthly.csv") |>
   vroom::vroom(show_col_types = FALSE)
 
-# future.to.graph <- here::here("TempFiles", "Fig2Future-revision.csv") |>
+# future.to.graph <- here::here("TempFiles", "Fig2Future-monthly.csv") |>
 #   vroom::vroom(show_col_types = FALSE)
 
 hist.to.graph |>
