@@ -83,8 +83,7 @@ difference <- starting_obs - obs_after_lag
 percent_lost <- (difference / starting_obs) * 100
 
 ########################################################################
-# Do count of surveys respond to T and P shocks? 
-# Implementable immediately: Does diagnostic method change with T and P shocks? 
+# Does diagnostic method change with T and P shocks? 
 ########################################################################
 
 # common variables in all regs

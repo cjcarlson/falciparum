@@ -67,8 +67,7 @@ mainmod = felm(data = complete, formula = cXt2intrXm)
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 
 ########################################################################
-# Is there correlation across errors within a country?
-# (same month, year)
+# A: Correlation across ADM1s within a country (same year-month)
 ########################################################################
 
 # Regress residuals on country dummies, control for month and year
@@ -78,6 +77,7 @@ resCntry = felm(res ~ I(country) | month + year | 0 | 0 , data=complete)
 pvals = summary(resCntry)$coefficients[,"Pr(>|t|)"]
 ph = ggplot() + 
   geom_histogram(aes(x=pvals), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=0.05, color="grey") +
   xlab("country p-value (null: no correlation within country)") + ylab("count of countries") +
   theme_classic()
 ph
@@ -96,14 +96,23 @@ df = data.frame(stat = c("F stat", "p value"),
 write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_country_Fstat.csv"))
 
 ########################################################################
-# Is there correlation across errors within a GBOD region
-# (same month, year)
+# B: Correlation across ADM1s within a GBOD region (same year-month)
 ########################################################################
 
 # Regress residuals on country dummies, control for month and year
 resGBOD = felm(res ~ I(smllrgn) | month + year | 0 | 0 , data=complete)
 
-# Boxplot of residuals by country 
+# Histogram of p-values on each region's coefficient
+pvals = summary(resGBOD)$coefficients[,"Pr(>|t|)"]
+ph = ggplot() + 
+  geom_histogram(aes(x=pvals), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=0.05, color="grey") +
+  xlab("region p-value (null: no correlation within country)") + ylab("count of regions") +
+  theme_classic()
+ph
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "pvals_region_correlations.pdf"), plot = ph, width = 7, height = 7)
+
+# Boxplot of residuals by region 
 g= ggplot(complete, aes(x=as.factor(smllrgn), y=res)) + 
   geom_boxplot() + 
   theme_classic() + ylab("residuals") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
@@ -116,15 +125,50 @@ df = data.frame(stat = c("F stat", "p value"),
 write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_GBOD_Fstat.csv"))
 
 ########################################################################
-# Is there correlation between close vs. far administrative units?
+# C: General correlation over space
 ########################################################################
 
-# TBD
+###### THIS IS NOT DONE. SEE HERE FOR VARIOGRAMST help - needs time not just space https://www.r-bloggers.com/2015/08/spatio-temporal-kriging-in-r/
+
+# bring in lat-lon of ADM1 centroids
+centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
+
+centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE)
+
+spdf <- complete |>
+  dplyr::left_join(centroids, by = join_by(OBJECTID))
+
+# Estimate an empirical variogram
+library(sp)
+library(gstat)
+library(spacetime)
+library(raster)
+library(rgdal)
+library(rgeos) 
+
+# data cleaning
+spdf$time = as.POSIXct()
+
+# Need to construct a STIDF object
+coordinates(spdf) = ~lon+lat
+projection(spdf) = CRS("+init=EPSG:4326")
+spdf = spTransform(spdf,CRS("+init=EPSG:4326"))
+
+# spatialpoints object
+spdfSP = SpatialPoints(spdf@coords,CRS("+init=EPSG:4326"))
+
+# estimate variogram, 0 lags
+vv = variogram(res~1, data=spdf, tlags=0)
+plot(vv)
+
+# estimate variogram, 12 monthly lags 
+
 
 ########################################################################
-# Robustness to country level clusters?
+# D. Robustness to various clustering approaches, informed by diagnostics above
 ########################################################################
 
+###### Country
 # Formula 
 cntryclus = as.formula(
   paste0(
@@ -148,5 +192,22 @@ fig =  plotPolynomialResponse(cntry, "temp", plotXtemp, polyOrder = 2, cluster =
 fig
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_country_clustering.pdf"), plot = fig, width = 7, height = 7)
 
+###### Conley
 
+# TBD
+
+########################################################################
+# E. Overdispersion?
+########################################################################
+
+# Plot model residuals
+complete <- complete |> mutate(res = c(residuals(mainmod)))
+g <- ggplot(data=complete) + 
+  geom_histogram(aes(x=res), color= "seagreen", fill = "seagreen") + 
+  xlab("model residuals") + 
+  theme_classic()
+g
+
+dir.create(file.path(resdir, "Figures", "Diagnostics","Residuals"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = g, width = 7, height = 7)
 
