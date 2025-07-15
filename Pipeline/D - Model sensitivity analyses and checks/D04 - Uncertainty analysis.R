@@ -20,6 +20,8 @@ library(zoo)
 library(lubridate)
 library(cowplot)
 library(multcomp)
+library(sp)
+library(gstat)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
@@ -139,36 +141,58 @@ spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
 
 # Estimate an empirical variogram
-library(sp)
-library(gstat)
-library(spacetime)
-library(raster)
-library(rgdal)
-library(rgeos) 
-
-# data cleaning
-spdf$time = as.POSIXct()
-
-# Need to construct a STIDF object
+# coordinates - so variogram is in m
 coordinates(spdf) = ~lon+lat
 projection(spdf) = CRS("+init=EPSG:4326")
-spdf = spTransform(spdf,CRS("+init=EPSG:4326"))
-
-# spatialpoints object
-spdfSP = SpatialPoints(spdf@coords,CRS("+init=EPSG:4326"))
 
 # estimate variogram, 0 lags
-vv = variogram(res~1, data=spdf, tlags=0)
-plot(vv)
+vv = variogram(res~1, data=spdf)
+vplot = plot(vv, xlab="distance (km)")
 
-# estimate variogram, 12 monthly lags 
-
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_residuals.pdf"), plot = vplot, width = 7, height = 7)
 
 ########################################################################
-# D. Robustness to various clustering approaches, informed by diagnostics above
+# D: General correlation over time
 ########################################################################
 
-###### Country
+# Are residuals correlated over time?
+
+########################################################################
+# E. Robustness to various clustering approaches, informed by diagnostics above
+########################################################################
+
+###### Main spec (ADM1 clustering)
+
+# plot
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
+coefs = summary(mainmod)$coefficients[1:2]
+myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+mainfig =  plotPolynomialResponse(mainmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                              yLab = "Prevalence (%)", title = "Main specification", yLim=c(-30,5), showYTitle = T)
+
+###### ADM1 x year clustering (no correlation over years)
+
+complete = complete |> group_by(OBJECTID,year) |> mutate(adm1yr = cur_group_id()) |> ungroup()
+
+# Formula 
+adm1yr = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | adm1yr"
+  )
+)
+
+# Estimation
+adm1yrmod = felm(data = complete, formula = adm1yr)
+
+# Plot
+coefs = summary(adm1yrmod)$coefficients[1:2]
+myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+adm1yrfig =  plotPolynomialResponse(adm1yrmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                   yLab = "Prevalence (%)", title = "Main spec: country clustering", yLim=c(-30,5), showYTitle = T)
+
+###### Country clustering
+
 # Formula 
 cntryclus = as.formula(
   paste0(
@@ -178,26 +202,41 @@ cntryclus = as.formula(
 )
 
 # Estimation
-cntry = felm(data = complete, formula = cntryclus)
-summary(cntry)
+cntrymod = felm(data = complete, formula = cntryclus)
 
 # Plot
-plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
-
-coefs = summary(cntry)$coefficients[1:2]
+coefs = summary(cntrymod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
-fig =  plotPolynomialResponse(cntry, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+cntryfig =  plotPolynomialResponse(cntrymod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
                               yLab = "Prevalence (%)", title = "Main spec: country clustering", yLim=c(-30,5), showYTitle = T)
-
-fig
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_country_clustering.pdf"), plot = fig, width = 7, height = 7)
 
 ###### Conley
 
 # TBD
 
+####### Save
+# tabular output
+modellist = list(mainmod,adm1yrmod,cntrymod,conleymod)
+mycollabs = c(
+  "main spec.", 
+  "ADM1-year clust.",
+  "country clust.", 
+  "Conley"
+)
+
+mynote = "Column specifications: (1) main specification (standard errors clustered at ADM1 level); (2) standard errors clustered at country level; (3) standard errors estimated following Conley (2008) using an empirically estimated variogram."
+stargazer(modellist,
+          title="Quadratic temperature: standard error sensitivity", align=TRUE, column.labels = mycollabs,
+          keep = c("temp", "flood", "drought", "intervention", "METHOD"),
+          out = file.path(resdir, "Tables", "Diagnostics","Residuals","uncertainty.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
+          notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
+
+# figure output
+uncert = plot_grid(mainfig,cntryfig,conleyfig,nrow = 1)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_cXt2intrXm.pdf"), plot = uncert, width = 10, height = 4)
+
 ########################################################################
-# E. Overdispersion?
+# F. Overdispersion?
 ########################################################################
 
 # Plot model residuals
