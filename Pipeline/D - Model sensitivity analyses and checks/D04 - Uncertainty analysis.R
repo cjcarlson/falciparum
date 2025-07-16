@@ -164,11 +164,43 @@ dev.off()
 # As detailed in D03 - Additional robustness.R, the panel is sufficiently unbalanced 
 # that estimating a distributed lag at monthly scale is likely not feasible. Instead, look across years.
 
+complete_expanded <- complete %>% 
+  mutate(year = as.numeric(as.character(year)),
+         month = as.character(month),
+         month = match(month, month.abb)) |> 
+  group_by(OBJECTID) %>% 
+  complete(year = 1902:2016, month = 1:12) %>%
+  ungroup()
+
+complete_with_lag <- complete_expanded %>%
+  arrange(OBJECTID, year, month) %>%
+  group_by(OBJECTID) %>% 
+  mutate(
+    resmn = res,
+    reslag1 = dplyr::lag(resmn,1),
+    reslag2 = dplyr::lag(resmn,2),
+    reslag3 = dplyr::lag(resmn,3),
+    reslag4 = dplyr::lag(resmn,4),
+    reslag5 = dplyr::lag(resmn,5)
+  ) |> 
+  tidyr::drop_na(resmn) 
+
+mn_lag1 <- lm(resmn ~ reslag1, data = complete_with_lag)
+
+mn_lag2 <- lm(resmn ~ reslag1 + reslag2, data = complete_with_lag)
+
+mn_lag3 <- lm(resmn ~ reslag1 + reslag2 + reslag3, data = complete_with_lag)
+
+mn_lag4 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4, data = complete_with_lag)
+
+mn_lag5 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4 + reslag5, data = complete_with_lag)
+
+
 # Average residuals by ADM1-year
 anndf = complete |> group_by(OBJECTID,yearnum) |> dplyr::summarize(resmn = mean(res, na.rm=TRUE), year = first(yearnum))
 
 # Expand to be a full panel 
-anndf_ex <- anndf_ex %>% 
+anndf_ex <- anndf %>% 
   group_by(OBJECTID) %>%
   complete(year = 1902:2016) %>%
   ungroup()
@@ -180,24 +212,53 @@ anndf_with_lag <- anndf_ex %>%
   tidyr::drop_na(resmn)
 
 # Estimation 
-# TO DO - estimate a set of regressions with 1 to 5 lags, store all in one big table 
+lag1 <- lm(resmn ~ reslag1, data = anndf_with_lag)
 
-reslags = paste(colnames(anndf)[grep("lag", colnames(anndf))], collapse = " + ")
+lag2 <- lm(resmn ~ reslag1 + reslag2, data = anndf_with_lag)
 
-resmod <- lm(resmn ~ reslags,data=anndf)
-summary(resmod)
+lag3 <- lm(resmn ~ reslag1 + reslag2 + reslag3, data = anndf_with_lag)
 
-# plot if helpful
-coefs <- coef(tmod)[-1]
-ses <- summary(tmod)$coefficients[-1,2]
-lags <- 1:12
+lag4 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4, data = anndf_with_lag)
 
-ggplot(data.frame(lag = lags, coef = coefs, se = ses), aes(x=lag, y = coef)) + 
-  geom_point() +
-  geom_errorbar(aes(ymin=coef-1.96*se, ymax =coef + 1.96*se), width=0.1) +
-  labs(title = "Serial correlation in model residuals", x = "Lag (months)", y = "Coefficient") +
-  theme_minimal()
-  
+lag5 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4 + reslag5, data = anndf_with_lag)
+
+mynote <- "Note"
+
+stargazer(
+  mn_lag1, 
+  mn_lag2,
+  mn_lag3, 
+  lag1, lag2, lag3, lag4, lag5,
+  title           = "Model diagnostics: Residual lags",
+  # align           = TRUE,
+  column.labels   = c(
+    "1 Mn", "2 Mn","3 Mn",
+    "1 Yr", "2 Yr", "3 Yr", "4 Yr", "5 Yr"),
+  covariate.labels= c("Res. Lag 1", "Res. Lag 2", "Res. Lag 3",
+                      "Res. Lag 4", "Res. Lag 5"),       
+  omit.stat       = c("f", "ser"),
+  digits          = 2,
+  # float           = FALSE,
+  type            = "latex",
+  notes.append    = TRUE,
+  notes.align     = "l",
+  notes           = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
+  out             = file.path(resdir, "Tables", "Diagnostics",
+                              "Residuals", "serial_correlation_in_model_residuals.tex")
+)
+
+
+# # plot if helpful
+# coefs <- coef(resmod)[-1]
+# ses <- summary(resmod)$coefficients[-1,2]
+# lags <- 1:4
+
+# ggplot(data.frame(lag = lags, coef = coefs, se = ses), aes(x=lag, y = coef)) + 
+#   geom_point() +
+#   geom_errorbar(aes(ymin=coef-1.96*se, ymax =coef + 1.96*se), width=0.1) +
+#   labs(title = "Serial correlation in model residuals", x = "Lag (months)", y = "Coefficient") +
+#   theme_minimal()
+
 ########################################################################
 # E. Robustness to various clustering approaches, informed by diagnostics above
 ########################################################################
