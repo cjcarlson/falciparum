@@ -337,13 +337,19 @@ conleyfig1 =  plotPolynomialResponse(conleymod2, "temp", plotXtemp, polyOrder = 
 
 ####### Save
 # tabular output
-modellist = list(mainmod,adm1yrmod,cntrymod,conleymod1,conleymod2)
+modellist = list(
+  mainmod,
+  adm1yrmod,
+  cntrymod
+  # conleymod1,
+  # conleymod2
+)
 mycollabs = c(
   "main spec.", 
   "ADM1-year clust.",
-  "country clust.", 
-  "Conley: 100km",
-  "Conley: 500km"
+  "country clust."
+  # "Conley: 100km",
+  # "Conley: 500km"
 )
 
 # breaking - use modelsummary() instead?
@@ -353,6 +359,16 @@ stargazer(modellist,
           keep = c("temp", "flood", "drought", "intervention", "METHOD"),
           out = file.path(resdir, "Tables", "Diagnostics","Residuals","uncertainty.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
+
+conley_tab <- etable(
+  conleymod1,  conleymod2,      
+  se      = "conley",
+  keep = c("temp", "flood", "drought", "intervention", "METHOD"),
+  tex     = TRUE,    
+  digits  = 5,       
+  title   = mynote,
+  label   = "tab:conley"   # optional: LaTeX label
+)
 
 # figure output
 uncert = plot_grid(mainfig,cntryfig,conleyfig1,conleyfig2,nrow = 2)
