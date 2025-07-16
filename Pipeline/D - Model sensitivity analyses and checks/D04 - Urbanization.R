@@ -15,7 +15,9 @@
 rm(list = ls())
 
 # use pacman for package management
-if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
 pacman::p_load(
   sf,
   zoo,
@@ -37,7 +39,6 @@ pacman::p_load(
 # ensure s2 geometry behavior as desired
 sf::sf_use_s2(FALSE)
 
-
 #-------------------------------------------------------------------------------
 # 1. Configuration & utility functions
 #-------------------------------------------------------------------------------
@@ -51,9 +52,6 @@ source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
 #-------------------------------------------------------------------------------
 # 2. Data loading
 #-------------------------------------------------------------------------------
-
-# Move this code to B01 - Extract CRU data and temperature for model.R
-# after other branch is merged
 
 ## 2.1 Read continent shapefile
 cont <- sf::read_sf(here::here(datadir, 'Data', 'AfricaADM1.shp'))
@@ -91,7 +89,7 @@ urban_areas <- here::here(
 
 prev_with_yob <- st_join(
   prev_sf,
-  urban_areas %>% select(GC_UCB_YOB_2025),
+  urban_areas %>% dplyr::select(GC_UCB_YOB_2025),
   join = st_within,
   left = TRUE
 )
@@ -108,7 +106,6 @@ prev_classified <- prev_with_yob %>%
 ## 2.4 Join to continent shapefile
 prev_with_cont <- st_join(prev_classified, cont)
 
-
 #-------------------------------------------------------------------------------
 # 3. Aggregation & summaries
 #-------------------------------------------------------------------------------
@@ -116,7 +113,7 @@ prev_with_cont <- st_join(prev_classified, cont)
 ## 3.1 Compute mean prevalence and urban share
 mean_data <- prev_with_cont %>%
   as_tibble() %>%
-  select(
+  dplyr::select(
     OBJECTID,
     MM,
     YY,
@@ -126,12 +123,12 @@ mean_data <- prev_with_cont %>%
     GC_UCB_YOB_2025,
     urban
   ) %>%
-  mutate(
+  dplyr::mutate(
     month = factor(MM, levels = 1:12, labels = month.abb),
     year = YY
   ) %>%
-  group_by(OBJECTID, year, month) %>%
-  summarise(
+  dplyr::group_by(OBJECTID, year, month) %>%
+  dplyr::summarise(
     n_methods = n_distinct(METHOD),
     n_urban = sum(urban, na.rm = TRUE),
     n_surveys = n(),
@@ -140,29 +137,29 @@ mean_data <- prev_with_cont %>%
     PfPR2_mean = mean(`PfPR2-10`, na.rm = TRUE),
     .groups = 'drop'
   ) %>%
-  mutate(
+  dplyr::mutate(
     n_urban = ifelse(year < 1975, NA_integer_, n_urban),
     avg_urban = ifelse(year < 1975, NA_real_, avg_urban)
   )
 
 urban_summary <- mean_data %>%
-  select(OBJECTID, year, month, n_urban, n_surveys, avg_urban, n_methods)
+  dplyr::select(OBJECTID, year, month, n_urban, n_surveys, avg_urban, n_methods)
 
 ## 3.2 Determine dominant diagnostic method
 dominant_method <- prev_with_cont %>%
   as_tibble() %>%
-  select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
-  mutate(
+  dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
+  dplyr::mutate(
     month = factor(MM, levels = 1:12, labels = month.abb),
     year = YY
   ) %>%
-  group_by(OBJECTID, year, month, METHOD) %>%
-  summarise(count = n(), .groups = 'drop') %>%
-  group_by(OBJECTID, year, month) %>%
-  slice_max(order_by = count, n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  select(OBJECTID, year, month, dominant_METHOD = METHOD) %>%
-  mutate(
+  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
+  dplyr::summarise(count = n(), .groups = 'drop') %>%
+  dplyr::group_by(OBJECTID, year, month) %>%
+  dplyr::slice_max(order_by = count, n = 1, with_ties = FALSE) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) %>%
+  dplyr::mutate(
     simplified_METHOD = case_when(
       dominant_METHOD %in%
         c("RDT", "RDT/SLIDE CONFIRMED", "RDT/PCR CONFIRMED") ~
@@ -172,7 +169,7 @@ dominant_method <- prev_with_cont %>%
       TRUE ~ dominant_METHOD
     )
   ) %>%
-  left_join(urban_summary, by = c("OBJECTID", "year", "month"))
+  dplyr::left_join(urban_summary, by = c("OBJECTID", "year", "month"))
 
 readr::write_csv(
   dominant_method,
@@ -182,7 +179,7 @@ readr::write_csv(
 # End Move Here
 
 aggregated_data <- mean_data %>%
-  left_join(
+  dplyr::left_join(
     dominant_method,
     by = join_by(
       OBJECTID,
@@ -194,7 +191,7 @@ aggregated_data <- mean_data %>%
       avg_urban
     )
   ) %>%
-  mutate(year = as.character(year), month = as.character(month))
+  dplyr::mutate(year = as.character(year), month = as.character(month))
 
 
 #-------------------------------------------------------------------------------
