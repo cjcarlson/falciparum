@@ -22,6 +22,8 @@ library(cowplot)
 library(multcomp)
 library(sp)
 library(gstat)
+library(fixest)
+library(raster)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
@@ -130,8 +132,6 @@ write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals
 # C: General correlation over space
 ########################################################################
 
-###### THIS IS NOT DONE. SEE HERE FOR VARIOGRAMST help - needs time not just space https://www.r-bloggers.com/2015/08/spatio-temporal-kriging-in-r/
-
 # bring in lat-lon of ADM1 centroids
 centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
 
@@ -146,17 +146,58 @@ coordinates(spdf) = ~lon+lat
 projection(spdf) = CRS("+init=EPSG:4326")
 
 # estimate variogram, 0 lags
-vv = variogram(res~1, data=spdf)
-vplot = plot(vv, xlab="distance (km)")
+vv = variogram(res~1, data=spdf, projection(FALSE))
+vvP = variogram(PfPR2~1, data = spdf, projection(FALSE))
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_residuals.pdf"), plot = vplot, width = 7, height = 7)
+pdf(file = file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_residuals.pdf"), width = 7, height = 7)
+plot(vv, xlab="distance (km)", main = "Model residuals")
+dev.off()
+
+pdf(file = file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_PfPR2.pdf"), width = 7, height = 7)
+plot(vvP, xlab="distance (km)", main = "Prevalence (PfPR2)")
+dev.off()
 
 ########################################################################
 # D: General correlation over time
 ########################################################################
 
-# Are residuals correlated over time?
+# As detailed in D03 - Additional robustness.R, the panel is sufficiently unbalanced 
+# that estimating a distributed lag at monthly scale is likely not feasible. Instead, look across years.
 
+# Average residuals by ADM1-year
+anndf = complete |> group_by(OBJECTID,yearnum) |> dplyr::summarize(resmn = mean(res, na.rm=TRUE), year = first(yearnum))
+
+# Expand to be a full panel 
+anndf_ex <- anndf_ex %>% 
+  group_by(OBJECTID) %>%
+  complete(year = 1902:2016) %>%
+  ungroup()
+
+# Add lags
+anndf_with_lag <- anndf_ex %>%
+  arrange(OBJECTID, year) %>%
+  mutate(reslag1 = lag(resmn,1), reslag2 = lag(resmn,2),reslag3 = lag(resmn,3),reslag4 = lag(resmn,4),reslag5 = lag(resmn,5)) |> 
+  tidyr::drop_na(resmn)
+
+# Estimation 
+# TO DO - estimate a set of regressions with 1 to 5 lags, store all in one big table 
+
+reslags = paste(colnames(anndf)[grep("lag", colnames(anndf))], collapse = " + ")
+
+resmod <- lm(resmn ~ reslags,data=anndf)
+summary(resmod)
+
+# plot if helpful
+coefs <- coef(tmod)[-1]
+ses <- summary(tmod)$coefficients[-1,2]
+lags <- 1:12
+
+ggplot(data.frame(lag = lags, coef = coefs, se = ses), aes(x=lag, y = coef)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin=coef-1.96*se, ymax =coef + 1.96*se), width=0.1) +
+  labs(title = "Serial correlation in model residuals", x = "Lag (months)", y = "Coefficient") +
+  theme_minimal()
+  
 ########################################################################
 # E. Robustness to various clustering approaches, informed by diagnostics above
 ########################################################################
@@ -211,20 +252,41 @@ cntryfig =  plotPolynomialResponse(cntrymod, "temp", plotXtemp, polyOrder = 2, c
                               yLab = "Prevalence (%)", title = "Main spec: country clustering", yLim=c(-30,5), showYTitle = T)
 
 ###### Conley
+spdf <- complete |>
+  dplyr::left_join(centroids, by = join_by(OBJECTID))
 
-# TBD
+conleyform = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
+    " + I(intervention) + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | OBJECTID "
+  )
+)
+conleymod1 = feols( conleyform, data=spdf, conley(100, distance = "spherical"))
+conleymod2 = feols( conleyform, data=spdf, conley(500, distance = "spherical"))
+
+# Plot
+coefs = summary(conleymod1)$coefficients[1:2]
+myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+conleyfig1 =  plotPolynomialResponse(conleymod1, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                   yLab = "Prevalence (%)", title = "Main spec: Conley clustering (100km)", yLim=c(-30,5), showYTitle = T)
+coefs = summary(conleymod2)$coefficients[1:2]
+myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+conleyfig1 =  plotPolynomialResponse(conleymod2, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                     yLab = "Prevalence (%)", title = "Main spec: Conley clustering (200km)", yLim=c(-30,5), showYTitle = T)
 
 ####### Save
 # tabular output
-modellist = list(mainmod,adm1yrmod,cntrymod,conleymod)
+modellist = list(mainmod,adm1yrmod,cntrymod,conleymod1,conleymod2)
 mycollabs = c(
   "main spec.", 
   "ADM1-year clust.",
   "country clust.", 
-  "Conley"
+  "Conley: 100km",
+  "Conley: 500km"
 )
 
-mynote = "Column specifications: (1) main specification (standard errors clustered at ADM1 level); (2) standard errors clustered at country level; (3) standard errors estimated following Conley (2008) using an empirically estimated variogram."
+# breaking - use modelsummary() instead?
+mynote = "Column specifications: (1) main specification (standard errors clustered at ADM1 level); (2) standard errors clustered at country level; (3) standard errors estimated following Conley (2008) using 100km cutoff; (4) standard errors estimated following Conley (2008) using a 200km cutoff."
 stargazer(modellist,
           title="Quadratic temperature: standard error sensitivity", align=TRUE, column.labels = mycollabs,
           keep = c("temp", "flood", "drought", "intervention", "METHOD"),
@@ -232,7 +294,7 @@ stargazer(modellist,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 # figure output
-uncert = plot_grid(mainfig,cntryfig,conleyfig,nrow = 1)
+uncert = plot_grid(mainfig,cntryfig,conleyfig1,conleyfig2,nrow = 2)
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_cXt2intrXm.pdf"), plot = uncert, width = 10, height = 4)
 
 ########################################################################
