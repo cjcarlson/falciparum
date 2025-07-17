@@ -59,20 +59,47 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, lag
   ### yLim limits y-axis values
   ### showYTitle turns on and off the y-axis label
   
-  beta = mod$coefficients 
-  vars = rownames(beta)
+  # Handle different model types
+  if (inherits(mod, "felm")) {
+    beta = mod$coefficients 
+    vars = rownames(beta)
+  } else if (inherits(mod, "fixest")) {  # feols returns objects of class "fixest"
+    beta = mod$coefficients
+    vars = names(beta)
+    # Convert to matrix format to maintain compatibility with rest of code
+    beta = as.matrix(beta)
+    rownames(beta) = vars
+  } else {
+    # Handle regular lm or other models
+    beta = mod$coefficients
+    vars = names(beta)
+    beta = as.matrix(beta)
+    rownames(beta) = vars
+  }
   
   #Get the variables that we're plotting
   plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)] 
   
-# Recenter Xs so predictions are relative to the reference T
+  # Recenter Xs so predictions are relative to the reference T
   xValsT = genRecenteredXVals_polynomial(xVals,xRef,polyOrder,lag)
   
   #Get the estimated variance covariance matrix
   if (cluster==T) {
-    vcov = getVcov(mod$clustervcv, plotVars) ##This needs to change if we don't cluster
+    if (inherits(mod, "fixest")) {
+      # For feols/fixest models, use vcov() function
+      vcov_full = vcov(mod)
+      vcov = getVcov(vcov_full, plotVars)
+    } else {
+      # For felm models
+      vcov = getVcov(mod$clustervcv, plotVars)
+    }
   } else {
-    vcov = getVcov(mod$vcv, plotVars)
+    if (inherits(mod, "fixest")) {
+      vcov_full = vcov(mod, se = "iid")  # Get non-clustered vcov
+      vcov = getVcov(vcov_full, plotVars)
+    } else {
+      vcov = getVcov(mod$vcv, plotVars)
+    }
   }
   
   b = as.matrix(beta[rownames(beta) %in% plotVars])
@@ -105,7 +132,6 @@ plotPolynomialResponse = function(mod, patternForPlotVars, xVals, polyOrder, lag
        labs(x = xLab , y = yLab) +
       coord_cartesian(ylim=yLim) + ggtitle(title)
   }
-  
   
   if (!showYTitle) {
     g = g + theme(axis.title.y=element_blank())

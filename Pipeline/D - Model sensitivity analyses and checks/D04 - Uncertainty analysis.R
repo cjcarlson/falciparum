@@ -291,7 +291,7 @@ adm1yrmod = felm(data = complete, formula = adm1yr)
 coefs = summary(adm1yrmod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 adm1yrfig =  plotPolynomialResponse(adm1yrmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                   yLab = "Prevalence (%)", title = "Main spec: country clustering", yLim=c(-30,5), showYTitle = T)
+                                   yLab = "Prevalence (%)", title = "ADM1-year clust.", yLim=c(-30,5), showYTitle = T)
 
 ###### Country clustering
 
@@ -310,46 +310,60 @@ cntrymod = felm(data = complete, formula = cntryclus)
 coefs = summary(cntrymod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 cntryfig =  plotPolynomialResponse(cntrymod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                              yLab = "Prevalence (%)", title = "Main spec: country clustering", yLim=c(-30,5), showYTitle = T)
+                              yLab = "Prevalence (%)", title = "country clust.", yLim=c(-30,5), showYTitle = T)
 
 ###### Conley
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
 
+# Formula 
 conleyform = as.formula(
   paste0(
     "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
     " + I(intervention) + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | OBJECTID "
   )
 )
-conleymod1 = feols( conleyform, data=spdf, conley(100, distance = "spherical"))
-conleymod2 = feols( conleyform, data=spdf, conley(500, distance = "spherical"))
+# Estimation
+conleymod1 = feols(conleyform, data=spdf, conley(500, distance = "spherical"))
+conleymod2 = feols(conleyform, data=spdf, conley(1500, distance = "spherical"))
+conleymod3 = feols(conleyform, data=spdf, conley(2000, distance = "spherical"))
 
 # Plot
 coefs = summary(conleymod1)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 conleyfig1 =  plotPolynomialResponse(conleymod1, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                   yLab = "Prevalence (%)", title = "Main spec: Conley clustering (100km)", yLim=c(-30,5), showYTitle = T)
+                                   yLab = "Prevalence (%)", title = "Conley (500km)", yLim=c(-30,5), showYTitle = T)
+
 coefs = summary(conleymod2)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
-conleyfig1 =  plotPolynomialResponse(conleymod2, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                     yLab = "Prevalence (%)", title = "Main spec: Conley clustering (200km)", yLim=c(-30,5), showYTitle = T)
+conleyfig2 =  plotPolynomialResponse(conleymod2, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                     yLab = "Prevalence (%)", title = "Conley (1,000km)", yLim=c(-30,5), showYTitle = T)
 
+coefs = summary(conleymod3)$coefficients[1:2]
+myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+conleyfig3 =  plotPolynomialResponse(conleymod3, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                     yLab = "Prevalence (%)", title = "Conley (1,500km)", yLim=c(-30,5), showYTitle = T)
 ####### Save
+# feols models do not work with stargazer as it has no method for feols objects (class "fixest")
+# so we use stargazer on the felm objects and etable on the feols objects. The two tables are 
+# then combined manually
+
 # tabular output
 modellist = list(
   mainmod,
   adm1yrmod,
   cntrymod
   # conleymod1,
-  # conleymod2
+  # conleymod2,
+  # conleymod3
 )
 mycollabs = c(
   "main spec.", 
   "ADM1-year clust.",
   "country clust."
-  # "Conley: 100km",
-  # "Conley: 500km"
+  # "Conley: 500km",
+  # "Conley: 1,000km",
+  # "Conley: 1,500km"
 )
 
 # breaking - use modelsummary() instead?
@@ -361,18 +375,22 @@ stargazer(modellist,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 conley_tab <- etable(
-  conleymod1,  conleymod2,      
-  se      = "conley",
+  conleymod1,  conleymod2, conleymod3,    
+  # vcov = list(
+  #   vcov_conley(conleymod1, cutoff = 500, distance = "spherical"),              
+  #   vcov_conley(conleymod2, cutoff = 1000, distance = "spherical"),
+  #   vcov_conley(conleymod3, cutoff = 1500, distance = "spherical")
+  # ),
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
   tex     = TRUE,    
-  digits  = 5,       
-  title   = mynote,
+  digits  = 2,       
+  # title   = mynote,
   label   = "tab:conley"   # optional: LaTeX label
 )
 
 # figure output
-uncert = plot_grid(mainfig,cntryfig,conleyfig1,conleyfig2,nrow = 2)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_cXt2intrXm.pdf"), plot = uncert, width = 10, height = 4)
+uncert = plot_grid(mainfig,adm1yrfig,cntryfig,conleyfig1,conleyfig2, conleyfig3,nrow = 2)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_cXt2intrXm.pdf"), plot = uncert, width = 8, height = 5)
 
 ########################################################################
 # F. Overdispersion?
