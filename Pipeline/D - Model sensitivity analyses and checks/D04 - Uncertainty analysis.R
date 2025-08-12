@@ -132,6 +132,9 @@ write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals
 # C: General correlation over space
 ########################################################################
 
+# create year groupings for variogram
+complete = complete %>% mutate(yeargp = (yearnum - min(yearnum)) %/% 5*5 + min(yearnum) )
+
 # bring in lat-lon of ADM1 centroids
 centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
 
@@ -148,14 +151,33 @@ projection(spdf) = CRS("+init=EPSG:4326")
 # estimate variogram, 0 lags
 vv = variogram(res~1, data=spdf, projection(FALSE))
 vvP = variogram(PfPR2~1, data = spdf, projection(FALSE))
+f <- fit.variogram(vv, vgm("Sph"))
+fP <- fit.variogram(vvP, vgm("Sph"))
 
 pdf(file = file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_residuals.pdf"), width = 7, height = 7)
-plot(vv, xlab="distance (km)", main = "Model residuals")
+plot(vv, model=f, xlab="distance (km)", main = "Model residuals")
 dev.off()
 
 pdf(file = file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_PfPR2.pdf"), width = 7, height = 7)
-plot(vvP, xlab="distance (km)", main = "Prevalence (PfPR2)")
+plot(vvP, model=fP, xlab="distance (km)", main = "Prevalence (PfPR2)")
 dev.off()
+
+# By year groupings
+range = data.frame(yeargp=NA,n=NA,range=NA)
+
+for(y in unique(spdf$yeargp)){
+  test = subset(spdf,yeargp==y)
+  if(dim(test)[1]>100){
+    vv = variogram(res~1, data=test, projection(FALSE))
+    f = fit.variogram(vv, vgm("Sph"))
+    range = rbind(range,c(y,dim(test)[1],f$range[2]))
+  }
+}
+
+range = range %>% arrange(yeargp)
+hist(range$range, breaks=30 )
+
+quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE) 
 
 ########################################################################
 # D: General correlation over time
@@ -246,18 +268,6 @@ stargazer(
   out             = file.path(resdir, "Tables", "Diagnostics",
                               "Residuals", "serial_correlation_in_model_residuals.tex")
 )
-
-
-# # plot if helpful
-# coefs <- coef(resmod)[-1]
-# ses <- summary(resmod)$coefficients[-1,2]
-# lags <- 1:4
-
-# ggplot(data.frame(lag = lags, coef = coefs, se = ses), aes(x=lag, y = coef)) + 
-#   geom_point() +
-#   geom_errorbar(aes(ymin=coef-1.96*se, ymax =coef + 1.96*se), width=0.1) +
-#   labs(title = "Serial correlation in model residuals", x = "Lag (months)", y = "Coefficient") +
-#   theme_minimal()
 
 ########################################################################
 # E. Robustness to various clustering approaches, informed by diagnostics above
