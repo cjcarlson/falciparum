@@ -24,6 +24,8 @@ library(sp)
 library(gstat)
 library(fixest)
 library(raster)
+library(ggpubr)
+library(car)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
@@ -82,17 +84,15 @@ pvals = summary(resCntry)$coefficients[,"Pr(>|t|)"]
 ph = ggplot() + 
   geom_histogram(aes(x=pvals), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=0.05, color="grey") +
-  xlab("country p-value (null: no correlation within country)") + ylab("count of countries") +
-  theme_classic()
+  xlab("country p-value (null: no correlation within country)") + ylab("# countries") +
+  theme_classic(base_size = 12)
 ph
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "pvals_country_correlations.pdf"), plot = ph, width = 7, height = 7)
 
 # Boxplot of residuals by country 
 g= ggplot(complete, aes(x=country, y=res)) + 
   geom_boxplot() + 
-  theme_classic() + ylab("residuals") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
+  theme_classic(base_size = 12) + ylab("residuals") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
 g
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "residuals_country_boxplot.pdf"), plot = g, width = 9, height = 5)
 
 # Fstatistic
 df = data.frame(stat = c("F stat", "p value"), 
@@ -107,29 +107,112 @@ write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals
 resGBOD = felm(res ~ I(smllrgn) | month + year | 0 | 0 , data=complete)
 
 # Histogram of p-values on each region's coefficient
-pvals = summary(resGBOD)$coefficients[,"Pr(>|t|)"]
-ph = ggplot() + 
-  geom_histogram(aes(x=pvals), color= "seagreen", fill = "seagreen") + 
+pvalsR = summary(resGBOD)$coefficients[,"Pr(>|t|)"]
+pr = ggplot() + 
+  geom_histogram(aes(x=pvalsR), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=0.05, color="grey") +
-  xlab("region p-value (null: no correlation within country)") + ylab("count of regions") +
-  theme_classic()
-ph
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "pvals_region_correlations.pdf"), plot = ph, width = 7, height = 7)
+  xlab("region p-value (null: no correlation within region)") + ylab("# regions") +
+  theme_classic(base_size = 12)
+pr
 
 # Boxplot of residuals by region 
-g= ggplot(complete, aes(x=as.factor(smllrgn), y=res)) + 
+gr= ggplot(complete, aes(x=as.factor(smllrgn), y=res)) + 
   geom_boxplot() + 
-  theme_classic() + ylab("residuals") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
-g
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "residuals_GBOD_boxplot.pdf"), plot = g, width = 9, height = 5)
+  theme_classic(base_size = 12) + ylab("residuals") + xlab("region") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
+gr
 
 # Fstatistic
 df = data.frame(stat = c("F stat", "p value"), 
                 value = c(summary(resGBOD)$P.fstat[5], summary(resGBOD)$P.fstat[1]))
 write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_GBOD_Fstat.csv"))
 
+
 ########################################################################
-# C: General correlation over space
+# C: Correlation across months (same location)
+########################################################################
+
+# Regress residuals on country dummies, control for OBJECTID
+resMonth = felm(res ~ I(month) | OBJECTID | 0 | 0 , data=complete)
+complete = complete %>% mutate(monthord = factor(month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")))
+# Histogram of p-values on each region's coefficient
+pvalsM = summary(resMonth)$coefficients[,"Pr(>|t|)"]
+pm = ggplot() + 
+  geom_histogram(aes(x=pvalsM), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=0.05, color="grey") +
+  xlab("monthly p-value (null: no correlation within months)") + ylab("# months") +
+  theme_classic(base_size = 12)
+pm
+
+# Boxplot of residuals by month 
+gm = ggplot(complete, aes(x=as.factor(monthord), y=res)) + 
+  geom_boxplot() + 
+  theme_classic(base_size = 12) + ylab("residuals") + xlab("month") 
+gm
+
+# Fstatistic
+df = data.frame(stat = c("F stat", "p value"), 
+                value = c(summary(resMonth)$P.fstat[5], summary(resMonth)$P.fstat[1]))
+write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_Month_Fstat.csv"))
+
+# combine all boxplots
+box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels="auto")
+box
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "residuals_ALL_boxplot.png"), plot = box, width = 5, height = 5)
+
+# combine all pval hists
+hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels="auto")
+hists
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "pvals_ALL_correlations.png"), plot = hists, width = 5, height = 5)
+
+########################################################################
+# D: General correlation over space -- distributions of correlations
+########################################################################
+
+####### Correlations across space within country?
+country_corrs = data.frame(country=NA, pair_N=NA,corr=NA)
+
+for(c in unique(complete$country)){
+  sub = complete %>% filter(country==c) %>% dplyr::select(OBJECTID,country,monthyr,res)
+  sub_wide <- sub %>%
+    pivot_wider(names_from = OBJECTID, values_from = res) %>% 
+    arrange(monthyr)
+  mycols = colnames(sub_wide %>% dplyr::select(4:last_col()))
+  # for each pair of columns with > 10 shared obs, compute correlation. store correlation and # obs
+  for (i in 4:(ncol(sub_side) - 1)) {
+    for (j in (i + 1):ncol(sub_wide)) {
+      var1 <- names(sub_wide)[i]
+      var2 <- names(sub_wide)[j]
+      cat(sprintf("Pair: %s - %s\n", var1, var2))
+      # How many jointly nonmissing obs? 
+      non_missing_count <- sub_wide %>%
+        filter(!is.na(sub_wide[,i]) & !is.na(sub_wide[,j])) %>%
+        nrow()
+      if(non_missing_count > 10){
+        # Example operation: calculate correlation
+        correlation <- cor(sub_wide[, i], sub_wide[, j])
+        country_corrs = rbind(country_corrs, c(c,non_missing_count,correlation))
+      }
+    }
+  }
+}
+
+######## Correlations across space within one GBOD region? 
+# repeat the above, but for GBOD regions instead of countries
+
+######## Correlations across space in different countries?
+# repeat, but look for correlations across the entire dataset but only with pairs from different countries
+
+######## Correlations across space >1000km? 
+# repeat for all pairs > 1000km apart
+
+######## Correlations across space <1000km? 
+# repeat for all pairs < 1000km apart
+
+
+
+########################################################################
+# C: General correlation over space -- VARIOGRAMS
 ########################################################################
 
 # create year groupings for variogram
@@ -154,13 +237,12 @@ vvP = variogram(PfPR2~1, data = spdf, projection(FALSE))
 f <- fit.variogram(vv, vgm("Sph"))
 fP <- fit.variogram(vvP, vgm("Sph"))
 
-pdf(file = file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_residuals.pdf"), width = 7, height = 7)
-plot(vv, model=f, xlab="distance (km)", main = "Model residuals")
-dev.off()
+vvplot = plot(vv, model=f, xlab="distance (km)", main = "Model residuals")
+vvPplot = plot(vvP, model=fP, xlab="distance (km)", main = "Prevalence (PfPR2)")
 
-pdf(file = file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_PfPR2.pdf"), width = 7, height = 7)
-plot(vvP, model=fP, xlab="distance (km)", main = "Prevalence (PfPR2)")
-dev.off()
+vars = ggarrange(vvplot, vvPplot, ncol = 2, nrow = 1, labels="auto")
+vars
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_2panel.png"), plot = vars, width = 9, height = 5, bg = "white")
 
 # By year groupings
 range = data.frame(yeargp=NA,n=NA,range=NA)
@@ -176,7 +258,23 @@ for(y in unique(spdf$yeargp)){
 
 range = range %>% arrange(yeargp)
 hist(range$range, breaks=30 )
+quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE) 
 
+# By country
+range = data.frame(country=NA,n=NA,range=NA)
+
+for(c in unique(spdf$country)){
+  test = subset(spdf,country==c)
+  if(dim(test)[1]>100){
+    vv = variogram(res~1, data=test, projection(FALSE))
+    vv = subset(vv,dist>0) # many obs of same location
+    f = fit.variogram(vv, vgm("Sph"))
+    range = rbind(range,c(c,dim(test)[1],f$range[2]))
+  }
+}
+
+range = range %>% arrange(country) %>% mutate(range=as.numeric(range))
+hist(range$range, breaks=30 )
 quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE) 
 
 ########################################################################
@@ -212,11 +310,6 @@ mn_lag1 <- lm(resmn ~ reslag1, data = complete_with_lag)
 mn_lag2 <- lm(resmn ~ reslag1 + reslag2, data = complete_with_lag)
 
 mn_lag3 <- lm(resmn ~ reslag1 + reslag2 + reslag3, data = complete_with_lag)
-
-mn_lag4 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4, data = complete_with_lag)
-
-mn_lag5 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4 + reslag5, data = complete_with_lag)
-
 
 # Average residuals by ADM1-year
 anndf = complete |> group_by(OBJECTID,yearnum) |> dplyr::summarize(resmn = mean(res, na.rm=TRUE), year = first(yearnum))
@@ -280,28 +373,30 @@ plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 coefs = summary(mainmod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 mainfig =  plotPolynomialResponse(mainmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                              yLab = "Prevalence (%)", title = "Main specification", yLim=c(-30,5), showYTitle = T)
+                              yLab = "Prevalence (%)", title = "ADM1 clust. (main)", yLim=c(-30,5), showYTitle = T)
 
-###### ADM1 x year clustering (no correlation over years)
+###### country x year clustering (no correlation over years)
 
-complete = complete |> group_by(OBJECTID,year) |> mutate(adm1yr = cur_group_id()) |> ungroup()
+complete = complete |> group_by(country,year) |> mutate(cntryyr = cur_group_id()) |> ungroup()
 
 # Formula 
-adm1yr = as.formula(
+cntryyr = as.formula(
   paste0(
     "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | adm1yr"
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr"
   )
 )
 
 # Estimation
-adm1yrmod = felm(data = complete, formula = adm1yr)
+cntryyrmod = felm(data = complete, formula = cntryyr)
+# temperature jointly sig?
+linearHypothesis(cntryyrmod, "temp + temp2 = 0")['Pr(>Chisq)']
 
 # Plot
-coefs = summary(adm1yrmod)$coefficients[1:2]
+coefs = summary(cntryyrmod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
-adm1yrfig =  plotPolynomialResponse(adm1yrmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                   yLab = "Prevalence (%)", title = "ADM1-year clust.", yLim=c(-30,5), showYTitle = T)
+cntryyrfig =  plotPolynomialResponse(cntryyrmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                   yLab = "Prevalence (%)", title = "country-year clust.", yLim=c(-30,5), showYTitle = T)
 
 ###### Country clustering
 
@@ -315,12 +410,35 @@ cntryclus = as.formula(
 
 # Estimation
 cntrymod = felm(data = complete, formula = cntryclus)
+linearHypothesis(cntrymod, "temp + temp2 = 0")['Pr(>Chisq)']
 
 # Plot
 coefs = summary(cntrymod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 cntryfig =  plotPolynomialResponse(cntrymod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
                               yLab = "Prevalence (%)", title = "country clust.", yLim=c(-30,5), showYTitle = T)
+###### GBOD-year clustering
+
+complete = complete |> group_by(smllrgn,year) |> mutate(smllrgnyr = cur_group_id()) |> ungroup()
+
+# Formula 
+smllrgnyr = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | smllrgnyr"
+  )
+)
+
+# Estimation
+smllrgnyrmod = felm(data = complete, formula = smllrgnyr)
+linearHypothesis(smllrgnyrmod, "temp + temp2 = 0")['Pr(>Chisq)']
+
+# Plot
+coefs = summary(smllrgnyrmod)$coefficients[1:2]
+myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+smllrgnyrfig =  plotPolynomialResponse(smllrgnyrmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+                                     yLab = "Prevalence (%)", title = "region-year clust.", yLim=c(-30,5), showYTitle = T)
+
 
 ###### Conley
 spdf <- complete |>
@@ -335,8 +453,12 @@ conleyform = as.formula(
 )
 # Estimation
 conleymod1 = feols(conleyform, data=spdf, conley(500, distance = "spherical"))
-conleymod2 = feols(conleyform, data=spdf, conley(1500, distance = "spherical"))
+linearHypothesis(conleymod1, "temp + temp2 = 0")['Pr(>Chisq)']
+conleymod2 = feols(conleyform, data=spdf, conley(1000, distance = "spherical"))
+linearHypothesis(conleymod2, "temp + temp2 = 0")['Pr(>Chisq)']
 conleymod3 = feols(conleyform, data=spdf, conley(2000, distance = "spherical"))
+linearHypothesis(conleymod3, "temp + temp2 = 0")['Pr(>Chisq)']
+
 
 # Plot
 coefs = summary(conleymod1)$coefficients[1:2]
@@ -352,7 +474,7 @@ conleyfig2 =  plotPolynomialResponse(conleymod2, "temp", plotXtemp, polyOrder = 
 coefs = summary(conleymod3)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 conleyfig3 =  plotPolynomialResponse(conleymod3, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                     yLab = "Prevalence (%)", title = "Conley (1,500km)", yLim=c(-30,5), showYTitle = T)
+                                     yLab = "Prevalence (%)", title = "Conley (2,000km)", yLim=c(-30,5), showYTitle = T)
 ####### Save
 # feols models do not work with stargazer as it has no method for feols objects (class "fixest")
 # so we use stargazer on the felm objects and etable on the feols objects. The two tables are 
@@ -361,23 +483,25 @@ conleyfig3 =  plotPolynomialResponse(conleymod3, "temp", plotXtemp, polyOrder = 
 # tabular output
 modellist = list(
   mainmod,
-  adm1yrmod,
-  cntrymod
+  cntryyrmod,
+  cntrymod,
+  smllrgnyrmod
   # conleymod1,
   # conleymod2,
   # conleymod3
 )
 mycollabs = c(
   "main spec.", 
-  "ADM1-year clust.",
-  "country clust."
+  "country-year clust.",
+  "country clust.",
+  "region-year clust."
   # "Conley: 500km",
   # "Conley: 1,000km",
   # "Conley: 1,500km"
 )
 
 # breaking - use modelsummary() instead?
-mynote = "Column specifications: (1) main specification (standard errors clustered at ADM1 level); (2) standard errors clustered at country level; (3) standard errors estimated following Conley (2008) using 100km cutoff; (4) standard errors estimated following Conley (2008) using a 200km cutoff."
+mynote = "Column specifications: (1) main specification (standard errors clustered at ADM1 level); (2) standard errors clustered at country-year level; (3) standard errors clustered at country level; (4) standard errors clustered at GBOD region-year level; (5) standard errors estimated following Conley (2008) using 500km cutoff; (6) standard errors estimated following Conley (2008) using a 2,000km cutoff."
 stargazer(modellist,
           title="Quadratic temperature: standard error sensitivity", align=TRUE, column.labels = mycollabs,
           keep = c("temp", "flood", "drought", "intervention", "METHOD"),
@@ -385,7 +509,7 @@ stargazer(modellist,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 conley_tab <- etable(
-  conleymod1,  conleymod2, conleymod3,    
+  conleymod2, conleymod3,    
   # vcov = list(
   #   vcov_conley(conleymod1, cutoff = 500, distance = "spherical"),              
   #   vcov_conley(conleymod2, cutoff = 1000, distance = "spherical"),
@@ -399,8 +523,8 @@ conley_tab <- etable(
 )
 
 # figure output
-uncert = plot_grid(mainfig,adm1yrfig,cntryfig,conleyfig1,conleyfig2, conleyfig3,nrow = 2)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_cXt2intrXm.pdf"), plot = uncert, width = 8, height = 5)
+uncert = plot_grid(mainfig,cntryyrfig,cntryfig,smllrgnyrfig,conleyfig1, conleyfig3,nrow = 2)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_difft_SEs.pdf"), plot = uncert, width = 8, height = 5)
 
 ########################################################################
 # F. Overdispersion?
