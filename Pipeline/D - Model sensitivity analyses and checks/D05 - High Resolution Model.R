@@ -19,6 +19,7 @@ library(zoo)
 library(lubridate)
 library(cowplot)
 library(multcomp)
+library(patchwork)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
@@ -57,8 +58,6 @@ Tmax = 40 #max T for x axis
 ########################################################################
 
 #### Call external script for data cleaning
-# source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
-
 complete <- readr::read_csv(
   file.path(
     datadir,
@@ -162,9 +161,9 @@ cXt2intrXm = as.formula(
 )
 
 # Estimation & save model results
-mainmod = felm(data = complete, formula = cXt2intrXm)
-coeffs = as.data.frame(mainmod$coefficients)
-vcov = as.data.frame(mainmod$clustervcv)
+highresmod = felm(data = complete, formula = cXt2intrXm)
+coeffs = as.data.frame(highresmod$coefficients)
+vcov = as.data.frame(highresmod$clustervcv)
 dir.create(file.path(resdir, "Models", "reproducibility"), showWarnings = FALSE)
 bfn = file.path(
   resdir,
@@ -185,7 +184,7 @@ saveRDS(vcov, file = vfn)
 mynote = "High Resolution Model: Country-specific quad. trends with intervention FE and country by month FE."
 dir.create(file.path(resdir, "Tables", "main"), showWarnings = FALSE)
 stargazer(
-  mainmod,
+  highresmod,
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "intervention"),
@@ -212,29 +211,59 @@ stargazer(
 # Temperature support
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
-coefs = summary(mainmod)$coefficients[1:2]
+coefs = summary(highresmod)$coefficients[1:2]
 myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 
-beta <- mainmod$coefficients
+beta <- highresmod$coefficients
 vars <- rownames(beta)
 patternForPlotVars <- "temp"
 plotVars <- vars[grepl(patternForPlotVars, vars)]
 
-fig = plotPolynomialResponse(
-  mainmod,
-  "temp",
-  plotXtemp,
+t <- plotPolynomialResponse(
+  mod = highresmod,
+  patternForPlotVars = "temp",
+  xVals = plotXtemp,
   polyOrder = 2,
-  cluster = T,
+  cluster = TRUE,
   xRef = myrefT,
   xLab = expression(paste("Mean temperature (", degree, "C)")),
   yLab = "Prevalence (%)",
-  title = "High resolution: cXt2intrXm",
-  yLim = c(-30, 5),
-  showYTitle = T
+  title = NULL,
+  yLim = c(-30, 10),
+  showYTitle = TRUE
+) +
+  theme(plot.title = element_text(size = 10))
+
+d <- plotLinearLags(
+  mod = highresmod,
+  patternForPlotVars = "drought",
+  cluster = TRUE,
+  laglength = 3,
+  xLab = "Drought Lag",
+  yLab = "Coefficient",
+  title = NULL,
+  yLim = c(-5, 8)
 )
 
-fig
+f <- plotLinearLags(
+  mod = highresmod,
+  patternForPlotVars = "flood",
+  cluster = TRUE,
+  laglength = 3,
+  xLab = "Flood Lag",
+  yLab = "Coefficient",
+  title = NULL,
+  yLim = c(-5, 8)
+)
+
+combined_plot <- t +
+  d +
+  f +
+  plot_layout(ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom", legend.margin = margin(0, 0, 0, 0))
+
+combined_plot
+
 dir.create(
   file.path(resdir, "Figures", "Diagnostics", "Main_model"),
   showWarnings = FALSE
@@ -247,7 +276,269 @@ ggsave(
     "Main_model",
     "temp_response_cXt2intrXm-highres.pdf"
   ),
-  plot = fig,
+  plot = combined_plot,
   width = 7,
-  height = 7
+  height = 2.5,
+)
+
+
+
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+
+
+
+
+########################################################################
+# Data clean up
+########################################################################
+
+#### Call external script for data cleaning
+source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
+
+#### Create necessary subfolders
+dir.create(file.path(resdir, "Tables"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Figures"), showWarnings = FALSE)
+dir.create(file.path(resdir, "Models"), showWarnings = FALSE)
+
+########################################################################
+# Estimation
+########################################################################
+
+# Formula (see other files for robustness/sensitivity checks)
+cXt2intrXm = as.formula(
+  paste0(
+    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
+    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
+
+# Estimation & save model results
+mainmod = felm(data = complete, formula = cXt2intrXm)
+coeffs = as.data.frame(mainmod$coefficients)
+vcov = as.data.frame(mainmod$clustervcv)
+dir.create(file.path(resdir, "Models", "reproducibility"), showWarnings = FALSE)
+bfn = file.path(resdir, "Models", "reproducibility", "coefficients_cXt2intrXm.rds")
+vfn = file.path(resdir, "Models", "reproducibility", "vcv_cXt2intrXm.rds")
+saveRDS(coeffs, file=bfn)
+saveRDS(vcov, file=vfn)
+
+# Temperature support
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+
+coefs = summary(mainmod)$coefficients[1:2]
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+t1 = plotPolynomialResponse(
+  mainmod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = NULL,
+  yLim = c(-30, 5),
+  showYTitle = T
+)
+
+d1 <- plotLinearLags(
+  mod = mainmod,
+  patternForPlotVars = "drought",
+  cluster = TRUE,
+  laglength = 3,
+  xLab = "Drought Lag",
+  yLab = "Coefficient",
+  title = NULL,
+  yLim = c(-5, 8)
+)
+
+f1 <- plotLinearLags(
+  mod = mainmod,
+  patternForPlotVars = "flood",
+  cluster = TRUE,
+  laglength = 3,
+  xLab = "Flood Lag",
+  yLab = "Coefficient",
+  title = NULL,
+  yLim = c(-5, 8)
+)
+
+combined_plot1 <- t1 +
+  d1 +
+  f1 +
+  plot_layout(ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom", legend.margin = margin(0, 0, 0, 0))
+
+combined_plot1
+
+dir.create(
+  file.path(resdir, "Figures", "Diagnostics", "Main_model"),
+  showWarnings = FALSE
+)
+ggsave(
+  file.path(
+    resdir,
+    "Figures",
+    "Diagnostics",
+    "Main_model",
+    "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.pdf"
+  ),
+  plot = combined_plot1,
+  width = 7,
+  height = 2.5,
+)
+
+
+
+
+
+
+
+
+
+
+mod <- mainmod
+
+
+response_curve_poly_df <- function(mod, pattern = "temp",
+                                   xVals, xRef = Tref,
+                                   cluster = TRUE, label = "Model") {
+  beta <- mod$coefficients
+  cn   <- rownames(beta)
+
+  # keep the model's native order (matches VCOV order)
+  coef_names <- cn[grepl(pattern, cn)]
+  if (!length(coef_names)) stop("No coefficients matching '", pattern, "' found in model.")
+
+  Vfull <- if (cluster) mod$clustervcv else mod$vcv
+  # guard against names drifting between coeffs and VCOV
+  coef_names <- intersect(coef_names, rownames(Vfull))
+  if (!length(coef_names)) stop("No overlap between coefficients and VCOV for pattern '", pattern, "'.")
+
+  # infer polynomial order from the number of matching coefficients
+  polyOrder <- length(coef_names)
+
+  # recenters internally; only the first column of xVals is used by your generator
+  X <- genRecenteredXVals_polynomial(xVals, xRef = xRef, polyOrder = polyOrder)
+
+  # pull in the same order as in the model object
+  b    <- as.matrix(beta[coef_names])
+  Vsub <- Vfull[coef_names, coef_names, drop = FALSE]
+
+  fit <- as.numeric(as.matrix(X) %*% b)
+  se  <- 1.96 * sqrt(apply(X, 1, calcVariance, Vsub))
+
+  tibble::tibble(
+    x = X[, 1] + xRef,
+    response = fit,
+    lb = fit - se,
+    ub = fit + se,
+    model = label
+  )
+}
+
+response_lag_df <- function(mod, pattern, cluster = TRUE, label = "Model") {
+  beta <- mod$coefficients
+  cn   <- names(beta)
+
+  coef_names <- cn[grepl(pattern, cn)]
+  if (!length(coef_names)) stop("No lag coefficients matching '", pattern, "'.")
+  Vfull <- if (cluster) mod$clustervcv else mod$vcv
+  coef_names <- intersect(coef_names, rownames(Vfull))
+  if (!length(coef_names)) stop("No overlap between lag coefficients and VCOV for '", pattern, "'.")
+
+  # keep native order for correct lag sequence
+  b    <- as.numeric(beta[coef_names])
+  Vsub <- Vfull[coef_names, coef_names, drop = FALSE]
+  se   <- 1.96 * sqrt(diag(Vsub))
+
+  tibble::tibble(
+    lag = seq.int(0, length(b) - 1),
+    response = b,
+    lb = b - se,
+    ub = b + se,
+    model = label
+  )
+}
+
+# 2) Build tidy data for both models ---------------------------
+plotXtemp <- cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+
+temp_main <- response_curve_poly_df(mainmod, xVals = plotXtemp, label = "Main")
+temp_high <- response_curve_poly_df(highresmod, xVals = plotXtemp, label = "High-res")
+temp_df   <- dplyr::bind_rows(temp_main, temp_high)
+
+drought_main <- response_lag_df(mainmod,  pattern = "drought", laglength = 3, label = "Main")
+drought_high <- response_lag_df(highresmod, pattern = "drought", laglength = 3, label = "High-res")
+drought_df   <- dplyr::bind_rows(drought_main, drought_high)
+
+flood_main <- response_lag_df(mainmod,  pattern = "flood", laglength = 3, label = "Main")
+flood_high <- response_lag_df(highresmod, pattern = "flood", laglength = 3, label = "High-res")
+flood_df   <- dplyr::bind_rows(flood_main, flood_high)
+
+# 3) Plots -----------------------------------------------------
+# colors chosen to harmonize with your palette
+model_cols  <- c("High-res" = "#C1657C", "Main" = "#2E6FBB")
+
+g_temp <- ggplot(temp_df, aes(x = x, y = response, color = model, fill = model)) +
+  geom_hline(yintercept = 0, color = "grey88") +
+  geom_ribbon(aes(ymin = lb, ymax = ub), alpha = 0.25, linewidth = 0, show.legend = FALSE) +
+  geom_line(linewidth = 0.7) +
+  scale_color_manual(values = model_cols) +
+  scale_fill_manual(values = model_cols) +
+  labs(
+    x = expression(paste("Mean temperature (", degree, "C)")),
+    y = "Prevalence (%)",
+    title = NULL,
+    color = NULL
+  ) +
+  coord_cartesian(ylim = c(-30, 10), xlim = c(Tmin, Tmax)) +
+  theme_classic(base_size = 9)
+
+# convenient maxima per model (optional vertical ticks)
+temp_peaks <- temp_df |>
+  dplyr::group_by(model) |>
+  dplyr::slice_max(order_by = response, n = 1, with_ties = FALSE)
+
+g_temp <- g_temp +
+  geom_vline(data = temp_peaks, aes(xintercept = x, color = model), linetype = "dashed", alpha = 0.6)
+
+g_drought <- ggplot(drought_df, aes(x = lag, y = response, color = model)) +
+  geom_hline(yintercept = 0, color = "grey88") +
+  geom_point(position = position_dodge(width = 0.35), size = 2) +
+  geom_errorbar(aes(ymin = lb, ymax = ub),
+                position = position_dodge(width = 0.35), width = 0.15) +
+  scale_color_manual(values = model_cols) +
+  labs(x = "Drought Lag", y = "Coefficient", title = NULL, color = NULL) +
+  coord_cartesian(ylim = c(-5, 8)) +
+  theme_classic(base_size = 9)
+
+g_flood <- ggplot(flood_df, aes(x = lag, y = response, color = model)) +
+  geom_hline(yintercept = 0, color = "grey88") +
+  geom_point(position = position_dodge(width = 0.35), size = 2) +
+  geom_errorbar(aes(ymin = lb, ymax = ub),
+                position = position_dodge(width = 0.35), width = 0.15) +
+  scale_color_manual(values = model_cols) +
+  labs(x = "Flood Lag", y = "Coefficient", title = NULL, color = NULL) +
+  coord_cartesian(ylim = c(-5, 8)) +
+  theme_classic(base_size = 9)
+
+# 4) Assemble + save ------------------------------------------
+combined_overlay <- g_temp + g_drought + g_flood +
+  patchwork::plot_layout(ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom", legend.margin = margin(0, 0, 0, 0))
+
+combined_overlay
+
+dir.create(file.path(resdir, "Figures", "Diagnostics", "Main_model"), showWarnings = FALSE)
+ggsave(
+  file.path(resdir, "Figures", "Diagnostics", "Main_model", "overlay_temp_drought_flood_highres_vs_main.pdf"),
+  plot = combined_overlay,
+  width = 7,
+  height = 2.5
 )

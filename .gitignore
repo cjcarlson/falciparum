@@ -120,3 +120,6 @@ Climate/Future/MRI-ESM2-0-rcp85.csv
 Climate/Future/NorESM2-LM-rcp26.csv
 Climate/Future/NorESM2-LM-rcp45.csv
 Climate/Future/NorESM2-LM-rcp85.csv
+
+
+slurm.sh
