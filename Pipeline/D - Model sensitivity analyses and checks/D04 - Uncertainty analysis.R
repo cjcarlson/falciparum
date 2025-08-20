@@ -169,33 +169,240 @@ ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "pvals_ALL_corre
 # D: General correlation over space -- distributions of correlations
 ########################################################################
 
-####### Correlations across space within country?
-country_corrs = data.frame(country=NA, pair_N=NA,corr=NA)
+##### Correlation Helper Functions ----
+analyzeCorr <- function(kind, corrVec, selection, name, obsCountVec = NULL, T = 10) {
+  # Taken and modified from:
+  # github.com/chroetz/ClusSpatCorr/blob/2299012ea07b8817bc11b9bbfb61d3e7a7150459/03_2_Correlation_Analyze.R#L8-L25
 
-for(c in unique(complete$country)){
-  sub = complete %>% filter(country==c) %>% dplyr::select(OBJECTID,country,monthyr,res)
-  sub_wide <- sub %>%
-    pivot_wider(names_from = OBJECTID, values_from = res) %>% 
-    arrange(monthyr)
-  mycols = colnames(sub_wide %>% dplyr::select(4:last_col()))
-  # for each pair of columns with > 10 shared obs, compute correlation. store correlation and # obs
-  for (i in 4:(ncol(sub_side) - 1)) {
-    for (j in (i + 1):ncol(sub_wide)) {
-      var1 <- names(sub_wide)[i]
-      var2 <- names(sub_wide)[j]
-      cat(sprintf("Pair: %s - %s\n", var1, var2))
-      # How many jointly nonmissing obs? 
-      non_missing_count <- sub_wide %>%
-        filter(!is.na(sub_wide[,i]) & !is.na(sub_wide[,j])) %>%
-        nrow()
-      if(non_missing_count > 10){
-        # Example operation: calculate correlation
-        correlation <- cor(sub_wide[, i], sub_wide[, j])
-        country_corrs = rbind(country_corrs, c(c,non_missing_count,correlation))
-      }
+  selection[is.na(selection)] <- FALSE 
+  
+  if (!is.null(obsCountVec)) {
+    sample_size_filter <- obsCountVec >= T & !is.na(obsCountVec)
+    selection <- selection & sample_size_filter
+  }
+  
+  x <- corrVec[selection & !is.na(corrVec)]
+  probs <- seq(0, 1, 0.05)
+  bind_cols(
+    tibble(
+      kind = kind,
+      name = name,
+      mean = mean(x),
+      median = median(x),
+      sd = sd(x),
+      n = length(x)),  
+    setNames(
+      as.list(quantile(x, probs)), 
+      sprintf("q%02d", as.integer(probs * 100))
+    ) |> 
+      as_tibble()
+  )
+}
+
+count_pairwise_obs <- function(data) {
+  data_matrix <- as.matrix(data)
+  n_vars <- ncol(data_matrix)
+  obs_count_matrix <- matrix(0, nrow = n_vars, ncol = n_vars)
+  
+  for (i in 1:n_vars) {
+    for (j in 1:n_vars) {
+      complete_pairs <- sum(!is.na(data_matrix[, i]) & !is.na(data_matrix[, j]))
+      obs_count_matrix[i, j] <- complete_pairs
     }
   }
+  
+  rownames(obs_count_matrix) <- colnames(data_matrix)
+  colnames(obs_count_matrix) <- colnames(data_matrix)
+  return(obs_count_matrix)
 }
+
+##### Temporal Correlation Matrix ----
+residual_wide_yr_mn <- 
+  complete |> 
+  dplyr::select(OBJECTID,monthyr,res) |> 
+  arrange(monthyr) |> 
+  pivot_wider(names_from=monthyr, values_from=res) |> 
+  arrange(OBJECTID)
+
+corr_matrix_yr_mn <- cor(
+  residual_wide_yr_mn |> dplyr::select(-OBJECTID), 
+  use = "pairwise.complete.obs")
+
+##### Pairwise N Temporal Matrix ----
+count_matrix_yr_mn <- residual_wide_yr_mn |> 
+  dplyr::select(-OBJECTID) |> 
+  count_pairwise_obs()
+
+##### Spatial Correlation Matrix ----
+residual_wide_location <- 
+  complete |> 
+  dplyr::mutate(
+    short_region = case_match(
+      smllrgn,
+      "Sub-Saharan Africa (Central)"~ "C",
+      "Sub-Saharan Africa (West)"~"W",
+      "Sub-Saharan Africa (Southern)" ~ "S",
+      "Sub-Saharan Africa (East)"~"E",
+      .default = NA_character_     
+    ),
+    location = paste(short_region, ISO, OBJECTID, sep = ".")
+  ) |>
+  dplyr::select(location, monthyr, res) |> 
+  arrange(monthyr) |> 
+  pivot_wider(names_from = location, values_from = res) |> 
+  arrange(monthyr)
+
+corr_matrix_location <- cor(
+  residual_wide_location |> dplyr::select(-monthyr), 
+  use = "pairwise.complete.obs") 
+
+##### Pairwise N Spatial Matrix ----
+count_matrix_location <- residual_wide_location |> 
+  dplyr::select(-monthyr) |> 
+  count_pairwise_obs()
+
+##### Distance Matrix ----
+location_simple <- complete |>
+  dplyr::distinct(OBJECTID, smllrgn, ISO) |> 
+  dplyr::mutate(
+    short_region = case_match(
+      smllrgn,
+      "Sub-Saharan Africa (Central)"~ "C",
+      "Sub-Saharan Africa (West)"~"W",
+      "Sub-Saharan Africa (Southern)" ~ "S",
+      "Sub-Saharan Africa (East)"~"E",
+      .default = NA_character_     
+    ),
+    location = paste(short_region, ISO, OBJECTID, sep = ".")
+  ) 
+centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
+centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE) |> 
+  dplyr::filter(OBJECTID %in% unique(complete$OBJECTID)) |> 
+  dplyr::left_join(location_simple, by = join_by(OBJECTID))
+
+centers <- sf::st_as_sf(centroids, coords = c("lon", "lat"))
+distMat <- s2::s2_distance_matrix(centers, centers)
+dimnames(distMat) <- list(centers$location, centers$location)
+
+dist_matrix <- corr_matrix_location
+dist_matrix[] <- NA_real_
+dist_matrix[rownames(distMat), colnames(distMat)] <- distMat
+
+##### Distance between centroids ----
+distanceMatrix_km <- dist_matrix / 1000
+upper_triangle <- upper.tri(distanceMatrix_km, diag = FALSE)
+distances_km <- distanceMatrix_km[upper_triangle]
+cat(
+  "Mean distance:", mean(distances_km), "km\n",
+  "Median distance:", median(distances_km), "km\n",
+  "Minimum distance:", min(distances_km), "km\n",
+  "Maximum distance:", max(distances_km), "km\n"
+)
+ggplot(data.frame(distances = distances_km), aes(x = distances)) +
+  geom_histogram(bins = 100) +
+  labs(x = "Distance (km)", y = "Frequency")
+
+##### Correlation Data ----
+sel <- upper.tri(corr_matrix_yr_mn, diag=FALSE)
+corrVecYear <- corr_matrix_yr_mn[sel]
+timeDiff <- (col(corr_matrix_yr_mn)-row(corr_matrix_yr_mn))[sel]
+obsCountVecYearMon <- count_matrix_yr_mn[sel]
+
+sel <- upper.tri(corr_matrix_location, diag=FALSE)
+corrVecGid1 <- corr_matrix_location[sel]
+distVecGid1 <- distMat[sel]
+obsCountVecGid1 <- count_matrix_location[sel]  
+
+colGid1 <- colnames(corr_matrix_location)[col(corr_matrix_location)[sel]]
+rowGid1 <- rownames(corr_matrix_location)[row(corr_matrix_location)[sel]]
+colGid0 <- str_sub(colGid1, start = 3, end=5)
+rowGid0 <- str_sub(rowGid1, start = 3, end=5)
+colReg <- str_sub(colGid1, end=1)
+rowReg <- str_sub(rowGid1, end=1)
+
+
+T_min <- 10
+
+corrData <- bind_rows(
+  analyzeCorr("temporal", corrVecYear, TRUE, "all", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 1, "1", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 2, "2", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 3, "3", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 4, "4", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 5, "5", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 6, "6", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 7, "7", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 8, "8", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 9, "9", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 10, "10", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 11, "11", obsCountVecYearMon, T_min),
+  analyzeCorr("temporal", corrVecYear, timeDiff == 12, "12", obsCountVecYearMon, T_min),
+  analyzeCorr("spatial", corrVecGid1, TRUE, "all", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, colGid0 == rowGid0, "same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, colGid0 != rowGid0, "different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg == rowReg, "same region", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg != rowReg, "different region", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5, "distance < 100km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e5, "distance < 200km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 5e5, "distance < 500km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e6, "distance < 1000km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e6, "distance < 2000km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 != rowGid0, "distance < 100km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 != rowGid0, "distance < 200km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "distance < 500km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 != rowGid0, "distance < 1000km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e6 & colGid0 != rowGid0, "distance < 2000km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 == rowGid0, "distance < 100km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 == rowGid0, "distance < 200km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 == rowGid0, "distance < 500km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 == rowGid0, "distance < 1000km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e6 & colGid0 == rowGid0, "distance < 2000km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 1e5, "distance > 100km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 2e5, "distance > 200km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 5e5, "distance > 500km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 1e6, "distance > 1000km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 2e6, "distance > 2000km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 1e5 & colGid0 != rowGid0, "distance > 100km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 2e5 & colGid0 != rowGid0, "distance > 200km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 != rowGid0, "distance > 500km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 1e6 & colGid0 != rowGid0, "distance > 1000km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 2e6 & colGid0 != rowGid0, "distance > 2000km and different country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 1e5 & colGid0 == rowGid0, "distance > 100km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 2e5 & colGid0 == rowGid0, "distance > 200km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 == rowGid0, "distance > 500km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 1e6 & colGid0 == rowGid0, "distance > 1000km and same country", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 > 2e6 & colGid0 == rowGid0, "distance > 2000km and same country", obsCountVecGid1, T_min),
+)
+
+print(corrData, n = 35)
+
+# ####### Correlations across space within country?
+# country_corrs = data.frame(country=NA, pair_N=NA,corr=NA)
+
+# for(c in unique(complete$country)){
+#   sub = complete %>% filter(country==c) %>% dplyr::select(OBJECTID,country,monthyr,res)
+#   sub_wide <- sub %>%
+#     pivot_wider(names_from = OBJECTID, values_from = res) %>% 
+#     arrange(monthyr)
+#   mycols = colnames(sub_wide %>% dplyr::select(4:last_col()))
+#   # for each pair of columns with > 10 shared obs, compute correlation. store correlation and # obs
+#   for (i in 4:(ncol(sub_side) - 1)) {
+#     for (j in (i + 1):ncol(sub_wide)) {
+#       var1 <- names(sub_wide)[i]
+#       var2 <- names(sub_wide)[j]
+#       cat(sprintf("Pair: %s - %s\n", var1, var2))
+#       # How many jointly nonmissing obs? 
+#       non_missing_count <- sub_wide %>%
+#         filter(!is.na(sub_wide[,i]) & !is.na(sub_wide[,j])) %>%
+#         nrow()
+#       if(non_missing_count > 10){
+#         # Example operation: calculate correlation
+#         correlation <- cor(sub_wide[, i], sub_wide[, j])
+#         country_corrs = rbind(country_corrs, c(c,non_missing_count,correlation))
+#       }
+#     }
+#   }
+# }
 
 ######## Correlations across space within one GBOD region? 
 # repeat the above, but for GBOD regions instead of countries
