@@ -5,7 +5,7 @@
 ############################################################
 
 ############################################################
-# Set up
+# Set up ----
 ############################################################
 
 rm(list = ls())
@@ -57,7 +57,7 @@ dir.create(file.path(resdir, "Figures", "Diagnostics", "Residuals"), showWarning
 dir.create(file.path(resdir, "Tables", "Diagnostics", "Residuals"), showWarnings = FALSE)
 
 ########################################################################
-# Estimate main model, store residuals
+# Estimate main model, store residuals ----
 ########################################################################
 
 # Formula 
@@ -73,7 +73,7 @@ mainmod = felm(data = complete, formula = cXt2intrXm)
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 
 ########################################################################
-# A: Correlation across ADM1s within a country (same year-month)
+# A: Correlation across ADM1s within a country (same year-month) ----
 ########################################################################
 
 # Regress residuals on country dummies, control for month and year
@@ -100,7 +100,7 @@ df = data.frame(stat = c("F stat", "p value"),
 write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_country_Fstat.csv"))
 
 ########################################################################
-# B: Correlation across ADM1s within a GBOD region (same year-month)
+# B: Correlation across ADM1s within a GBOD region (same year-month) ----
 ########################################################################
 
 # Regress residuals on country dummies, control for month and year
@@ -128,7 +128,7 @@ write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals
 
 
 ########################################################################
-# C: Correlation across months (same location)
+# C: Correlation across months (same location) ----
 ########################################################################
 
 # Regress residuals on country dummies, control for OBJECTID
@@ -166,7 +166,7 @@ hists
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "pvals_ALL_correlations.png"), plot = hists, width = 5, height = 5)
 
 ########################################################################
-# D: General correlation over space -- distributions of correlations
+# D: General correlation over space -- distributions of correlations ----
 ########################################################################
 
 ##### Correlation Helper Functions ----
@@ -260,6 +260,19 @@ corr_matrix_location <- cor(
 count_matrix_location <- residual_wide_location |> 
   dplyr::select(-monthyr) |> 
   count_pairwise_obs()
+
+##### Mean N per ObjectID ---- 
+complete |> 
+  dplyr::group_by(OBJECTID, smllrgn) |> 
+  dplyr::summarize(
+    n = n()
+  ) |> 
+  dplyr::ungroup() |> 
+  # dplyr::group_by(smllrgn) |>
+  dplyr::summarise(
+    mean = mean(n),
+    median = median(n)
+  )
 
 ##### Distance Matrix ----
 location_simple <- complete |>
@@ -419,11 +432,13 @@ print(corrData, n = 35)
 
 
 ########################################################################
-# C: General correlation over space -- VARIOGRAMS
+# E: General correlation over space -- VARIOGRAMS ----
 ########################################################################
 
 # create year groupings for variogram
-complete = complete %>% mutate(yeargp = (yearnum - min(yearnum)) %/% 5*5 + min(yearnum) )
+complete = complete %>% 
+  mutate(yeargp = (yearnum - min(yearnum)) %/% 5*5 + min(yearnum) ) |> 
+  dplyr::select(-lat, -lon)
 
 # bring in lat-lon of ADM1 centroids
 centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
@@ -485,7 +500,7 @@ hist(range$range, breaks=30 )
 quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE) 
 
 ########################################################################
-# D: General correlation over time
+# F: General correlation over time ----
 ########################################################################
 
 # As detailed in D03 - Additional robustness.R, the panel is sufficiently unbalanced 
@@ -570,10 +585,10 @@ stargazer(
 )
 
 ########################################################################
-# E. Robustness to various clustering approaches, informed by diagnostics above
+# G. Robustness to various clustering approaches, informed by diagnostics above ----
 ########################################################################
 
-###### Main spec (ADM1 clustering)
+###### Main spec (ADM1 clustering) ----
 
 # plot
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
@@ -582,8 +597,7 @@ myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to
 mainfig =  plotPolynomialResponse(mainmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
                               yLab = "Prevalence (%)", title = "ADM1 clust. (main)", yLim=c(-30,5), showYTitle = T)
 
-###### country x year clustering (no correlation over years)
-
+###### country x year clustering (no correlation over years) ----
 complete = complete |> group_by(country,year) |> mutate(cntryyr = cur_group_id()) |> ungroup()
 
 # Formula 
@@ -605,7 +619,7 @@ myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to
 cntryyrfig =  plotPolynomialResponse(cntryyrmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
                                    yLab = "Prevalence (%)", title = "country-year clust.", yLim=c(-30,5), showYTitle = T)
 
-###### Country clustering
+###### Country clustering ----
 
 # Formula 
 cntryclus = as.formula(
@@ -624,8 +638,8 @@ coefs = summary(cntrymod)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 cntryfig =  plotPolynomialResponse(cntrymod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
                               yLab = "Prevalence (%)", title = "country clust.", yLim=c(-30,5), showYTitle = T)
-###### GBOD-year clustering
 
+###### GBOD-year clustering ----
 complete = complete |> group_by(smllrgn,year) |> mutate(smllrgnyr = cur_group_id()) |> ungroup()
 
 # Formula 
@@ -646,8 +660,7 @@ myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to
 smllrgnyrfig =  plotPolynomialResponse(smllrgnyrmod, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
                                      yLab = "Prevalence (%)", title = "region-year clust.", yLim=c(-30,5), showYTitle = T)
 
-
-###### Conley
+###### Conley ----
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
 
@@ -658,31 +671,68 @@ conleyform = as.formula(
     " + I(intervention) + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | OBJECTID "
   )
 )
-# Estimation
-conleymod1 = feols(conleyform, data=spdf, conley(500, distance = "spherical"))
-linearHypothesis(conleymod1, "temp + temp2 = 0")['Pr(>Chisq)']
-conleymod2 = feols(conleyform, data=spdf, conley(1000, distance = "spherical"))
-linearHypothesis(conleymod2, "temp + temp2 = 0")['Pr(>Chisq)']
-conleymod3 = feols(conleyform, data=spdf, conley(2000, distance = "spherical"))
-linearHypothesis(conleymod3, "temp + temp2 = 0")['Pr(>Chisq)']
 
+# Estimation
+conley_dist_1 <- 100
+conley_dist_2 <- 200
+conley_dist_3 <- 500
+
+conleymod1 = feols(conleyform, data=spdf, conley(conley_dist_1, distance = "spherical"))
+linearHypothesis(conleymod1, "temp + temp2 = 0")['Pr(>Chisq)']
+
+conleymod2 = feols(conleyform, data=spdf, conley(conley_dist_2, distance = "spherical"))
+linearHypothesis(conleymod2, "temp + temp2 = 0")['Pr(>Chisq)']
+
+# conleymod3 = feols(conleyform, data=spdf, conley(conley_dist_3, distance = "spherical"))
+# linearHypothesis(conleymod3, "temp + temp2 = 0")['Pr(>Chisq)']
+
+# Accounting for both spatial and serial correlation
+
+# Spatial_HAC <- function(x, ...) {
+#   # Taken and modified from https://github.com/lrberge/fixest/issues/177
+#   vcov_conley(x, lat = ~lat, lon = ~lon, cutoff = conley_dist_3) +
+#     vcov_NW(x, time = ~monthyr, unit = ~OBJECTID, lag = 1) -
+#     vcov(x, "hc1")
+# }
+
+# conleymod3 = feols(conleyform, data=spdf, vcov=Spatial_HAC)
+# etable(
+#   conleymod3,
+#   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
+#   tex     = TRUE,    
+#   digits  = 2      
+#   # title   = mynote,
+#   # label   = "tab:conley"   # optional: LaTeX label
+#   )
 
 # Plot
 coefs = summary(conleymod1)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 conleyfig1 =  plotPolynomialResponse(conleymod1, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                   yLab = "Prevalence (%)", title = "Conley (500km)", yLim=c(-30,5), showYTitle = T)
+                                   yLab = "Prevalence (%)", title = paste0("Conley (", conley_dist_1, "km)"), yLim=c(-30,5), showYTitle = T)
 
 coefs = summary(conleymod2)$coefficients[1:2]
 myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 conleyfig2 =  plotPolynomialResponse(conleymod2, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                     yLab = "Prevalence (%)", title = "Conley (1,000km)", yLim=c(-30,5), showYTitle = T)
+                                     yLab = "Prevalence (%)", title = paste0("Conley (", conley_dist_2, "km)"), yLim=c(-30,5), showYTitle = T)
 
-coefs = summary(conleymod3)$coefficients[1:2]
-myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
-conleyfig3 =  plotPolynomialResponse(conleymod3, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                     yLab = "Prevalence (%)", title = "Conley (2,000km)", yLim=c(-30,5), showYTitle = T)
-####### Save
+# coefs = summary(conleymod3)$coefficients[1:2]
+# myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+# conleyfig3 =  plotPolynomialResponse(conleymod3, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
+#                                      yLab = "Prevalence (%)", title = paste0("Conley (", conley_dist_3, "km)"), yLim=c(-30,5), showYTitle = T)
+
+
+# figure output
+uncert = plot_grid(
+  mainfig,cntryyrfig,
+  # cntryfig,
+  # smllrgnyrfig,
+  conleyfig1, conleyfig2, 
+  # conleyfig3,
+  nrow = 2)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_difft_SEs.pdf"), plot = uncert, width = 10, height = 10)
+
+# Table
 # feols models do not work with stargazer as it has no method for feols objects (class "fixest")
 # so we use stargazer on the felm objects and etable on the feols objects. The two tables are 
 # then combined manually
@@ -690,21 +740,17 @@ conleyfig3 =  plotPolynomialResponse(conleymod3, "temp", plotXtemp, polyOrder = 
 # tabular output
 modellist = list(
   mainmod,
-  cntryyrmod,
-  cntrymod,
-  smllrgnyrmod
-  # conleymod1,
-  # conleymod2,
-  # conleymod3
+  cntryyrmod
+  # ,
+  # cntrymod,
+  # smllrgnyrmod
 )
 mycollabs = c(
   "main spec.", 
-  "country-year clust.",
-  "country clust.",
-  "region-year clust."
-  # "Conley: 500km",
-  # "Conley: 1,000km",
-  # "Conley: 1,500km"
+  "country-year clust."
+  # ,
+  # "country clust.",
+  # "region-year clust."
 )
 
 # breaking - use modelsummary() instead?
@@ -716,11 +762,12 @@ stargazer(modellist,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 conley_tab <- etable(
-  conleymod2, conleymod3,    
+  conleymod1, conleymod2,
+  #  conleymod3,    
   # vcov = list(
-  #   vcov_conley(conleymod1, cutoff = 500, distance = "spherical"),              
-  #   vcov_conley(conleymod2, cutoff = 1000, distance = "spherical"),
-  #   vcov_conley(conleymod3, cutoff = 1500, distance = "spherical")
+  #   vcov_conley(conleymod1, cutoff = conley_dist_1, distance = "spherical"),              
+  #   vcov_conley(conleymod2, cutoff = conley_dist_2, distance = "spherical"),
+  #   vcov_conley(conleymod3, cutoff = conley_dist_3, distance = "spherical")
   # ),
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
   tex     = TRUE,    
@@ -728,13 +775,10 @@ conley_tab <- etable(
   # title   = mynote,
   label   = "tab:conley"   # optional: LaTeX label
 )
-
-# figure output
-uncert = plot_grid(mainfig,cntryyrfig,cntryfig,smllrgnyrfig,conleyfig1, conleyfig3,nrow = 2)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_difft_SEs.pdf"), plot = uncert, width = 8, height = 5)
+conley_tab
 
 ########################################################################
-# F. Overdispersion?
+# H. Overdispersion? ----
 ########################################################################
 
 # Plot model residuals

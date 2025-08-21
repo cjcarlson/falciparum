@@ -32,8 +32,8 @@ spatial <- read.csv(file.path(datadir, 'Dataframe backups', 'shapefile-backup.cs
 countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
 data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
 data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
-iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
-data_iso <- iso[complete.cases(iso),]
+# iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
+# data_iso <- iso[complete.cases(iso),]
 
 #### Dates & times
 data$yearnum <- data$year
