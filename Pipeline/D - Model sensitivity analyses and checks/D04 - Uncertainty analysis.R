@@ -186,7 +186,7 @@ analyzeCorr <- function(kind, corrVec, selection, name, obsCountVec = NULL, T = 
   bind_cols(
     tibble(
       kind = kind,
-      name = name,
+      group = name,
       mean = mean(x),
       median = median(x),
       sd = sd(x),
@@ -341,31 +341,31 @@ corrData <- bind_rows(
   analyzeCorr("temporal", corrVecYear, timeDiff == 1, "1", obsCountVecYearMon, T_min),
   analyzeCorr("temporal", corrVecYear, timeDiff == 2, "2", obsCountVecYearMon, T_min),
   analyzeCorr("temporal", corrVecYear, timeDiff == 3, "3", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 4, "4", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 5, "5", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 6, "6", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 7, "7", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 8, "8", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 9, "9", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 10, "10", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 11, "11", obsCountVecYearMon, T_min),
-  analyzeCorr("temporal", corrVecYear, timeDiff == 12, "12", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 4, "4", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 5, "5", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 6, "6", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 7, "7", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 8, "8", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 9, "9", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 10, "10", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 11, "11", obsCountVecYearMon, T_min),
+  # analyzeCorr("temporal", corrVecYear, timeDiff == 12, "12", obsCountVecYearMon, T_min),
   analyzeCorr("spatial", corrVecGid1, TRUE, "all", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, colGid0 == rowGid0, "same country", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, colGid0 != rowGid0, "different country", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg == rowReg, "same region", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg != rowReg, "different region", obsCountVecGid1, T_min),
-  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5, "distance < 100km", obsCountVecGid1, T_min),
+  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5, "distance < 100km", obsCountVecGid1, T_min), # N<30 
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e5, "distance < 200km", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 5e5, "distance < 500km", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e6, "distance < 1000km", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e6, "distance < 2000km", obsCountVecGid1, T_min),
-  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 != rowGid0, "distance < 100km and different country", obsCountVecGid1, T_min),
-  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 != rowGid0, "distance < 200km and different country", obsCountVecGid1, T_min),
-  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "distance < 500km and different country", obsCountVecGid1, T_min),
-  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 != rowGid0, "distance < 1000km and different country", obsCountVecGid1, T_min),
+  # analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 != rowGid0, "distance < 100km and different country", obsCountVecGid1, T_min), # N<30 
+  # analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 != rowGid0, "distance < 200km and different country", obsCountVecGid1, T_min), # N<30 
+  # analyzeCorr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "distance < 500km and different country", obsCountVecGid1, T_min), # N<30 
+  # analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 != rowGid0, "distance < 1000km and different country", obsCountVecGid1, T_min), # N<30 
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e6 & colGid0 != rowGid0, "distance < 2000km and different country", obsCountVecGid1, T_min),
-  analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 == rowGid0, "distance < 100km and same country", obsCountVecGid1, T_min),
+  # analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 == rowGid0, "distance < 100km and same country", obsCountVecGid1, T_min), # N<30 
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 == rowGid0, "distance < 200km and same country", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 == rowGid0, "distance < 500km and same country", obsCountVecGid1, T_min),
   analyzeCorr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 == rowGid0, "distance < 1000km and same country", obsCountVecGid1, T_min),
@@ -387,7 +387,7 @@ corrData <- bind_rows(
   analyzeCorr("spatial", corrVecGid1, distVecGid1 > 2e6 & colGid0 == rowGid0, "distance > 2000km and same country", obsCountVecGid1, T_min),
 )
 
-print(corrData, n = 35)
+print(dplyr::select(corrData, kind, group, mean, n, q25, q75), n = 48)
 
 # ####### Correlations across space within country?
 # country_corrs = data.frame(country=NA, pair_N=NA,corr=NA)
