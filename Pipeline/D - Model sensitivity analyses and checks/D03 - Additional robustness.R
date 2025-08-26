@@ -5,7 +5,7 @@
 ############################################################
 
 ############################################################
-# Set up
+# Set up ----
 ############################################################
 
 rm(list = ls())
@@ -46,7 +46,7 @@ Tmin = 10 # min T for x axis
 Tmax = 40 # max T for x axis
 
 ########################################################################
-# Data clean up
+# Data clean up ----
 ########################################################################
 
 #### Call external script for data cleaning
@@ -83,7 +83,7 @@ difference <- starting_obs - obs_after_lag
 percent_lost <- (difference / starting_obs) * 100
 
 ########################################################################
-# Does diagnostic method change with T and P shocks? 
+# Does diagnostic method change with T and P shocks? ---- 
 ########################################################################
 
 # common variables in all regs
@@ -108,7 +108,7 @@ stargazer(Micromod,
           out = file.path(resdir, "Tables", "sensitivity","Microscopy_sample_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 
 ########################################################################
-# Overdispersion?
+# Overdispersion? ----
 ########################################################################
 
 # Plot model residuals
@@ -123,7 +123,7 @@ dir.create(file.path(resdir, "Figures", "Diagnostics","Residuals"), showWarnings
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = g, width = 7, height = 7)
 
 ########################################################################
-# Control for diagnostic method
+# Control for diagnostic method ----
 ########################################################################
 
 ###### Estimate regressions #######
@@ -196,7 +196,7 @@ ggsave(
 )
 
 ########################################################################
-# Data imbalance: responses on temporal subsamples
+# Data imbalance: responses on temporal subsamples ----
 ########################################################################
 
 complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
@@ -210,6 +210,7 @@ complete %>% count(post1995)
 
 # formula (different intervention dummies for each temporal subsample)
 cXt2rXm = as.formula(paste0(common, " + I(intervention) +  ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+
 
 pre1995 = felm(data = subset(complete, post1995==FALSE), formula = cXt2rXm)
 post1995 = felm(data = subset(complete, post1995==TRUE), formula = cXt2rXm)
@@ -234,13 +235,75 @@ for(m in 1:length(modellist)) {
     theme(plot.title = element_text(size = 10))
 }
 
-p = plot_grid(figList[[1]], figList[[2]], nrow=1)
-p
+h_pre <- ggplot(subset(complete, post1995==FALSE), aes(x = temp)) +
+  geom_histogram(
+    fill = "#8B3A4A",
+    alpha = 1,
+    bins = 30,
+    width = 0.7,
+    colour = "black"
+  ) +
+  theme_classic() +
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = NULL) +
+  xlim(Tmin - .0001, Tmax) +
+    geom_vline(xintercept = 22, colour = "grey39") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.margin = unit(c(-2.5, 1, 0, 1), "cm"),
+  )
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Subsamples", "split_sample_1995.pdf"), plot = p, width = 9, height = 5)
+h_post <- ggplot(subset(complete, post1995==TRUE), aes(x = temp)) +
+  geom_histogram(
+    fill = "#8B3A4A",
+    alpha = 1,
+    bins = 30,
+    width = 0.7,
+    colour = "black"
+  ) +
+  theme_classic() +
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = NULL) +
+  xlim(Tmin - .0001, Tmax) +
+    geom_vline(xintercept = 25, colour = "grey39") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.margin = unit(c(-2.5, 1, 0, 1), "cm"),
+  )
+
+p = plot_grid(
+  figList[[1]] + 
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ),
+  figList[[2]] +
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ), 
+  h_pre, 
+  h_post,  
+  nrow=2,
+  align = "v",
+  rel_heights = c(15, 1)
+)
+# p
+
+ggsave(
+  filename = "split_sample_1995.pdf",
+  path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"),
+  plot = p, 
+  width = 10, 
+  height = 5
+)
 
 ########################################################################
-# Data imbalance: responses on spatial subsamples
+# Data imbalance: responses on spatial subsamples ----
 ########################################################################
 
 # Regression for each region, no regionXmo FE because we are using region-specific models
@@ -285,7 +348,7 @@ testform = as.formula(
 # TO DO: Add histograms of temp underneath each curve; add 3rd order polynomial and it's SE on top of the existing ones (ala urban/rural)
 
 ########################################################################
-# Overlay main spec and CIs with results from models with other FE
+# Overlay main spec and CIs with results from models with other FE ----
 ########################################################################
 
 #setup 
