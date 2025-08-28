@@ -48,7 +48,6 @@ source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
 source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
 
-
 #-------------------------------------------------------------------------------
 # 2. Data loading
 #-------------------------------------------------------------------------------
@@ -308,7 +307,7 @@ d <- plotLinearLags_urban(
   patternForPlotVars = "drought",
   cluster = TRUE,
   laglength = 3,
-  xLab = "Drought Lag",
+  xLab = "Drought (month lags)",
   yLab = "Coefficient",
   title = NULL,
   yLim = c(-5, 8)
@@ -319,7 +318,7 @@ f <- plotLinearLags_urban(
   patternForPlotVars = "flood",
   cluster = TRUE,
   laglength = 3,
-  xLab = "Flood Lag",
+  xLab = "Flood (month lags)",
   yLab = "Coefficient",
   title = NULL,
   yLim = c(-5, 8)
@@ -337,14 +336,8 @@ combined_plot <- t +
 #-------------------------------------------------------------------------------
 
 ggsave(
-  file.path(
-    datadir,
-    "Results",
-    "Figures",
-    "Diagnostics",
-    "Fixed_effects",
-    "urban_sensitivity.jpg"
-  ),
+  filename = "urban_sensitivity.pdf",
+  path = file.path(datadir, "Results", "Figures", "Diagnostics", "Fixed_effects"),
   plot = combined_plot,
   width = 7,
   height = 2.5,

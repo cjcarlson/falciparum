@@ -275,13 +275,8 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 #   showWarnings = FALSE
 # )
 # ggsave(
-#   file.path(
-#     resdir,
-#     "Figures",
-#     "Diagnostics",
-#     "Main_model",
-#     "temp_response_cXt2intrXm-highres.pdf"
-#   ),
+#   filename = "temp_response_cXt2intrXm-highres.pdf",
+#   path = file.path(resdir, "Figures", "Diagnostics", "Main_model"),
 #   plot = combined_plot,
 #   width = 7,
 #   height = 2.5,
@@ -648,7 +643,7 @@ d1 <- plotLinearLags_2_mod(
   patternForPlotVars = "drought",
   cluster = T,
   laglength = 3,
-  xLab = "Drought Lag",
+  xLab = "Drought (month lags)",
   yLab = "Coefficient",
   title = NULL,
   yLim = c(-4, 4),
@@ -663,7 +658,7 @@ f1 <- plotLinearLags_2_mod(
   patternForPlotVars = "flood",
   cluster = T,
   laglength = 3,
-  xLab = "Flood Lag",
+  xLab = "Flood (month lags)",
   yLab = "Coefficient",
   title = NULL,
   yLim = c(-4, 4),
@@ -692,16 +687,13 @@ dir.create(
   showWarnings = FALSE
 )
 ggsave(
-  file.path(
-    resdir,
-    "Figures",
-    "Diagnostics",
-    "Main_model",
-    "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.jpg"
-  ),
+  filename = "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.pdf",
+  path = file.path(resdir, "Figures", "Diagnostics", "Main_model"),
   plot = combined_plot1,
   width = 7,
   height = 2.5,
   dpi = 300
 )
+
+
 
