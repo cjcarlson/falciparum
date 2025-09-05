@@ -479,8 +479,8 @@ plotPolynomialResponse_2_mod = function(
     if (sum(is.na(yLim)) > 0) {
       g = ggplot(data = plotData) + 
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "High res"))), alpha = 0.4) +
-        geom_line(aes(x = x, y = response, color = factor(model, levels = c("Main", "High res"))), linewidth = 1) + 
+        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "Grid level"))), alpha = 0.4) +
+        geom_line(aes(x = x, y = response, color = factor(model, levels = c("Main", "Grid level"))), linewidth = 1) + 
         theme_classic() +
         labs(x = xLab, y = yLab) +
         ggtitle(title) +
@@ -490,8 +490,10 @@ plotPolynomialResponse_2_mod = function(
     } else {
       g = ggplot(data = plotData) + 
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "High res"))), alpha = 0.4) +
-        geom_line(aes(x = x, y = response, color = factor(model, levels = c("Main", "High res")), linetype=factor(model, levels = c("Main", "High res"))), linewidth = 0.5) +
+        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "Grid level"))), alpha = 0.4) +
+        geom_line(
+          aes(x = x, y = response, color = factor(model, levels = c("Main", "Grid level")),
+           linetype=factor(model, levels = c("Main", "Grid level"))), linewidth = 0.5) +
         theme_classic() +
         labs(x = xLab, y = yLab) +
         coord_cartesian(ylim = yLim) + 
@@ -599,7 +601,7 @@ plotLinearLags_2_mod = function(
       theme(plot.title = element_text(size = 8), text = element_text(size = 8))
   } else {
     # Two models - use different colors/shapes for each
-    g = ggplot(data = plotData, aes(x = lag, color = factor(model, levels = c("Main", "High res")))) +
+    g = ggplot(data = plotData, aes(x = lag, color = factor(model, levels = c("Main", "Grid level")))) +
       geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
       geom_point(aes(y = response), size = 2, position = position_dodge(width = 0.5)) +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = .1, position = position_dodge(width = 0.5)) +
@@ -609,7 +611,7 @@ plotLinearLags_2_mod = function(
       ggtitle(title) +
       theme(plot.title = element_text(size = 8), text = element_text(size = 8),
             legend.position = "bottom", legend.title = element_blank()) +
-    scale_color_manual(values = c("Main" = "#C1657C", "High res" = "grey50")) 
+    scale_color_manual(values = c("Main" = "#C1657C", "Grid level" = "grey50")) 
   }
   
   return(g)
@@ -631,7 +633,7 @@ t1 = plotPolynomialResponse_2_mod(
   showYTitle = T,
   mod2 = highresmod,
   model1_name = "Main",
-  model2_name = "High res",
+  model2_name = "Grid level",
   fillcolor2 = "grey50"
 )
 t1
@@ -648,7 +650,7 @@ d1 <- plotLinearLags_2_mod(
   title = NULL,
   yLim = c(-4, 4),
   mod2 = highresmod,
-  model2_name = "High res"
+  model2_name = "Grid level"
 ) 
 d1
 
@@ -663,7 +665,7 @@ f1 <- plotLinearLags_2_mod(
   title = NULL,
   yLim = c(-4, 4),
   mod2 = highresmod,
-  model2_name = "High res"
+  model2_name = "Grid level"
 ) 
 f1
 

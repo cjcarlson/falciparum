@@ -20,7 +20,7 @@ source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
 source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
 
 ########################################################################
-# A. Read in saved regression results
+# A. Read in saved regression results ----
 ########################################################################
 
 # load main model (full sample)
@@ -61,7 +61,7 @@ for (f in 1:length(files)) {
 }
 
 ########################################################################
-# C. Spaghetti plot of estimated T response functions
+# B. Spaghetti plot of estimated T response functions ----
 ########################################################################
 
 #setup
@@ -116,6 +116,10 @@ percentile_data <- plotData %>%
 # data <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |>
 #   read.csv() |>
 #   drop_na(PfPR2)
+
+########################################################################
+# C. Temperature response ----
+########################################################################
 
 median_temps <- complete %>%
   group_by(smllrgn) %>%
@@ -178,21 +182,27 @@ g <- ggplot() +
     x = NULL,
     y = "Prevalence (%)"
   ) +
-  xlim(Tmin, Tmax) +
-  ylim(
-    min(subset(plotData, model != "boot1")$response, na.rm = T),
-    max(subset(plotData, model != "boot1")$response, na.rm = T)
+  scale_x_continuous(
+    limits = c(Tmin, Tmax),
+    breaks = seq(Tmin, Tmax, by = 10),
+    labels = as.character(seq(Tmin, Tmax, by = 10)),
+    expand = expansion(mult = c(0.0, 0.0))
   ) +
-  # scale_y_continuous(
-  #   # expand = expansion(mult = c(0.1, 0.1)),
-  #   breaks = seq(0, -40, -10)
-  # ) +
+  scale_y_continuous(
+    breaks = seq(0, -40, -10),
+    labels = as.character(seq(0, -40, -10)),
+    expand = expansion(mult = c(0.0, 0.01))
+  ) +
   theme_bw() +
   theme(
     axis.title.x = element_blank(),
     axis.text.x = element_blank(),
     plot.margin = unit(c(0.3, 0.3, 0, 1), units = "cm")
   )
+
+########################################################################
+# D. Temperature histogram inset ----
+########################################################################
 
 h <- ggplot(complete, aes(x = temp)) +
   geom_histogram(
@@ -214,37 +224,54 @@ h <- ggplot(complete, aes(x = temp)) +
     panel.grid.minor.y = element_blank()
   )
 
-combined_plot = plot_grid(
-  g +
-    theme(
-      axis.text.x = element_blank(), # Remove x-axis text
-      axis.line.x = element_blank(), # Remove x-axis line
-      axis.ticks.x = element_blank(), # Remove x-axis ticks
-      axis.title.x = element_blank() # Remove x-axis title
-    ),
-  h + labs(x = expression(paste("Mean temperature (", degree, "C)"))), # Add the PDF plot
-  align = "v", # Align vertically
-  nrow = 2, # Use two rows
-  rel_heights = c(10, 1) # Set relative heights of the plots
-)
+# Create the histogram as a separate plot
+h_inset <- ggplot() +
+  geom_histogram(
+    data = complete, aes(x = temp),
+    fill = "#8B3A4A",
+    alpha = 1,
+    bins = 30,
+    colour = "black"
+  ) +
+  theme_void() +  
+  scale_x_continuous(
+    limits = c(Tmin, Tmax),
+    breaks = seq(Tmin, Tmax, by = 10),
+    labels = as.character(seq(Tmin, Tmax, by = 10)),
+    expand = expansion(mult = c(0.0, 0.0))
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, -40, -10),
+    labels = as.character(seq(0, -40, -10)),
+    expand = expansion(mult = c(0.0, 0.01))
+  )
 
-combined_plot
+# Convert histogram to grob
+h_grob <- ggplotGrob(h_inset)
 
+# Add histogram to main plot
+g_with_hist <- g +
+  annotation_custom(
+    h_grob,
+    xmin = Tmin, xmax = Tmax,  # Match x-axis range
+    ymin = min(subset(plotData, model != "boot1")$response, na.rm = T),  # Position at bottom
+    ymax = -35   # Height of histogram
+  ) +
+  # labs(x = expression(paste("Mean temperature (", degree, "C)"))) +
+  labs(x = "Mean temperature (\u00B0C)") +
+  theme(
+    axis.title.x = element_text(vjust = -0.5),
+    plot.title.position = "plot",
+    axis.text.x = element_text(),  
+    # plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm"), 
+    plot.margin = unit(c(0.0, 0.0, 1, 0), units = "cm"), 
+    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
+  )
 
-# # Combine the plots
-# combined_plot <- g / h +
-#   plot_layout(heights = c(15, 1)) +  # Main plot taller, histogram narrower vertically
-#   plot_annotation(
-#     caption = expression(paste("Mean temperature (", degree, "C)"))
-#   ) &
-#   theme(
-#     plot.caption = element_text(hjust = 0.5, size = 12)
-#   )
-
-# combined_plot
+g_with_hist
 
 ########################################################################
-# D. Lagged drought and flood responses
+# E. Lagged drought and flood responses ----
 ########################################################################
 
 # reformat: want a dataset of lag x var x model for flood and drought
@@ -290,7 +317,10 @@ custom_stats <- rain %>%
     .groups = "drop"
   )
 
-# plot - flood
+########################################################################
+# F. Flood plot ----
+########################################################################
+
 f = ggplot() +
   theme_bw() +
   geom_hline(
@@ -316,22 +346,6 @@ f = ggplot() +
     size = 0.5,
     width = 0.3
   ) +
-  # geom_boxplot(
-  #   data = subset(rain, model != "main" & var == "flood"),
-  #   aes(x = factor(lag), y = response),
-  #   color = "#43A7BA",
-  #   fill = "#43A7BA",
-  #   alpha = .25,
-  #   size = 1,
-  #   width = 0.3
-  # ) +
-  # geom_point(
-  #   data = subset(rain, model != "main" & var == "flood"),
-  #   aes(x = factor(lag), y = response),
-  #   color = "#43A7BA",
-  #   alpha = .1,
-  #   size = 1.75
-  # ) +
   geom_point(
     data = subset(rain, model == "main" & var == "flood"),
     aes(x = factor(lag), y = response),
@@ -341,8 +355,6 @@ f = ggplot() +
   ) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Flood (month lags)", y = NULL) +
-  # ylab(NULL) +
-  # xlab("Flood (month lags)") +
   scale_x_discrete(
     breaks = c("-1", "0", "1", "2", "3"),
     labels = c("cumulative\neffect", "0", "1", "2", "3")
@@ -350,13 +362,18 @@ f = ggplot() +
   theme(
     axis.title.x = element_text(vjust = -1),
     axis.title.y = element_text(vjust = 5),
-    plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm")
+    # plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm"),  
+    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
+    plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"), 
   ) +
   ylim(-5, 5)
 
 f
 
-# plot- drought
+########################################################################
+# G. Drought plot ----
+########################################################################
+
 d = ggplot() +
   theme_bw() +
   geom_hline(
@@ -382,22 +399,6 @@ d = ggplot() +
     size = 0.5,
     width = 0.3
   ) +
-  # geom_boxplot(
-  #   data = subset(rain, model != "main" & var == "drought"),
-  #   aes(x = factor(lag), y = response),
-  #   color = "#C99776",
-  #   fill = "#C99776",
-  #   alpha = .25,
-  #   size = 1,
-  #   width = 0.3
-  # ) +
-  # geom_point(
-  #   data = subset(rain, model != "main" & var == "drought"),
-  #   aes(x = factor(lag), y = response),
-  #   color = "#C99776",
-  #   alpha = .05,
-  #   size = 1.75
-  # ) +
   geom_point(
     data = subset(rain, model == "main" & var == "drought"),
     aes(x = factor(lag), y = response),
@@ -407,8 +408,6 @@ d = ggplot() +
   ) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Drought (month lags)", y = NULL) +
-  # ylab(NULL) +
-  # xlab("Drought (month lags)") +
   scale_x_discrete(
     breaks = c("-1", "0", "1", "2", "3"),
     labels = c("cumulative\neffect", "0", "1", "2", "3")
@@ -416,15 +415,29 @@ d = ggplot() +
   theme(
     axis.title.x = element_text(vjust = -1),
     axis.title.y = element_text(vjust = 0),
-    plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm")
+    plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"),  
+    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
   ) +
   ylim(-5, 5)
 d
 
 ########################################################################
-# Middle row multipanel
+# H. Top row ----
 ########################################################################
 
 # g + f + d
 
-combined_plot + f + d
+g_with_hist + f + d
+
+
+
+
+
+
+
+
+
+
+
+
+
