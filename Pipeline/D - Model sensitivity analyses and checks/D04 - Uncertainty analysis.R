@@ -500,8 +500,9 @@ df_to_latex(dplyr::select(corrData, kind, group, mean, q25, q75, n))
 
 # create year groupings for variogram
 complete = complete %>% 
-  mutate(yeargp = (yearnum - min(yearnum)) %/% 5*5 + min(yearnum) ) |> 
-  dplyr::select(-lat, -lon)
+  mutate(yeargp = (yearnum - min(yearnum)) %/% 5*5 + min(yearnum) ) 
+# |> 
+#   dplyr::select(-lat, -lon)
 
 # bring in lat-lon of ADM1 centroids
 centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
@@ -736,9 +737,9 @@ conleyform = as.formula(
 )
 
 # Estimation
-conley_dist_1 <- 100
-conley_dist_2 <- 200
-conley_dist_3 <- 500
+conley_dist_1 <- 200
+conley_dist_2 <- 500
+# conley_dist_3 <- 1000
 
 conleymod1 = feols(conleyform, data=spdf, conley(conley_dist_1, distance = "spherical"))
 linearHypothesis(conleymod1, "temp + temp2 = 0")['Pr(>Chisq)']
@@ -793,7 +794,14 @@ uncert = plot_grid(
   conleyfig1, conleyfig2, 
   # conleyfig3,
   nrow = 2)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "temp_response_difft_SEs.pdf"), plot = uncert, width = 10, height = 10)
+
+ggsave(
+  filename = "temp_response_difft_SEs.pdf",
+  path = file.path(resdir, "Figures", "Diagnostics", "Residuals"), 
+  plot = uncert, 
+  width = 10, 
+  height = 10
+)
 
 # Table
 # feols models do not work with stargazer as it has no method for feols objects (class "fixest")
@@ -833,7 +841,8 @@ conley_tab <- etable(
   #   vcov_conley(conleymod3, cutoff = conley_dist_3, distance = "spherical")
   # ),
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
-  tex     = TRUE,    
+  tex     = TRUE,   
+  fitstat = c("n", "r2", "ar2"), 
   digits  = 2,       
   # title   = mynote,
   label   = "tab:conley"   # optional: LaTeX label
