@@ -62,7 +62,7 @@ ggplot(sfcont) +
     subtitle = "(2010-2014)") +
   theme_void() +
   theme(
-    plot.title = element_text(hjust = 0.5),
+    plot.title = element_text(hjust = 0.5, size = 12),
     plot.subtitle = element_text(hjust = 0.5),
     legend.title = element_text(hjust = 0.5),
     legend.position = "inside",
@@ -71,7 +71,7 @@ ggplot(sfcont) +
     # legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
   ) -> 
-  map.diff
+map.diff
 
 # leg <- cowplot::get_legend(map.diff)
 # 
