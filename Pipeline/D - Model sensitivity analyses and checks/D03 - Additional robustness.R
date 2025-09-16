@@ -26,15 +26,6 @@ source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
 source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
- CRUversion = "4.03" # "4.06"
-if (CRUversion=="4.03") {
-  resdir = file.path(datadir, "Results")
-} else if (CRUversion=="4.06") {
-  resdir = file.path(datadir, "Results_CRU-TS4-06")
-} else {
-  print('CRU version not supported! Use 4.03 or 4.06.')
-}
-
 ############################################################
 # Plotting toggles
 # Choose reference temperature for response function, as well
@@ -471,87 +462,6 @@ ggsave(
   width = 12,
   height = 4
 )
-
-
-# #### cubic
-# # Regression for each region, no regionXmo FE because we are using region-specific models
-# regions = unique(complete$smllrgn)
-# cXt2int = as.formula(
-#   paste0("PfPR2 ~ temp + temp2 + temp3 +",
-#   floodvars, " + ", droughtvars, "+ I(intervention) + ", country_time, 
-#   " | OBJECTID  + as.factor(month) | 0 | OBJECTID"
-# ))
-
-# modellist = list()
-# for (i in 1:length(regions)) {
-#   mydf = subset(complete, smllrgn==regions[i])
-#   modellist[[i]] = felm(data = mydf, formula = cXt2int)
-# }
-
-# # Plot them all next to each other
-# mycollabs = c(
-#   paste0(regions[1]),paste0(regions[2]),paste0(regions[3]),paste0(regions[4])
-# )
-
-# plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2, seq(Tmin,Tmax)^3)
-# figList = list()
-
-# for(m in 1:length(modellist)) {
-#   # Extract all 3 coefficients for cubic polynomial
-#   coefs = summary(modellist[[m]])$coefficients[1:3]  # temp, temp2, temp3
-  
-#   # For cubic f(x) = a + bx + cx^2 + dx^3, derivative is f'(x) = b + 2cx + 3dx^2
-#   # Setting f'(x) = 0: b + 2cx + 3dx^2 = 0
-#   # This is quadratic in x: 3dx^2 + 2cx + b = 0
-#   # Using quadratic formula: x = (-2c ± √(4c^2 - 12bd)) / (6d)
-  
-#   b_coef = coefs[1]  # temp coefficient
-#   c_coef = coefs[2]  # temp2 coefficient  
-#   d_coef = coefs[3]  # temp3 coefficient
-  
-#   # Calculate discriminant
-#   discriminant = 4 * c_coef^2 - 12 * b_coef * d_coef
-  
-#   if(discriminant >= 0 && d_coef != 0) {
-#     # Two potential critical points
-#     x1 = (-2 * c_coef + sqrt(discriminant)) / (6 * d_coef)
-#     x2 = (-2 * c_coef - sqrt(discriminant)) / (6 * d_coef)
-    
-#     # Evaluate function at both points to find maximum within reasonable range
-#     temp_range = seq(Tmin, Tmax, length.out = 1000)
-#     temp_vals = b_coef * temp_range + c_coef * temp_range^2 + d_coef * temp_range^3
-#     myrefT = temp_range[which.max(temp_vals)]
-    
-#     # Ensure it's within reasonable bounds
-#     myrefT = max(min(myrefT, Tmax), Tmin)
-#     myrefT = max(round(myrefT, digits = 0), 10)
-#   } else {
-#     # Fallback: find maximum numerically within the temperature range
-#     temp_range = seq(Tmin, Tmax, length.out = 1000)
-#     temp_vals = b_coef * temp_range + c_coef * temp_range^2 + d_coef * temp_range^3
-#     myrefT = max(round(temp_range[which.max(temp_vals)], digits = 0), 10)
-#   }
-  
-#   print(paste("Region", regions[m], "- Reference temp:", myrefT))
-  
-#   figList[[m]] = plotPolynomialResponse(
-#     modellist[[m]], "temp", plotXtemp,
-#     polyOrder = 3,  plotmax = T, cluster = T, xRef = myrefT,
-#     xLab = expression(paste("Mean temperature (",degree,"C)")),
-#     yLab = "Prevalence (%)", title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
-#     theme(plot.title = element_text(size = 10))
-# }
-
-# p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow=1)
-# ggsave(
-#   filename = "split_GBOD_3rd_poly.pdf",
-#   # path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"), 
-#   plot = p, 
-#   width = 12,
-#   height = 4
-# )
-
-# TO DO: Add histograms of temp underneath each curve; add 3rd order polynomial and it's SE on top of the existing ones (ala urban/rural)
 
 ########################################################################
 # Overlay main spec and CIs with results from models with other FE ----

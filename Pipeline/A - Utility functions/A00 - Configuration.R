@@ -33,6 +33,14 @@ CRUversion <- "4.03"
 # CRUversion <- "4.06"
 print(paste0("CRU version set to: ", CRUversion))
 
+if (CRUversion=="4.03") {
+  resdir = file.path(datadir, "Results")
+} else if (CRUversion=="4.06") {
+  resdir = file.path(datadir, "Results_CRU-TS4-06")
+} else {
+  print('CRU version not supported! Use 4.03 or 4.06.')
+}
+
 pipeline_A_dir <- here::here("Pipeline", "A - Utility functions")
 pipeline_B_dir <- here::here("Pipeline", "B - Extract climate and prevalence data")
 
