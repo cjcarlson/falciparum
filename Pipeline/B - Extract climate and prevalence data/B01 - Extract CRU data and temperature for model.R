@@ -7,7 +7,7 @@
 #### -----------------------------------------------------------------------.
 #### Written by: Cullen Molitor
 #### Date: 2024-10-08
-#### Email: cullen_molitor@ucsb.edu
+#### Email: cmolitor@berkeley.edu
 #############################################################################-
 
 rm(list = ls())
@@ -24,40 +24,6 @@ sf::sf_use_s2(FALSE)
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
 
-### ADD THIS FUNCTION TO A01 - Utility code for calculations.R
-# Function to process each power
-process_clim_powers <- function(
-  power,
-  clim_data,
-  adm_data,
-  rast_times,
-  var_name
-) {
-  clim_data_k <- clim_data^power
-
-  clim_extract_k <- exactextractr::exact_extract(
-    x = clim_data_k,
-    y = adm_data,
-    fun = 'mean',
-    progress = TRUE,
-    append_cols = c("OBJECTID", "lon", "lat")
-  )
-
-  colnames(clim_extract_k) <- c("OBJECTID", "lon", "lat", rast_times)
-
-  clim_extract_k <- clim_extract_k |>
-    tidyr::pivot_longer(
-      cols = -c(OBJECTID, lon, lat),
-      names_to = "date",
-      values_to = paste0(var_name, ifelse(power == 1, "", power))
-    ) |>
-    tidyr::separate(date, into = c('year', 'month', 'day'), sep = '-') |>
-    dplyr::select(-day) |>
-    dplyr::mutate(month = month.abb[as.numeric(month)])
-
-  return(clim_extract_k)
-}
-
 # Read shapefile
 cont <- sf::read_sf(here::here(datadir, 'Data', 'AfricaADM1.shp'))
 
@@ -71,6 +37,12 @@ cont <- cont %>%
 ggplot() +
   geom_sf(data = cont) +
   geom_point(data = cont, aes(x = lon, y = lat), size = 0.5)
+
+centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
+cont |> 
+  as_tibble() |>
+  dplyr::select(OBJECTID, lon, lat) |>
+  readr::write_csv(centroid_fp)
 
 # Read and process raster data
 tmp <- file.path(
@@ -106,7 +78,6 @@ temp_df <- purrr::reduce(
   left_join,
   by = c("OBJECTID", 'year', 'month', 'lon', 'lat')
 )
-
 
 # Read and process raster data
 pre <- file.path(
@@ -161,7 +132,6 @@ prev_df <- file.path(
     METHOD = str_to_upper(METHOD)
   )
 
-
 # Convert to sf object with POINT geometry
 prev_sf <- sf::st_as_sf(
   prev_df,
@@ -172,35 +142,7 @@ prev_sf <- sf::st_as_sf(
 # Join the prevalence data to the continent shapefile
 prev_with_cont <- sf::st_join(prev_sf, cont)
 
-# # Summarise the prevalence data to the ADM 1 level
-# aggregated_data <- prev_with_cont %>%
-#   tibble::as_tibble() %>%
-#   dplyr::select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) %>%
-#   dplyr::mutate(
-#     month = factor(MM, levels = 1:12, labels = month.abb),
-#     year = YY
-#   ) %>%
-#   dplyr::group_by(OBJECTID, year, month, METHOD) %>%
-#   dplyr::summarise(
-#     Pf = mean(Pf, na.rm = TRUE),
-#     PfPR2 = mean(`PfPR2-10`, na.rm = TRUE),
-#     .groups = 'drop'
-#   ) |>
-#   dplyr::mutate(
-#     year = as.character(year),
-#     month = as.character(month))
-
-# aggregated_data <- prev_with_cont %>%
-#   as_tibble() %>%
-#   # select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) %>%
-#   mutate(
-#     month = factor(MM, levels = 1:12, labels = month.abb),
-#     year = YY
-#   ) %>%
-#   group_by(OBJECTID, year, month) %>%
-#   summarise( n_methods = n_distinct(METHOD)) |>
-#   dplyr::filter(n_methods > 1)
-
+# Summarise the prevalence data to the ADM 1 level
 # Calculate Mean Pf and PfPR2-10 per ADM1, Year, Month
 mean_data <- prev_with_cont %>%
   as_tibble() %>%
