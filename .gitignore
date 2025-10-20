@@ -14,6 +14,13 @@ TempFiles/SuppHistoricalBig.csv
 TempFiles/SuppHistoricalRegions.csv
 TempFiles/SuppFutureRegions.csv
 TempFiles/SuppFutureBig.csv
+TempFiles/Fig2Future-model-monthly.csv
+TempFiles/Fig2Hist-model-monthly.csv
+TempFiles/Fig3Regionals-model-monthly.csv
+TempFiles/Fig3Regionals-monthly.csv
+TempFiles/Fig4Regionals-monthly.csv
+TempFiles/Fig2Future-monthly.csv
+TempFiles/Fig2Hist-monthly.csv
 
 *log.txt
 ACCESS-CM2*
