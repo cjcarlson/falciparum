@@ -40,8 +40,8 @@ data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x) {
 data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x) {
   which(countrydf$OBJECTID == x)
 })]
-iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm = T)
-data_iso <- iso[complete.cases(iso), ]
+# iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
+# data_iso <- iso[complete.cases(iso),]
 
 #### Dates & times
 data$yearnum <- data$year

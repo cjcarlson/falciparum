@@ -77,20 +77,48 @@ plotPolynomialResponse <- function(
   ### title is graph title
   ### yLim limits y-axis values
   ### showYTitle turns on and off the y-axis label
-  # 1) pull out coefficients & names
-  beta <- mod$coefficients
-  vars <- rownames(beta)
-  plotVars <- vars[grepl(patternForPlotVars, vars)]
-
-  # 2) recenter your X's
-  xValsT <- genRecenteredXVals_polynomial(xVals, xRef, polyOrder, lag)
-  n <- nrow(xValsT)
-
-  # 3) grab the right VCOV
-  if (cluster) {
-    vcov <- getVcov(mod$clustervcv, plotVars)
+  
+  # Handle different model types
+  if (inherits(mod, "felm")) {
+    beta = mod$coefficients 
+    vars = rownames(beta)
+  } else if (inherits(mod, "fixest")) {  # feols returns objects of class "fixest"
+    beta = mod$coefficients
+    vars = names(beta)
+    # Convert to matrix format to maintain compatibility with rest of code
+    beta = as.matrix(beta)
+    rownames(beta) = vars
   } else {
-    vcov <- getVcov(mod$vcv, plotVars)
+    # Handle regular lm or other models
+    beta = mod$coefficients
+    vars = names(beta)
+    beta = as.matrix(beta)
+    rownames(beta) = vars
+  }
+  
+  #Get the variables that we're plotting
+  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)] 
+  
+  # Recenter Xs so predictions are relative to the reference T
+  xValsT = genRecenteredXVals_polynomial(xVals,xRef,polyOrder,lag)
+  
+  #Get the estimated variance covariance matrix
+  if (cluster==T) {
+    if (inherits(mod, "fixest")) {
+      # For feols/fixest models, use vcov() function
+      vcov_full = vcov(mod)
+      vcov = getVcov(vcov_full, plotVars)
+    } else {
+      # For felm models
+      vcov = getVcov(mod$clustervcv, plotVars)
+    }
+  } else {
+    if (inherits(mod, "fixest")) {
+      vcov_full = vcov(mod, se = "iid")  # Get non-clustered vcov
+      vcov = getVcov(vcov_full, plotVars)
+    } else {
+      vcov = getVcov(mod$vcv, plotVars)
+    }
   }
   # b <- as.matrix(beta[plotVars])
   b = as.matrix(beta[rownames(beta) %in% plotVars])

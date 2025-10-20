@@ -1,13 +1,11 @@
 ############################################################
-# This script conducts additional robustness checks requested
-# by reviewers in round 1 of Nature submission 
-# Date: November 2024
+# This script conducts additional robustness checks
 # This script should be incorporated into D01 when a subset of 
 # tests are included in the main text and/or Supplement.
 ############################################################
 
 ############################################################
-# Set up
+# Set up ----
 ############################################################
 
 rm(list = ls())
@@ -28,15 +26,6 @@ source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
 source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
-# CRUversion = "4.03" # "4.06"
-if (CRUversion=="4.03") {
-  resdir = file.path(datadir, "Results")
-} else if (CRUversion=="4.06") {
-  resdir = file.path(datadir, "Results_CRU-TS4-06")
-} else {
-  print('CRU version not supported! Use 4.03 or 4.06.')
-}
-
 ############################################################
 # Plotting toggles
 # Choose reference temperature for response function, as well
@@ -48,7 +37,7 @@ Tmin = 10 # min T for x axis
 Tmax = 40 # max T for x axis
 
 ########################################################################
-# Data clean up
+# Data clean up ----
 ########################################################################
 
 #### Call external script for data cleaning
@@ -85,8 +74,7 @@ difference <- starting_obs - obs_after_lag
 percent_lost <- (difference / starting_obs) * 100
 
 ########################################################################
-# R1, Comment 1: Do count of surveys respond to T and P shocks? 
-# Implementable immediately: Does diagnostic method change with T and P shocks? 
+# Does diagnostic method change with T and P shocks? ---- 
 ########################################################################
 
 # common variables in all regs
@@ -111,7 +99,7 @@ stargazer(Micromod,
           out = file.path(resdir, "Tables", "sensitivity","Microscopy_sample_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 
 ########################################################################
-# R1: Overdispersion?
+# Overdispersion? ----
 ########################################################################
 
 # Plot model residuals
@@ -122,11 +110,11 @@ g <- ggplot(data=complete) +
   theme_classic()
 g
 
-dir.create(file.path(resdir, "Figures", "Diagnostics","Reviewer_comments"), showWarnings = FALSE)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "model_residuals.pdf"), plot = g, width = 7, height = 7)
+dir.create(file.path(resdir, "Figures", "Diagnostics","Residuals"), showWarnings = FALSE)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = g, width = 7, height = 7)
 
 ########################################################################
-# R1: Control for diagnostic method?
+# Control for diagnostic method ----
 ########################################################################
 
 ###### Estimate regressions #######
@@ -199,29 +187,7 @@ ggsave(
 )
 
 ########################################################################
-# R2: Correlated errors
-########################################################################
-
-# Are residuals correlated within countries? 
-resCntry = felm(res ~ monthyr + I(country), data=complete)
-pvals = summary(resCntry)$coefficients[,"Pr(>|t|)"]
-ph = ggplot() + 
-  geom_histogram(aes(x=pvals), color= "seagreen", fill = "seagreen") + 
-  xlab("p-values by country") +
-  theme_classic()
-ph
-
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "res_corr_countries.pdf"), plot = ph, width = 7, height = 7)
-
-#boxplot of residuals by country
-g= ggplot(complete, aes(x=country, y=res)) + 
-  geom_boxplot() + 
-  theme_classic() + ylab("residuals") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
-g
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "res_boxplot_countries.pdf"), plot = g, width = 9, height = 5)
-
-########################################################################
-# R2: Data imbalance: responses on different subsamples? 
+# Data imbalance: responses on temporal subsamples ----
 ########################################################################
 
 complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
@@ -233,11 +199,14 @@ g
 complete = complete |> mutate(post1995 = (yearnum>=1995))
 complete %>% count(post1995)
 
-# formula (remove intervention dummies for temporal subsampling)
-cXt2rXm = as.formula(paste0(common, " +  ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+# formula (different intervention dummies for each temporal subsample)
+cXt2rXm = as.formula(paste0(common, " + I(intervention) +  ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 
-pre1995 = felm(data = subset(complete, post1995==FALSE), formula = cXt2rXm)
-post1995 = felm(data = subset(complete, post1995==TRUE), formula = cXt2rXm)
+pre_data <- subset(complete, post1995==FALSE)
+pos_data <- subset(complete, post1995==TRUE)
+
+pre1995 = felm(data = pre_data, formula = cXt2rXm)
+post1995 = felm(data = pos_data, formula = cXt2rXm)
 
 # plot temperature responses
 modellist = list(pre1995,post1995)
@@ -245,6 +214,15 @@ mycollabs = c(
   "Early sample (1901-1994)",
   "Late sample (1995-2016)"
 )
+
+percentiles_list = list()
+pre_post <- c(F,T)
+for(i in 1:length(pre_post)) { # i <- 1
+  pre_post_data <- subset(complete, post1995==pre_post[i])$temp
+  temp_p01 <- quantile(pre_post_data, 0.01, na.rm = TRUE)
+  temp_p99 <- quantile(pre_post_data, 0.99, na.rm = TRUE)
+  percentiles_list[[i]] <- list(p01 = temp_p01, p99 = temp_p99, n = length(pre_post_data))
+}
 
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 figList = list()
@@ -256,16 +234,237 @@ for(m in 1:length(modellist)) {
     polyOrder = 2, cluster = T, xRef = myrefT,
     xLab = expression(paste("Mean temperature (",degree,"C)")), 
     yLab = "Prevalence (%)", title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
-    theme(plot.title = element_text(size = 10))
+    theme(plot.title = element_text(size = 10)) +
+    geom_vline(xintercept = percentiles_list[[m]]$p01, colour = "grey39", linetype = "dashed") +
+    geom_vline(xintercept = percentiles_list[[m]]$p99, colour = "grey39", linetype = "dashed")
 }
 
-p = plot_grid(figList[[1]], figList[[2]], nrow=1)
-p
+h_pre <- ggplot(data = pre_data, aes(x = temp)) +
+  geom_histogram(
+    fill = "#8B3A4A",
+    alpha = 1,
+    bins = 30,
+    width = 0.7,
+    colour = "black"
+  ) +
+  theme_classic() +
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = NULL) +
+  geom_vline(xintercept = percentiles_list[[1]]$p01, colour = "grey39", linetype = "dashed") +
+  geom_vline(xintercept = percentiles_list[[1]]$p99, colour = "grey39", linetype = "dashed") +
+  annotate(
+    geom = "text", x = 36, y = 0, vjust = -1, 
+    label = bquote(italic("N")~"="~.(percentiles_list[[1]]$n)),
+    size = 3
+  ) +
+  xlim(Tmin - .0001, Tmax) +
+    geom_vline(xintercept = 22, colour = "grey39") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.margin = unit(c(-2.5, 1, 0, 1), "cm"),
+  )
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "split_sample_1995.pdf"), plot = p, width = 9, height = 5)
+h_post <- ggplot(data = pos_data, aes(x = temp)) +
+  geom_histogram(
+    fill = "#8B3A4A",
+    alpha = 1,
+    bins = 30,
+    width = 0.7,
+    colour = "black"
+  ) +
+  theme_classic() +
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = NULL) +
+  xlim(Tmin - .0001, Tmax) +
+  geom_vline(xintercept = 25, colour = "grey39") +
+  geom_vline(xintercept = percentiles_list[[2]]$p01, colour = "grey39", linetype = "dashed") +
+  geom_vline(xintercept = percentiles_list[[2]]$p99, colour = "grey39", linetype = "dashed") +
+  annotate(
+    geom = "text", x = 36, y = 0, vjust = -1, 
+    label = bquote(italic("N")~"="~.(percentiles_list[[2]]$n)),
+    size = 3
+  ) +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.margin = unit(c(-2.5, 1, 0, 1), "cm"),
+  )
+
+p = plot_grid(
+  figList[[1]] + 
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ),
+  figList[[2]] +
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ), 
+  h_pre, 
+  h_post,  
+  nrow=2,
+  align = "v",
+  rel_heights = c(15, 1)
+)
+# p
+
+ggsave(
+  filename = "split_sample_1995.pdf",
+  # path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"),
+  plot = p, 
+  width = 10, 
+  height = 5
+)
 
 ########################################################################
-# R3: Overlay main spec and CIs with results from models with other FE
+# Data imbalance: responses on spatial subsamples ----
+########################################################################
+#### quadratic
+# Regression for each region, no regionXmo FE because we are using region-specific models
+regions = unique(complete$smllrgn)
+cXt2int = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(month) | 0 | OBJECTID"))
+
+modellist = list()
+for (i in 1:length(regions)) {
+  mydf = subset(complete, smllrgn==regions[i])
+  modellist[[i]] = felm(data = mydf, formula = cXt2int)
+}
+
+percentiles_list = list()
+for(i in 1:length(regions)) {
+  region_data <- subset(complete, smllrgn==regions[i])$temp
+  temp_p01 <- quantile(region_data, 0.01, na.rm = TRUE)
+  temp_p99 <- quantile(region_data, 0.99, na.rm = TRUE)
+  percentiles_list[[i]] <- list(p01 = temp_p01, p99 = temp_p99, n = length(region_data))
+  cat(regions[i], ": ", length(region_data), "\n")
+}
+
+# Plot them all next to each other
+mycollabs = c(
+  paste0(regions[1]),paste0(regions[2]),paste0(regions[3]),paste0(regions[4])
+)
+
+plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
+figList = list()
+refTemps = numeric(length(modellist))
+plot_ref_vec = c(F, T, T, T)
+for(m in 1:length(modellist)) {
+  coefs = summary(modellist[[m]])$coefficients[1:2]
+  myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
+  refTemps[m] = myrefT 
+  plot_ref = plot_ref_vec[m]
+  figList[[m]] = plotPolynomialResponse(
+    modellist[[m]], "temp", plotXtemp,
+    polyOrder = 2, cluster = T, xRef = myrefT, plotmax = plot_ref,
+    xLab = expression(paste("Mean temperature (",degree,"C)")),
+    yLab = "Prevalence (%)", title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
+    theme(plot.title = element_text(size = 10)) +
+    geom_vline(xintercept = percentiles_list[[m]]$p01, colour = "grey39", linetype = "dashed") +
+    geom_vline(xintercept = percentiles_list[[m]]$p99, colour = "grey39", linetype = "dashed")
+}
+
+# p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow=1)
+# p
+# ggsave(
+#   filename = "split_GBOD_2nd_poly.pdf",
+#   # path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"), 
+#   plot = p, 
+#   width = 12,
+#   height = 4
+# )
+
+histList = list()
+for(i in 1:length(regions)) {
+  region_data <- subset(complete, smllrgn==regions[i])
+  temp_p01 <- percentiles_list[[i]]$p01
+  temp_p99 <- percentiles_list[[i]]$p99
+  n <- percentiles_list[[i]]$n
+  
+   t_hist <- ggplot(region_data, aes(x = temp)) +
+    geom_histogram(
+      fill = "#8B3A4A",
+      alpha = 1,
+      bins = 30,
+      width = 0.7,
+      colour = "black"
+    ) +
+    theme_classic() +
+    labs(x = expression(paste("Mean temperature (",degree,"C)")), y = NULL) +
+    xlim(Tmin, Tmax) +
+    geom_vline(xintercept = temp_p01, colour = "grey39", linetype = "dashed") +
+    geom_vline(xintercept = temp_p99, colour = "grey39", linetype = "dashed") +
+    annotate(
+      geom = "text", x = 36, y = 0, vjust = -1, 
+      label = bquote(italic("N")~"="~.(n)),
+      size = 3
+    ) +
+    theme(
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      plot.margin = unit(c(-1.5, 0, 0, 0), "cm"),
+    )
+  plot_ref <- plot_ref_vec[i]
+  if (plot_ref == T) {
+    t_hist <- t_hist +
+    geom_vline(xintercept = refTemps[i], colour = "grey39") 
+  }
+  histList[[i]] <- t_hist
+}
+
+# Combine response plots and histograms
+p = plot_grid(
+  figList[[1]] + 
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ) ,
+  figList[[2]] +
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ),
+  figList[[3]] +
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ),
+  figList[[4]] +
+    theme(
+      axis.text.x = element_blank(),
+      axis.line.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.title.x = element_blank()
+    ),
+  histList[[1]], 
+  histList[[2]], 
+  histList[[3]], 
+  histList[[4]],  
+  nrow=2,
+  align = "v",
+  rel_heights = c(15, 1)
+)
+
+# p
+ggsave(
+  filename = "split_GBOD_temp_hist.pdf",
+  # path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"), 
+  plot = p, 
+  width = 12,
+  height = 4
+)
+
+########################################################################
+# Overlay main spec and CIs with results from models with other FE ----
 ########################################################################
 
 #setup 
@@ -353,5 +552,5 @@ g = ggplot()  +
     plot.margin = unit(c(0.3,0.3,1,1), units = "cm"))
 g
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Reviewer_comments", "overlaid_specifications_Tresponse.pdf"), plot = g, width = 4.5, height = 5)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Fixed_effects", "overlaid_specifications_Tresponse.pdf"), plot = g, width = 4.5, height = 5)
 
