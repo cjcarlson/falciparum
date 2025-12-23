@@ -106,24 +106,71 @@ write_csv(output_data, here::here("TempFiles", "Supp_Future_Regions_Summary.csv"
 
 ##### Calculate proportion of positive bootstrap runs by limiting to ssp126 
 ##### compared to ssp245 for each region.
+data <- here::here("TempFiles", "SuppFutureRegions.csv") |> 
+  vroom(show_col_types = FALSE)
 
-diff.df <- here::here("TempFiles", "SuppFutureRegions.csv") |> 
-  vroom(show_col_types = FALSE) |> 
-  dplyr::filter(scenario %in% c("ssp126", "ssp245")) |> 
+bm <- data |>
+  filter(year %in% 2015:2020) |>
+  group_by(model, scenario, iter) |>
+  summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
+
+df <- data |>
+  left_join(bm, by = c("model", "scenario", "iter")) |>
+  mutate(Pred = Pred - BetaMean) |>
+  select(-BetaMean)
+
+results <- bind_rows(
+  df |>
+    filter(year %in% 2048:2052) |>
+    mutate(period = "2048-2052"),
+  df |>
+    filter(year %in% 2096:2100) |>
+    mutate(period = "2096-2100")
+) 
+
+diff.mid.df <- results |> 
+  dplyr::filter(
+    scenario %in% c("ssp126", "ssp245"),
+    period == "2048-2052"
+    ) |> 
   dplyr::select(-c(Pf.temp, Pf.flood, Pf.drought)) |> 
   tidyr::pivot_wider(
-    id_cols = c(model, year, region, iter),
+    id_cols = c(model, year, region, iter, period),
     names_from = scenario, 
     values_from = Pred
   ) |> 
   dplyr::mutate(diff = ssp245 - ssp126) |> 
-  dplyr::group_by(region) |> 
+  dplyr::group_by(region, period) |> 
   dplyr::summarise(
     mean_diff = mean(diff),
     lower_diff = quantile(diff, 0.025),
     upper_diff = quantile(diff, 0.975),
     prop_positive_diff = mean(diff > 0)
-    )
+    ) |> 
+  dplyr::mutate(scenario_diff = "ssp245 - ssp126")
+
+diff.end.df <- results |> 
+  dplyr::filter(
+    scenario %in% c("ssp126", "ssp245"),
+    period == "2096-2100"
+  ) |> 
+  dplyr::select(-c(Pf.temp, Pf.flood, Pf.drought)) |> 
+  tidyr::pivot_wider(
+    id_cols = c(model, year, region, iter, period),
+    names_from = scenario, 
+    values_from = Pred
+  ) |> 
+  dplyr::mutate(diff = ssp245 - ssp126) |> 
+  dplyr::group_by(region, period) |> 
+  dplyr::summarise(
+    mean_diff = mean(diff),
+    lower_diff = quantile(diff, 0.025),
+    upper_diff = quantile(diff, 0.975),
+    prop_positive_diff = mean(diff > 0)
+  ) |> 
+  dplyr::mutate(scenario_diff = "ssp245 - ssp126")
+
+diff.df <- rbind(diff.mid.df, diff.end.df)
 
 write_csv(diff.df, here::here("TempFiles", "future_diff_summary.csv"))
 
