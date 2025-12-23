@@ -51,7 +51,7 @@ iter.df <- here::here("TempFiles", "SuppHistoricalBig.feather")  |>
 global_results <- process_region(iter.df)
 
 iter.df <- here::here("TempFiles", "SuppHistoricalRegions.csv") |>
-  vroom(show_col_types = FALSE) |>
+  vroom::vroom(show_col_types = FALSE) |>
   mutate(model = str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2'))
 
 results <- names(region_names)[2:5] |>

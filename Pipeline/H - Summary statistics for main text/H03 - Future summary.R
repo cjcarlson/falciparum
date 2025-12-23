@@ -35,8 +35,11 @@ process_data <- function(data, region_name = NULL) {
       mean = mean(Pred),
       lower = quantile(Pred, 0.025),
       upper = quantile(Pred, 0.975),
+      prop_positive = mean(Pred > 0),
+      n_positive = sum(Pred > 0),
+      n_total = n(),
       .groups = "drop"
-    )  
+    ) 
   
   if (!is.null(region_name)) {
       results <- results |> mutate(region = region_name)
@@ -50,21 +53,22 @@ process_data <- function(data, region_name = NULL) {
 iter.df <- here::here("TempFiles", "SuppFutureBig.feather") |>
   arrow::read_feather()
 
-global_results <- process_data(iter.df)
+cont_results <- process_data(iter.df)
 
 iter.df <- here::here("TempFiles", "SuppFutureRegions.csv") |> 
   vroom(show_col_types = FALSE)
 
-results <- names(region_names)[2:5] |>
-  map(~process_region(iter.df, .x)) |>
+region_results <- names(region_names)[2:5] |>
+  map(~process_data(iter.df, .x)) |>
   list_rbind()
 
 # Prepare the data for output
-output_data <- global_results |>
-  bind_rows(results) |>
+output_data <- cont_results |>
+  bind_rows(region_results) |>
+  dplyr::select(-n_positive, -n_total) |>
   pivot_wider(
     names_from = period,
-    values_from = c(mean, lower, upper),
+    values_from = c(mean, lower, upper, prop_positive),
     names_sep = "_"
   ) |>
   select(
@@ -73,9 +77,11 @@ output_data <- global_results |>
     Estimate_2048_2052 = `mean_2048-2052`,
     CI_low_2048_2052 = `lower_2048-2052`,
     CI_high_2048_2052 = `upper_2048-2052`,
+    PropPositive_2048_2052 = `prop_positive_2048-2052`,
     Estimate_2096_2100 = `mean_2096-2100`,
     CI_low_2096_2100 = `lower_2096-2100`,
-    CI_high_2096_2100 = `upper_2096-2100`
+    CI_high_2096_2100 = `upper_2096-2100`,
+    PropPositive_2096_2100 = `prop_positive_2096-2100`
   ) |>   
   mutate(    
     Region = case_match(Region, !!!region_formulas),
@@ -83,16 +89,43 @@ output_data <- global_results |>
   ) |> 
   arrange(factor(Region, levels = unname(region_names))) |>
   mutate(
+    Estimate_2048_2052 = round(Estimate_2048_2052, 3),
+    Estimate_2096_2100 = round(Estimate_2096_2100, 3),
     CI_2048_2052 = sprintf("(%.3f, %.3f)", CI_low_2048_2052, CI_high_2048_2052),
-    CI_2096_2100 = sprintf("(%.3f, %.3f)", CI_low_2096_2100, CI_high_2096_2100)
+    CI_2096_2100 = sprintf("(%.3f, %.3f)", CI_low_2096_2100, CI_high_2096_2100),
+    PropPositive_2048_2052 = round(PropPositive_2048_2052, 3), 
+    PropPositive_2096_2100 = round(PropPositive_2096_2100, 3) 
   ) |>
   select(
     Region, Scenario,
-    Estimate_2048_2052, CI_2048_2052,
-    Estimate_2096_2100, CI_2096_2100
+    Estimate_2048_2052, CI_2048_2052, PropPositive_2048_2052,
+    Estimate_2096_2100, CI_2096_2100, PropPositive_2096_2100
   )
 
 write_csv(output_data, here::here("TempFiles", "Supp_Future_Regions_Summary.csv"))
+
+##### Calculate proportion of positive bootstrap runs by limiting to ssp126 
+##### compared to ssp245 for each region.
+
+diff.df <- here::here("TempFiles", "SuppFutureRegions.csv") |> 
+  vroom(show_col_types = FALSE) |> 
+  dplyr::filter(scenario %in% c("ssp126", "ssp245")) |> 
+  dplyr::select(-c(Pf.temp, Pf.flood, Pf.drought)) |> 
+  tidyr::pivot_wider(
+    id_cols = c(model, year, region, iter),
+    names_from = scenario, 
+    values_from = Pred
+  ) |> 
+  dplyr::mutate(diff = ssp245 - ssp126) |> 
+  dplyr::group_by(region) |> 
+  dplyr::summarise(
+    mean_diff = mean(diff),
+    lower_diff = quantile(diff, 0.025),
+    upper_diff = quantile(diff, 0.975),
+    prop_positive_diff = mean(diff > 0)
+    )
+
+write_csv(diff.df, here::here("TempFiles", "future_diff_summary.csv"))
 
 
 ### Check Future Predictions that can be attributed to climate change
