@@ -111,11 +111,11 @@ data <- here::here("TempFiles", "SuppFutureRegions.csv") |>
 
 bm <- data |>
   filter(year %in% 2015:2020) |>
-  group_by(model, scenario, iter) |>
+  group_by(model, scenario, region, iter) |>
   summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
 
 df <- data |>
-  left_join(bm, by = c("model", "scenario", "iter")) |>
+  left_join(bm, by = c("model", "scenario", "region", "iter")) |>
   mutate(Pred = Pred - BetaMean) |>
   select(-BetaMean)
 
@@ -126,16 +126,17 @@ results <- bind_rows(
   df |>
     filter(year %in% 2096:2100) |>
     mutate(period = "2096-2100")
-) 
+) |>
+    group_by(iter, model, scenario, region, period) |>
+    summarize(Pred = mean(Pred), .groups = "drop")
 
 diff.mid.df <- results |> 
   dplyr::filter(
     scenario %in% c("ssp126", "ssp245"),
     period == "2048-2052"
     ) |> 
-  dplyr::select(-c(Pf.temp, Pf.flood, Pf.drought)) |> 
   tidyr::pivot_wider(
-    id_cols = c(model, year, region, iter, period),
+    id_cols = c(iter, model, region, period),
     names_from = scenario, 
     values_from = Pred
   ) |> 
@@ -154,9 +155,8 @@ diff.end.df <- results |>
     scenario %in% c("ssp126", "ssp245"),
     period == "2096-2100"
   ) |> 
-  dplyr::select(-c(Pf.temp, Pf.flood, Pf.drought)) |> 
   tidyr::pivot_wider(
-    id_cols = c(model, year, region, iter, period),
+    id_cols = c(model, region, iter, period),
     names_from = scenario, 
     values_from = Pred
   ) |> 
