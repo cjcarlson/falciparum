@@ -172,6 +172,11 @@ diff.end.df <- results |>
 
 diff.df <- rbind(diff.mid.df, diff.end.df)
 
+test <- diff.df |> 
+  mutate(across(2:4, round, 3), prop_positive_diff = round(prop_positive_diff, 2))
+
+
+
 write_csv(diff.df, here::here("TempFiles", "future_diff_summary.csv"))
 
 

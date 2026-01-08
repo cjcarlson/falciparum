@@ -13,31 +13,12 @@ library(tidyr)
 library(zoo)
 library(lubridate)
 library(patchwork)
+library(stringr)
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
 source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
 source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
-
-########################################################################
-# A. Read in saved regression results ----
-########################################################################
-
-# load main model (full sample)
-
-#### Bootstrap coefficients ----
-main <- file.path(
-  datadir,
-  "Results",
-  "Models",
-  "coefficients_cXt2intrXm.rds"
-) |>
-  readRDS()
-
-# main <- readRDS("./Results/Models/coefficients_cXt2intrXm.rds")
-coefs <- main[, 1]
-names(coefs) <- rownames(main)
-main <- as.data.frame(t(as.matrix(coefs)))
 
 # function to compute optimal temp for each run
 optT <- function(beta1, beta2) {
@@ -45,20 +26,13 @@ optT <- function(beta1, beta2) {
   return(opt)
 }
 
-# load bootstraps into one dataframe
-df = as.data.frame(main)
-df$model = "main"
+########################################################################
+# A. Read in saved regression results ----
+########################################################################
 
-files = list.files(file.path(datadir, "Results", "Models", "bootstrap"))
-stop = length(files) - 1
-files = files[1:stop]
-
-for (f in 1:length(files)) {
-  tmp = readRDS(file.path(datadir, "Results", "Models", "bootstrap", files[f]))
-  tmp = as.data.frame(tmp)
-  tmp$model = paste0("boot", f)
-  df = df %>% add_row(as.data.frame(tmp))
-}
+df <- readRDS(file.path(resdir, 'Models', 'block_bootstrap_cXt2intrXm.rds')) |>
+  as.data.frame() |>
+  mutate(across(1:12, as.numeric))
 
 ########################################################################
 # B. Spaghetti plot of estimated T response functions ----
@@ -72,26 +46,14 @@ int = 0.1
 plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
 xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
 
-# point estimate
-main = subset(df, model == "main")
-b = as.matrix(c(main$temp, main$temp2))
-response = as.matrix(xValsT) %*% b #Prediction
-
-plotData = data.frame(x = xValsT[, 1] + Tref, response = response)
-
-#plotData$model = "main"
-
-# data <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |>
-#   read.csv() |>
-#   drop_na(PfPr2)
+plotData = data.frame(x = xValsT[, 1] + Tref)
 
 # loop over all bootstraps, add to dataframe
 for (mod in 1:dim(df)[1]) {
-  #dim(df)[1]
   sub = df[mod, ]
   b = as.matrix(c(sub$temp, sub$temp2))
   boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
-  colnames(boot) = paste0("boot", mod)
+  colnames(boot) = sub$model # paste0("boot", mod)
   plotData = cbind(plotData, boot)
 
   # progress
@@ -100,13 +62,15 @@ for (mod in 1:dim(df)[1]) {
   }
 }
 
-# reshape
-colnames(plotData)[3] = "boot1"
-plotData = plotData %>% gather(plotData, response, boot1:boot1001)
-colnames(plotData) = c("x", "model", "response")
+plotData <- plotData %>%
+  pivot_longer(
+    cols = -x,
+    names_to = "model",
+    values_to = "response"
+  )
 
 percentile_data <- plotData %>%
-  dplyr::filter(model != "boot1") %>%
+  dplyr::filter(model != "main") %>%
   group_by(x) %>%
   summarize(
     p05 = quantile(response, 0.05),
@@ -138,20 +102,20 @@ g <- ggplot() +
       x = median_temp, # start & end x at the median
       xend = median_temp,
       y = 0, # start just above the curves
-      yend = min(subset(plotData, model != "boot1")$response, na.rm = T)
+      yend = min(subset(plotData, model != "main")$response, na.rm = T)
     ),
     linewidth = .5,
     linetype = "solid",
     colour = "black"
   ) +
   geom_line(
-    data = subset(plotData, model != "boot1"),
+    data = subset(plotData, model != "main"),
     aes(x = x, y = response, group = model),
     color = "#C1657C",
     alpha = .1
   ) +
   geom_line(
-    data = subset(plotData, model == "boot1"),
+    data = subset(plotData, model == "main"),
     mapping = aes(x = x, y = response),
     color = "black",
     linewidth = .5
@@ -254,7 +218,7 @@ g_with_hist <- g +
   annotation_custom(
     h_grob,
     xmin = Tmin, xmax = Tmax,  # Match x-axis range
-    ymin = min(subset(plotData, model != "boot1")$response, na.rm = T),  # Position at bottom
+    ymin = min(subset(plotData, model != "main")$response, na.rm = T),  # Position at bottom
     ymax = -35   # Height of histogram
   ) +
   # labs(x = expression(paste("Mean temperature (", degree, "C)"))) +
@@ -366,7 +330,8 @@ f = ggplot() +
     # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
     plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"), 
   ) +
-  ylim(-5, 5)
+  # ylim(-5, 5) +
+  scale_y_continuous(limits = c(-7, 5), expand = expansion(c(0, 0)), breaks = seq(-6, 4, by = 2)) 
 
 f
 
@@ -418,8 +383,90 @@ d = ggplot() +
     plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"),  
     # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
   ) +
-  ylim(-5, 5)
+  # ylim(-5, 5) +
+  scale_y_continuous(limits = c(-7, 5), expand = expansion(c(0, 0)), breaks = seq(-6, 4, by = 2)) 
 d
+
+
+########################################################################
+# H. Intervention plot ----
+########################################################################
+
+
+mycols = c(
+  colnames(df)[grep("intervention", colnames(df))]
+)
+inter = df %>%
+  dplyr::select(dplyr::all_of(mycols), model) |>
+  tidyr::pivot_longer(
+    cols = -model,
+    names_to = "var",
+    values_to = "response"
+  ) |>
+  dplyr::mutate(
+    var = stringr::str_replace_all(var, "I\\(intervention", "Int. "),
+    var = stringr::str_replace_all(var, "\\)", "")
+  )
+
+inter_stats <- inter |>
+  dplyr::filter(model != "main") |>
+  dplyr::group_by(var) |>
+  dplyr::summarise(
+    ymin = quantile(response, 0.05, na.rm = TRUE),
+    lower = quantile(response, 0.25, na.rm = TRUE),
+    middle = quantile(response, 0.50, na.rm = TRUE),
+    upper = quantile(response, 0.75, na.rm = TRUE),
+    ymax = quantile(response, 0.95, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+intervention_fig <- ggplot() +
+  theme_bw() +
+  geom_hline(
+    yintercept = 0,
+    linetype = "solid",
+    color = "darkgrey",
+    alpha = .5
+  ) +
+  geom_boxplot(
+    data = inter_stats,
+    aes(
+      x = var,
+      ymin = ymin,
+      lower = lower,
+      middle = middle,
+      upper = upper,
+      ymax = ymax
+    ),
+    stat = "identity",
+    color = "pink",
+    fill = "pink",
+    alpha = 0.35,
+    size = 0.5,
+    width = 0.3
+  ) +
+  geom_point(
+    data = subset(inter, model == "main"),
+    aes(x = factor(var), y = response),
+    color = "black",
+    alpha = 1,
+    size = .5
+  ) +
+  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  labs(x = "Interventions", y = NULL) +
+  # scale_x_discrete(
+  #   breaks = c("-1", "0", "1", "2", "3"),
+  #   labels = c("cumulative\neffect", "0", "1", "2", "3")
+  # ) +
+  theme(
+    axis.title.x = element_text(vjust = -1),
+    axis.title.y = element_text(vjust = 0),
+    plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"),  
+    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
+  ) +
+  scale_y_continuous(limits = c(-7, 5), expand = expansion(c(0, 0)), breaks = seq(-6, 4, by = 2)) 
+
+intervention_fig
 
 ########################################################################
 # H. Top row ----
@@ -427,7 +474,13 @@ d
 
 # g + f + d
 
-g_with_hist + f + d
+# g_with_hist + f + d + intervention_fig +
+#   plot_layout(ncol = 4, widths = c(5, 5, 5, 2)) &
+#   theme(
+#     axis.text = element_text(size = 8),
+#     axis.title = element_text(size = 10),
+#     plot.title = element_text(size = 12, hjust = 0.5)
+#   )
 
 
 

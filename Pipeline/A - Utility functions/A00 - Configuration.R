@@ -136,3 +136,7 @@ historical_scenario_formulas <- purrr::map2(
   unname(historical_scenario_names),
   rlang::new_formula
 )
+
+
+floodvars <- "flood + flood.lag + flood.lag2 + flood.lag3"
+droughtvars <- "drought + drought.lag + drought.lag2 + drought.lag3"

@@ -25,7 +25,7 @@ dominant_method <- file.path(
   readr::read_csv(show_col_types = FALSE)
 
 data <- readr::read_csv(data_fp, show_col_types = FALSE) |>
-  dplyr::left_join(dominant_method, by = join_by(OBJECTID, month, year))
+  dplyr::left_join(dominant_method, by = dplyr::join_by(OBJECTID, month, year))
 
 #### Spatial data
 spatial <- read.csv(file.path(
@@ -153,3 +153,44 @@ complete$simplified_METHOD = as.factor(complete$simplified_METHOD)
 
 unique(complete$dominant_METHOD)
 unique(complete$simplified_METHOD)
+
+
+
+
+
+replication <- complete |> 
+  dplyr::select(
+    region, smllrgn,
+    country, ISO,
+    OBJECTID,
+    monthyr, monthyr2,
+    month,
+    year, yearnum, 
+    PfPR2,   
+    Pf,
+    temp,
+    temp2, 
+    temp3, 
+    temp4, 
+    temp5,    
+    ppt,   
+    ppt2,   
+    ppt3,   
+    ppt4,    
+    ppt5,
+    flood, flood.lag, flood.lag2, flood.lag3, 
+    drought, drought.lag, drought.lag2, drought.lag3,
+    intervention,
+    everything()
+  ) 
+
+# replication |> 
+#   readr::write_csv(
+#     file = file.path(datadir, "malaria-replication", "prevalence_and_climate.csv")
+#   )
+
+replication_fp <- file.path(datadir, "malaria-replication", "prevalence_and_climate.rds")
+
+dir.create(dirname(replication_fp), showWarnings = FALSE)
+
+readr::write_rds(replication, file = replication_fp)

@@ -19,7 +19,18 @@ data.to.graph |>
   mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0)) |>
     ggplot(aes(x = year, group = scenario, color = scenario, fill = scenario)) + 
   geom_line(aes(y=median), lwd = 1.25) + 
-  geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) + 
+  # geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) + 
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, colour = scenario),
+    fill = NA,
+    linewidth = 0.1,
+    show.legend = FALSE,
+  ) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, fill = scenario),
+    color = NA,
+    alpha = 0.1
+  ) +
   theme_classic() + 
   geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) + 
   facet_wrap(region ~ ., nrow = 1) + 
@@ -37,3 +48,4 @@ data.to.graph |>
   theme(legend.position = 'bottom') + 
   theme(plot.title = element_text(size = 20)) -> 
   bottom
+
