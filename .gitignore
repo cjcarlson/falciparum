@@ -21,6 +21,9 @@ TempFiles/Fig3Regionals-monthly.csv
 TempFiles/Fig4Regionals-monthly.csv
 TempFiles/Fig2Future-monthly.csv
 TempFiles/Fig2Hist-monthly.csv
+TempFiles/Fig3ADM1-monthly.csv
+TempFiles/Supp_Future_Regions_Summary.csv
+TempFiles/future_diff_summary.csv
 
 *log.txt
 ACCESS-CM2*
