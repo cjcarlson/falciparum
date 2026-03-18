@@ -7,7 +7,7 @@
 ############################################################
 
 #-------------------------------------------------------------------------------
-# 0. Setup environment
+# Setup  ----
 #-------------------------------------------------------------------------------
 
 # clear workspace
@@ -39,22 +39,23 @@ pacman::p_load(
 sf::sf_use_s2(FALSE)
 
 #-------------------------------------------------------------------------------
-# 1. Configuration & utility functions
+# Configuration & utility functions ----
 #-------------------------------------------------------------------------------
 
 # Load config and helper functions
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
 source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
+source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
 
 #-------------------------------------------------------------------------------
-# 2. Data loading
+# Data loading ----
 #-------------------------------------------------------------------------------
 
-## 2.1 Read continent shapefile
+## Read continent shapefile
 cont <- sf::read_sf(here::here(datadir, 'Data', 'AfricaADM1.shp'))
 
-## 2.2 Read prevalence CSV
+## Read prevalence CSV
 prev_df <- file.path(
   datadir,
   "Data",
@@ -73,7 +74,7 @@ prev_df <- file.path(
   ) %>%
   mutate(METHOD = str_to_upper(METHOD))
 
-## 2.3 Convert to sf and join urban areas
+## Convert to sf and join urban areas
 prev_sf <- st_as_sf(prev_df, coords = c("Long", "Lat"), crs = 4326)
 
 urban_areas <- here::here(
@@ -101,14 +102,14 @@ prev_classified <- prev_with_yob %>%
     )
   )
 
-## 2.4 Join to continent shapefile
+## Join to continent shapefile
 prev_with_cont <- st_join(prev_classified, cont)
 
 #-------------------------------------------------------------------------------
-# 3. Aggregation & summaries
+# Aggregation & summaries ----
 #-------------------------------------------------------------------------------
 
-## 3.1 Compute mean prevalence and urban share
+## Compute mean prevalence and urban share
 mean_data <- prev_with_cont %>%
   as_tibble() %>%
   dplyr::select(
@@ -143,38 +144,6 @@ mean_data <- prev_with_cont %>%
 urban_summary <- mean_data %>%
   dplyr::select(OBJECTID, year, month, n_urban, n_surveys, avg_urban, n_methods)
 
-## 3.2 Determine dominant diagnostic method
-dominant_method <- prev_with_cont %>%
-  as_tibble() %>%
-  dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
-  dplyr::mutate(
-    month = factor(MM, levels = 1:12, labels = month.abb),
-    year = YY
-  ) %>%
-  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
-  dplyr::summarise(count = n(), .groups = 'drop') %>%
-  dplyr::group_by(OBJECTID, year, month) %>%
-  dplyr::slice_max(order_by = count, n = 1, with_ties = FALSE) %>%
-  dplyr::ungroup() %>%
-  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) %>%
-  dplyr::mutate(
-    simplified_METHOD = case_when(
-      dominant_METHOD %in%
-        c("RDT", "RDT/SLIDE CONFIRMED", "RDT/PCR CONFIRMED") ~
-        "RDT",
-      dominant_METHOD %in% c("MICROSCOPY", "MICROSCOPY/PCR CONFIRMED") ~
-        "MICROSCOPY",
-      TRUE ~ dominant_METHOD
-    )
-  ) %>%
-  dplyr::left_join(urban_summary, by = c("OBJECTID", "year", "month"))
-
-readr::write_csv(
-  dominant_method,
-  file.path(datadir, "Data", 'dominant_diagnostic_method_summary.csv')
-)
-
-# End Move Here
 
 aggregated_data <- mean_data %>%
   dplyr::left_join(
@@ -193,33 +162,24 @@ aggregated_data <- mean_data %>%
 
 
 #-------------------------------------------------------------------------------
-# 4. Data cleaning & prep for estimation
+# Data cleaning & prep for estimation ----
 #-------------------------------------------------------------------------------
-
-source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
 
 complete <- complete %>%
   drop_na(n_urban) |>
   mutate(urban_dummy = ifelse(n_urban > 0, 1, 0))
 
-
-#-------------------------------------------------------------------------------
-# 5. Exploratory plot
-#-------------------------------------------------------------------------------
-
 ggplot(data = complete, aes(x = urban_dummy)) +
-  geom_histogram(bins = 50)
-
+  geom_histogram(bins = 3)
 
 #-------------------------------------------------------------------------------
-# 6. Model estimation
+# Model estimation ----
 #-------------------------------------------------------------------------------
 
-## 6.1 Main specification 
-
+## Main specification 
 model <- felm(data = complete, formula = cXt2intrXm)
 
-## 6.2 Interaction model
+## Interaction model
 model_int <- felm(
   PfPR2 ~
     urban_dummy *
@@ -253,9 +213,8 @@ interaction_table <- model_int %>%
   select(term, estimate, std.error, statistic, p.value) %>%
   mutate(term = str_replace(term, "avg_urban:", "avg_urban × "))
 
-
 #-------------------------------------------------------------------------------
-# 7. Results table
+# Results table ----
 #-------------------------------------------------------------------------------
 
 kable(
@@ -265,9 +224,8 @@ kable(
   align = c("l", "r", "r", "r", "r")
 )
 
-
 #-------------------------------------------------------------------------------
-# 8. Polynomial & lagged effects plots
+# Polynomial & lagged effects plots ----
 #-------------------------------------------------------------------------------
 
 Tmin <- 10
@@ -320,9 +278,8 @@ combined_plot <- t +
   plot_layout(ncol = 3, guides = "collect") &
   theme(legend.position = "bottom", legend.margin = margin(0, 0, 0, 0))
 
-
 #-------------------------------------------------------------------------------
-# 9. Save final figure
+# Save final figure ----
 #-------------------------------------------------------------------------------
 
 ggplot2::ggsave(
