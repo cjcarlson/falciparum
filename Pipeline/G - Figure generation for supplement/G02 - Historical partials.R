@@ -43,9 +43,20 @@ create_plot <- function(data, y_label, show_legend = FALSE) {
       labels = c('Historical counterfactual', 'Historical climate'),
       name = '') + 
     geom_line(aes(x = year, y = median), lwd = 1.3) + 
-    geom_ribbon(
-      aes(ymin = lower, ymax = upper, fill = scenario), 
-      color = NA, alpha = 0.1) +
+    # geom_ribbon(
+    #   aes(ymin = lower, ymax = upper, fill = scenario), 
+    #   color = NA, alpha = 0.1) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, colour = scenario),
+    fill = NA,
+    linewidth = 0.1,
+    show.legend = FALSE,
+  ) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, fill = scenario),
+    color = NA,
+    alpha = 0.1
+  ) +
     xlab(NULL) + ylab(y_label) + 
     theme(axis.title.x = element_text(vjust = -3),
           axis.title.y = element_text(vjust = 6),

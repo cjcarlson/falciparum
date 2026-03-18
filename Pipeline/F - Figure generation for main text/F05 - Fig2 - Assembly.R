@@ -1,9 +1,12 @@
 
-(g + f + d) / s + plot_annotation(tag_levels = 'A')
+top_row <- (g_with_hist + f + d + intervention_fig) +
+  plot_layout(ncol = 4, widths = c(5, 5, 5, 2))
+
+f2 <- top_row / s +  plot_annotation(tag_levels = 'A')
 
 ggsave(
   filename = "Figure2.pdf",
-  plot = last_plot(),
+  plot = f2,
   path = here::here("Figures"),
   width = 10.32,
   height = 7.69,
@@ -14,7 +17,7 @@ ggsave(
 
 ggsave(
   filename = "Figure2.jpg",
-  plot = last_plot(),
+  plot = f2,
   path = here::here("Figures"),
   width = 10.32,
   height = 7.69,

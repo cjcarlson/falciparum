@@ -526,7 +526,8 @@ fP <- fit.variogram(vvP, vgm("Sph"))
 vvplot = plot(vv, model=f, xlab="distance (km)", main = "Model residuals")
 vvPplot = plot(vvP, model=fP, xlab="distance (km)", main = "Prevalence (PfPR2)")
 
-vars = ggarrange(vvplot, vvPplot, ncol = 2, nrow = 1, labels="auto")
+# vars = ggarrange(vvplot, vvPplot, ncol = 2, nrow = 1)
+vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
 vars
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_2panel.png"), plot = vars, width = 9, height = 5, bg = "white")
 
