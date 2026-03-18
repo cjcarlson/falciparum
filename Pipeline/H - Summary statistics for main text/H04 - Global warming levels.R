@@ -13,7 +13,7 @@ result_list <- list()
 for (scenario in scenarios) {
   for (gwl in gwl_time_int) {
     
-    scen_gwl_files <- file.path(datadir, "GWL", scenario, gwl) |> 
+    scen_gwl_files <- file.path(data_dir, "GWL", scenario, gwl) |> 
       list.files(full.names = TRUE)
     
     for (file in scen_gwl_files) {

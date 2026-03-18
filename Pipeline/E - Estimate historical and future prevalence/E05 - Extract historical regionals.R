@@ -5,7 +5,7 @@ library(data.table)
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
-iter_dir <- file.path(datadir, "IterationFiles", "HistoricalTempFiles")
+iter_dir <- file.path(data_dir, "IterationFiles", "HistoricalTempFiles")
 
 results_fn <- here::here("TempFiles", "SuppHistoricalRegions.csv")
 

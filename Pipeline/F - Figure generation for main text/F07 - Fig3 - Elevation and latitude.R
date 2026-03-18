@@ -30,11 +30,11 @@ slices.runs |>
 ###########################
 
 # Get the stuff 
-elev <- file.path(datadir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
+elev <- file.path(data_dir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
   readr::read_csv(show_col_types = FALSE) |> 
   dplyr::select(OBJECTID, elevmn)
 
-cont <- file.path(datadir, 'Data', 'AfricaADM1.shp') |> 
+cont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |> 
   sf::read_sf()
 
 latlon <- cont |> 
@@ -45,7 +45,7 @@ latlon |>
   select(OBJECTID, lat) |>
   mutate(OBJECTID = as.numeric(OBJECTID)) -> lat
 
-temp <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
+temp <- file.path(data_dir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
   readr::read_csv(show_col_types = FALSE) 
 temp |> 
   filter(year %in% c(1901:1930)) |>

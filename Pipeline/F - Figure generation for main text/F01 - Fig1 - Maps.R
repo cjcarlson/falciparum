@@ -7,10 +7,10 @@ library(viridisLite)
 
 sf::sf_use_s2(FALSE)
 
-cont <- st_read(file.path(datadir, 'Data', 'AfricaADM1.shp')) |> 
+cont <- st_read(file.path(data_dir, 'Data', 'AfricaADM1.shp')) |> 
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
 
-prev_sf <- file.path(datadir, 'Data', 'dataverse_files', '00 Africa 1900-2015 SSA PR database (260617).csv') |> 
+prev_sf <- file.path(data_dir, 'Data', 'dataverse_files', '00 Africa 1900-2015 SSA PR database (260617).csv') |> 
   read.csv() |> 
  st_as_sf(coords = c("Long", "Lat"), crs = st_crs(cont))
 

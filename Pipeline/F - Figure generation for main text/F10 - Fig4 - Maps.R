@@ -32,7 +32,7 @@ slices.runs |>
     moe = 1 - abs(runs.diff-5500)/5500) ->
   slice.map2
 
-sfcont <- file.path(datadir, 'Data', 'AfricaADM1.shp') |>
+sfcont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |>
   sf::read_sf() |>
   dplyr::left_join(slice.map2, by = join_by(OBJECTID))
 

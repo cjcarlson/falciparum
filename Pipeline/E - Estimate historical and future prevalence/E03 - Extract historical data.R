@@ -17,7 +17,7 @@ library(tictoc)
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
-iter_dir <- file.path(datadir, "IterationFiles", "HistoricalTempFiles")
+iter_dir <- file.path(data_dir, "IterationFiles", "HistoricalTempFiles")
 
 meta <- file.path(iter_dir, "RowMetadata.feather") |> 
   arrow::read_feather(col_select = c(year, scenario, model)) 

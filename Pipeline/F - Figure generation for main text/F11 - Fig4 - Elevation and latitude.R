@@ -1,8 +1,8 @@
 
-elev <- file.path(datadir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
+elev <- file.path(data_dir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
   readr::read_csv(show_col_types = FALSE)
 
-cont <- file.path(datadir, "Data", "AfricaADM1.shp") |>
+cont <- file.path(data_dir, "Data", "AfricaADM1.shp") |>
   read_sf()
 latlon <- cont %>% 
   mutate(lon = map_dbl(geometry, ~st_point_on_surface(.x)[[1]]),
@@ -13,7 +13,7 @@ latlon %>%
   mutate(OBJECTID = as.numeric(OBJECTID)) -> 
   lat
 
-temp <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
+temp <- file.path(data_dir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
   readr::read_csv(show_col_types = FALSE)
 
 temp %>% 

@@ -2,10 +2,10 @@ rm(list = ls())
 
 user = "Tamma" #"Colin"
 if (user == "Colin") {
-  datadir = 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/' #location for data and output
+  data_dir = 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/' #location for data and output
   repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
 } else if (user == "Tamma") {
-  datadir ='/Users/tammacarleton/Dropbox/MalariaAttribution/Data/'
+  data_dir ='/Users/tammacarleton/Dropbox/MalariaAttribution/Data/'
   repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
 } else {
   wd = NA
@@ -45,7 +45,7 @@ r0t <- function(T, na.rm=TRUE) {
   return(R0/87.13333) # that's the max
 }
 
-nct <- nc_open(file.path(datadir,"CRU_TS403_data", "tmp", "cru_ts4.03.1901.2018.tmp.dat.nc", "cru_ts4.03.1901.2018.tmp.dat.nc"))
+nct <- nc_open(file.path(data_dir,"CRU_TS403_data", "tmp", "cru_ts4.03.1901.2018.tmp.dat.nc", "cru_ts4.03.1901.2018.tmp.dat.nc"))
 
 g <- ncvar_get(nct, 'tmp')
 lons <- ncvar_get(nct,'lon')
@@ -53,7 +53,7 @@ time <- ncvar_get(nct,'time')
 
 #############
 
-cont <- readOGR(file.path(datadir,'AfricaADM1.shp'))
+cont <- readOGR(file.path(data_dir,'AfricaADM1.shp'))
 month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
 
 
@@ -108,7 +108,7 @@ for (i in 1:dim(g)[3]) {
 ####################
 
 
-ncp <- nc_open(file.path(datadir,"CRU_TS403_data", "pr", "cru_ts4.03.1901.2018.pre.dat.nc","cru_ts4.03.1901.2018.pre.dat.nc"))
+ncp <- nc_open(file.path(data_dir,"CRU_TS403_data", "pr", "cru_ts4.03.1901.2018.pre.dat.nc","cru_ts4.03.1901.2018.pre.dat.nc"))
 g <- ncvar_get(ncp, 'pre')
 lonsp <- ncvar_get(ncp,'lon')
 

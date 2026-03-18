@@ -20,7 +20,18 @@ data.to.graph %>%
   
   ggplot(aes(x = year, group = scenario, color = scenario, fill = scenario)) + 
   geom_line(aes(y=median), lwd = 1.25) + 
-  geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) + 
+  # geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) + 
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, colour = scenario),
+    fill = NA,
+    linewidth = 0.1,
+    show.legend = FALSE,
+  ) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, fill = scenario),
+    color = NA,
+    alpha = 0.1
+  ) +
   scale_color_manual(values = c("#4d5f8e", "#C582B2", "#325756"), 
                      labels = c('Future climate (SSP1-RCP2.6)', 'Future climate (SSP2-RCP4.5)', 'Future climate (SSP5-RCP8.5)'),
                      name = '') + 

@@ -4,32 +4,27 @@
 
 print("Loading A00 - Configuration.R")
 
-##### Pick one of the following users
-# user = "Colin"
-# user = "Tamma"
-# user = "Cullen"
-
 user = Sys.info()['user']
 
 print(paste0("User set to: ", user))
 
 ##### location for data and output
-datadir <- dplyr::case_when(
+data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
-  # user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
-  user ==
-    "cmolitor" ~ '/global/scratch/projects/co_carleton/carleton_colab/projects/malaria-attribution',
+  user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
+  user == "cmolitor" ~ '/global/scratch/projects/co_carleton/carleton_colab/projects/malaria-attribution',
   TRUE ~ NA_character_
 )
 
-print(paste0("data directory set to: ", datadir))
+print(paste0("data directory set to: ", data_dir))
 
 ##### location for cloned repo
 repo_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Documents/Github/falciparum',
-  user ==
-    "Tamma" ~ '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum',
+  user == "Tamma" ~
+    '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum',
+  user == "cullen_molitor" ~ '/home/cullen_molitor/falciparum',
   user == "cmolitor" ~ '/global/home/users/cmolitor/falciparum',
   TRUE ~ NA_character_
 )
@@ -51,7 +46,7 @@ clust_label <- paste0("country_x_", yr_bin_size, "yr")
 # Directories ----
 ############################################################
 
-clust_dir <- file.path(datadir, clust_label)
+clust_dir <- file.path(data_dir, clust_label)
 
 iter_hist_dir <- file.path(clust_dir, "IterationFiles", "Historical")
 iter_futu_dir <- file.path(clust_dir, "IterationFiles", "Future")
@@ -72,10 +67,10 @@ A_utils_plot_fp <- file.path(pipeline_A_dir, "A02 - Utility code for plotting.R"
 A_utils_data_fp <- file.path(pipeline_A_dir, "A03 - Prep data for estimation.R")
 
 
-bc_cru_ts_dir <- file.path(datadir, "BC-ClimateData20230626", "3-Outputs")
+bc_cru_ts_dir <- file.path(data_dir, "BC-ClimateData20230626", "3-Outputs")
 bc_cruts_output_dir <- file.path(bc_cru_ts_dir, "bc_cruts4.03")
 bc_cruts_old_output_dir <- file.path(bc_cru_ts_dir, "bc_crts4.06")
-data_data_dir <- file.path(datadir, "Data")
+data_data_dir <- file.path(data_dir, "Data")
 
 ADM1_fp <- file.path(data_data_dir, 'AfricaADM1.shp') 
 world_regions_fp <- file.path(data_data_dir, "OriginalGBD", "WorldRegions.shp")
@@ -86,7 +81,7 @@ diag_meth_fn <- file.path(
 )
 
 resdir = file.path(clust_dir, "Results")
-data_fp <- file.path(datadir, 'Data', 'CRU-Reextraction-Aug2022.csv')
+data_fp <- file.path(data_dir, 'Data', 'CRU-Reextraction-Aug2022.csv')
 
 dir.create(resdir, showWarnings = FALSE, recursive = TRUE)
 
@@ -149,9 +144,14 @@ models <- c(
   "ACCESS-CM2",
   "ACCESS-ESM1-5",
   "BCC-CSM2-MR",
+  "BCC-CSM2-MR",
   "CanESM5",
   "FGOALS-g3",
+  "FGOALS-g3",
   "GFDL-ESM4",
+  "IPSL-CM6A-LR",
+  "MIROC6",
+  "MRI-ESM2-0",
   "IPSL-CM6A-LR",
   "MIROC6",
   "MRI-ESM2-0",
@@ -165,6 +165,7 @@ fig_3_4_layout <- paste(part1, part2, part3, sep = "")
 
 scenario_labels <- c(
   'Historical counterfactual',
+  'Historical counterfactual',
   'Historical climate',
   'Future climate (SSP1-RCP2.6)',
   'Future climate (SSP2-RCP4.5)',
@@ -173,6 +174,7 @@ scenario_labels <- c(
 
 scenarios <- c(
   "historical",
+  "hist-nat",
   "hist-nat",
   "ssp126",
   "ssp245",
@@ -200,6 +202,7 @@ future_scenario_names <- c(
 
 region_formulas <- purrr::map2(
   names(region_names),
+  names(region_names),
   unname(region_names),
   rlang::new_formula
 )
@@ -211,6 +214,8 @@ future_scenario_formulas <- purrr::map2(
 )
 
 historical_scenario_formulas <- purrr::map2(
+  names(historical_scenario_names),
+  unname(historical_scenario_names),
   names(historical_scenario_names),
   unname(historical_scenario_names),
   rlang::new_formula
@@ -235,3 +240,39 @@ yr_bins <- list(
 yr_lookup <- unlist(lapply(names(yr_bins), function(nm) {
   setNames(rep(as.integer(nm), length(yr_bins[[nm]])), yr_bins[[nm]])
 }))
+
+yr_1901 <- 1901:1905
+yr_2014 <- 2010:2014
+yr_2015 <- 2015:2019
+yr_2050 <- 2048:2052
+yr_2100 <- 2096:2100
+
+# Year bins — defined once, reused everywhere
+yr_bins <- list(
+  "1901" = 1901:1905,
+  "2014" = 2010:2014,
+  "2015" = 2015:2019,
+  "2050" = 2048:2052,
+  "2100" = 2096:2100
+)
+
+# Build a named lookup vector: original_year -> bin_year
+yr_lookup <- unlist(lapply(names(yr_bins), function(nm) {
+  setNames(rep(as.integer(nm), length(yr_bins[[nm]])), yr_bins[[nm]])
+}))
+
+floodvars <- "flood + flood.lag + flood.lag2 + flood.lag3"
+droughtvars <- "drought + drought.lag + drought.lag2 + drought.lag3"
+
+# common variables in all regs
+common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
+country_time <- "country:monthyr + country:monthyr2"
+
+# Main Specification Formula (see other files for robustness/sensitivity checks)
+cXt2intrXm = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ", country_time, 
+    "| OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)

@@ -22,7 +22,7 @@ source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for p
 ########################################################################
 
 # load main model (full sample)
-main <- file.path(datadir, "Results", "Models", "coefficients_cXt2intrXm.rds") |>
+main <- file.path(data_dir, "Results", "Models", "coefficients_cXt2intrXm.rds") |>
   readRDS()
 coefs <- main[,1]
 names(coefs) <- rownames(main)
@@ -38,12 +38,12 @@ optT <- function(beta1, beta2){
 df = as.data.frame(main)
 df$model = "main"
 
-files = list.files(file.path(datadir, "Results","Models","bootstrap"))
+files = list.files(file.path(data_dir, "Results","Models","bootstrap"))
 stop = length(files)-1
 files=files[1:stop]
 
 for(f in 1:length(files)){
-  tmp = readRDS(file.path(datadir, "Results","Models","bootstrap",files[f]))
+  tmp = readRDS(file.path(data_dir, "Results","Models","bootstrap",files[f]))
   tmp = as.data.frame(tmp)
   tmp$model = paste0("boot",f)
   df = df %>% add_row(as.data.frame(tmp))

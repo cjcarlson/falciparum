@@ -70,7 +70,7 @@ for (scenario in scenarios) {
     foreach(
       i = 1:year_mon,
       .export = c(
-        "datadir",
+        "data_dir",
         "bc_cruts_output_dir",
         "scenario", 
         "prc_fn", 
@@ -85,7 +85,7 @@ for (scenario in scenarios) {
       )
       
       output_path <- file.path(
-        datadir, "int", scenario, paste0(model, "_", i, ".csv")
+        data_dir, "int", scenario, paste0(model, "_", i, ".csv")
       )
       output_dir <- dirname(output_path)
       
@@ -93,7 +93,7 @@ for (scenario in scenarios) {
       
       if (!file.exists(output_path) | overwrite) {
         
-        cont <- sf::read_sf(here::here(datadir, 'Data', 'AfricaADM1.shp')) 
+        cont <- sf::read_sf(here::here(data_dir, 'Data', 'AfricaADM1.shp')) 
         
         nct <- terra::rast(file.path(bc_cruts_output_dir, scenario, tmp_fn))
         ncp <- terra::rast(file.path(bc_cruts_output_dir, scenario, prc_fn))
@@ -132,10 +132,10 @@ for (scenario in scenarios) {
     print(paste0("Finished: ", model, "\nConsilidating intermediate files"))
     
     files <- list.files(
-      file.path(datadir, "int", scenario),
+      file.path(data_dir, "int", scenario),
       pattern = model, full.names = TRUE
     )
-    file_name <- file.path(datadir, "Climate", scenario, paste0(model, ".csv"))
+    file_name <- file.path(data_dir, "Climate", scenario, paste0(model, ".csv"))
     file_dir <- dirname(file_name)
     
     if (!dir.exists(file_dir)) {dir.create(file_dir, recursive = TRUE)}

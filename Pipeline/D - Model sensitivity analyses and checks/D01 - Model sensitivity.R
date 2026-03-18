@@ -110,17 +110,108 @@ for(m in 1:length(modellist)) {
   # get max of response function
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10)
-  figList[[m]] =  plotPolynomialResponse(modellist[[m]], "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")), 
-                                         yLab = "Prevalence (%)", title = mycollabs[m], yLim=c(-30,10), showYTitle = T) +
-    theme(plot.title = element_text(size = 10))
+  figList[[m]] =  plotPolynomialResponse(
+    modellist[[m]], 
+    "temp", 
+    plotXtemp, 
+    polyOrder = 2, 
+    cluster = T,
+    xRef = myrefT, 
+    xLab = expression(paste("Mean temperature (",degree,"C)")),
+    yLab = "Prevalence (%)", 
+    title = mycollabs[m], 
+    yLim=c(-30,5), 
+    showYTitle = T
+  ) +
+    theme(
+      text = element_text(size = 8),
+      plot.title = element_text(size = 8)
+      )
 }
 
+
+# point estimate and CIs for main spec
+xValsT = genRecenteredXVals_polynomial(plotXtemp,Tref,2)
+mainmod = modellist[[5]]
+beta = mainmod$coefficients 
+vars = rownames(beta)
+plotVars = vars[grepl(pattern = "temp", x = vars)] 
+b = as.matrix(beta[rownames(beta) %in% plotVars])
+vcov = getVcov(mainmod$clustervcv, plotVars)
+response = as.matrix(xValsT) %*% b #Prediction
+length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
+lb = response - length
+ub = response + length
+
+#Plotgin dataframe -- add back in the reference temperature so it's centered at xRef
+plotData = data.frame(x = xValsT[,1] + Tref, response = response, lb = lb, ub = ub)
+sub = plotData[plotData$x>=10 & plotData$x<=30,]
+maxX = max(sub$x[sub$response==max(sub$response)])
+
+mycollabs = c(
+  "cym", "cXt2m", "cXt2cXm", "cXt2intm", 
+  "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt"
+)
+
+# loop over all other FE models, add to plotting dataframe
+for(mod in 1:length(modellist)){ 
+  beta = modellist[[mod]]$coefficients 
+  vars = rownames(beta)
+  plotVars = vars[grepl(pattern = "temp", x = vars)] 
+  b = as.matrix(beta[rownames(beta) %in% plotVars])
+  response = as.data.frame(as.matrix(xValsT) %*% b) 
+  colnames(response) = paste0(mycollabs[mod])
+  plotData = cbind(plotData, response)
+}
+
+# reshape
+plotmain = plotData %>% dplyr::select(x,response,lb,ub)
+plotFE = plotData %>% dplyr::select(x,cym:rXyrXmcXt)
+plotFE = plotFE %>% gather(plotFE, response, cym:rXyrXmcXt)  
+colnames(plotFE) = c("x", "model","response")  
+
+# plot
+g = ggplot()  +
+  geom_hline(yintercept = 0, color="darkgrey",alpha=.5) + 
+  geom_ribbon(data = plotmain, # CIs main spec
+              mapping = aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = "#C1657C") +
+  geom_line(data = plotFE, # point estimate other specs
+            aes(x = x, y = response, group = model), color = "seagreen", alpha=0.8) +
+  geom_line(data = plotmain, # point estimate main spec
+            mapping = aes(x = x, y = response), color = "black", linewidth = 1) +
+  geom_vline(xintercept = maxX, colour = "grey39") +
+  annotate(
+    geom = "text",
+    x = maxX + 3.5,
+    y = 2.55,
+    label = paste0(maxX, " C"),
+    color = "grey39",
+    size = 3
+  ) +
+  theme_classic() + 
+  labs(x = expression(paste("Mean temperature (",degree,"C)")), y = "Prevalence (%)") + 
+  xlim(Tmin,Tmax) + 
+  ylim(-30,5)  +
+  ggtitle("main: cnty trd, int + rgn−mo FEs.")+
+  theme(
+      text = element_text(size = 8),
+      plot.title = element_text(size = 8)
+  ) 
+# g
+
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
-              figList[[4]], figList[[5]], figList[[6]],
+              figList[[4]], g, figList[[6]],
               figList[[7]], figList[[8]], figList[[9]], nrow=3)
 p
+
 dir.create(file.path(resdir, "Figures", "Diagnostics","Fixed_effects"), showWarnings = FALSE)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Fixed_effects", "panelFE_FE_sensitivity.pdf"), plot = p, width = 7, height = 7)
+ggsave(
+  filename = "panelFE_FE_sensitivity.pdf",
+  path = file.path(resdir, "Figures", "Diagnostics", "Fixed_effects"), 
+  plot = p, 
+  width = 7, 
+  height = 7
+)
 
 
 ########################################################################

@@ -51,7 +51,7 @@ iter.df <- here::here("TempFiles", "SuppHistoricalBig.feather")  |>
 global_results <- process_region(iter.df)
 
 iter.df <- here::here("TempFiles", "SuppHistoricalRegions.csv") |>
-  vroom(show_col_types = FALSE) |>
+  vroom::vroom(show_col_types = FALSE) |>
   mutate(model = str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2'))
 
 results <- names(region_names)[2:5] |>
@@ -103,10 +103,10 @@ slices.runs |>
   dplyr::mutate(OBJECTID = factor(OBJECTID)) ->
   slice.map1
 
-elev <- file.path(datadir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
+elev <- file.path(data_dir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
   readr::read_csv(show_col_types = FALSE)
 
-sfcont <- file.path(datadir, 'Data', 'AfricaADM1.shp') |> 
+sfcont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |> 
   sf::read_sf() |> 
   dplyr::left_join(slice.map1, by = join_by(OBJECTID)) |> 
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))  |> 

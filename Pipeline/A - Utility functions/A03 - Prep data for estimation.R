@@ -1,8 +1,8 @@
 ############################################################
-# This script prepares the climate and prevalence data for 
+# This script prepares the climate and prevalence data for
 # estimation. It calculates the drought and flood variables
 # and makes the categorical variables into factors where
-# necessary. 
+# necessary.
 ############################################################
 
 ############################################################
@@ -13,7 +13,7 @@
 data <- readr::read_csv(data_fp, show_col_types = FALSE) 
 
 #### Spatial data
-spatial <- read.csv(file.path(datadir, 'Dataframe backups', 'shapefile-backup.csv'))
+spatial <- read.csv(file.path(data_dir, 'Dataframe backups', 'shapefile-backup.csv'))
 countrydf <- unique(spatial[,c('OBJECTID','NAME_0')])
 data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(countrydf$OBJECTID==x)})]
 # iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
@@ -22,18 +22,29 @@ data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x){which(country
 #### Dates & times
 data$yearnum <- data$year
 data$year <- factor(data$year)
-data %>% unite("monthyr", month:year, sep=' ', remove=FALSE) %>% 
-  mutate(monthyr = as.Date(as.yearmon(monthyr))) %>% 
-  mutate(monthyr = as.numeric(ymd(monthyr)-ymd("1900-01-01"))) -> data.reset
+data %>%
+  unite("monthyr", month:year, sep = ' ', remove = FALSE) %>%
+  mutate(monthyr = as.Date(as.yearmon(monthyr))) %>%
+  mutate(monthyr = as.numeric(ymd(monthyr) - ymd("1900-01-01"))) -> data.reset
 
-### Store complete records only
-complete <- data.reset[complete.cases(data.reset),]
+# Get column names except avg_urban and n_urban
+cols_to_check <- setdiff(names(data.reset), c("avg_urban", "n_urban"))
+
+### Store complete records only (minus urbanization)
+complete <- data.reset[complete.cases(data.reset[, cols_to_check]), ]
 
 ########################################################################
-# Define Global Burden of Disease regions 
+# Define Global Burden of Disease regions
 ########################################################################
 
-gbod <- sf::read_sf(file.path(datadir, "Data", "OriginalGBD", "WorldRegions.shp"))
+gbod <- sf::read_sf(
+  file.path(
+    data_dir,
+    "Data",
+    "OriginalGBD",
+    "WorldRegions.shp"
+  )
+)
 # head(gbod@data)
 
 gboddf = as.data.frame(gbod)
@@ -45,7 +56,11 @@ colnames(gboddf) = c("ISO", "country", "region", "smllrgn")
 gboddf$country = as.character(gboddf$country)
 
 # clean to merge
-gboddf$country = ifelse(gboddf$country=="Cote D'Ivoire", "Côte d'Ivoire", gboddf$country)
+gboddf$country = ifelse(
+  gboddf$country == "Cote D'Ivoire",
+  "Côte d'Ivoire",
+  gboddf$country
+)
 
 complete$country = as.character(complete$country)
 complete = left_join(complete, gboddf, by = "country")
@@ -61,7 +76,13 @@ rm(gbod, gboddf)
 
 ##### Define flood/drought variables - need to pass the climate data separately from the merged dataset with the outcome
 ##### variable because we want to define climate over the whole period
-complete = computePrcpExtremes(dfclimate = data.reset, dfoutcome = complete, pctdrought = 0.10, pctflood = 0.90, yearcutoff = NA)
+complete = computePrcpExtremes(
+  dfclimate = data.reset,
+  dfoutcome = complete,
+  pctdrought = 0.10,
+  pctflood = 0.90,
+  yearcutoff = NA
+)
 complete = complete %>% arrange(OBJECTID, monthyr)
 
 complete %>% 
@@ -70,17 +91,163 @@ complete %>%
   write_csv(file.path(repo_dir, "Climate", "PrecipKey.csv"))
 
 # include: contemporaneous temp, then distributed lag in flood and drought
-floodvars = paste(colnames(complete)[grep("flood", colnames(complete))], collapse = " + ")
-droughtvars = paste(colnames(complete)[grep("drought", colnames(complete))], collapse = " + ")
+floodvars = paste(
+  colnames(complete)[grep("flood", colnames(complete))],
+  collapse = " + "
+)
+droughtvars = paste(
+  colnames(complete)[grep("drought", colnames(complete))],
+  collapse = " + "
+)
 
 # need this for country specific quadratic trends
 complete$monthyr2 = complete$monthyr^2
 
 # define key intervention periods
-complete$intervention = ifelse(complete$yearnum>=1955 & complete$yearnum<=1969, 1, 0)
-complete$intervention[complete$yearnum>=2000 & complete$yearnum<=2015] = 2
+complete$intervention = ifelse(
+  complete$yearnum >= 1955 & complete$yearnum <= 1969,
+  1,
+  0
+)
+complete$intervention[complete$yearnum >= 2000 & complete$yearnum <= 2015] = 2
 complete$intervention = as.factor(complete$intervention)
 
 # classes: important for ensuring felm is treating these correctly
 complete$month = as.factor(complete$month)
 complete$year = as.factor(complete$year)
+
+complete$dominant_METHOD = as.factor(complete$dominant_METHOD)
+complete$simplified_METHOD = as.factor(complete$simplified_METHOD)
+
+unique(complete$dominant_METHOD)
+unique(complete$simplified_METHOD)
+
+
+
+########################################################################
+# Replication file save ----
+########################################################################
+
+replication <- complete |> 
+  dplyr::select(
+    region, smllrgn,
+    country, ISO,
+    OBJECTID,
+    monthyr, monthyr2,
+    month,
+    year, yearnum, 
+    PfPR2,   
+    Pf,
+    temp,
+    temp2, 
+    temp3, 
+    temp4, 
+    temp5,    
+    ppt,   
+    ppt2,   
+    ppt3,   
+    ppt4,    
+    ppt5,
+    flood, flood.lag, flood.lag2, flood.lag3, 
+    drought, drought.lag, drought.lag2, drought.lag3,
+    intervention,
+    everything()
+  ) 
+
+# replication |> 
+#   readr::write_csv(
+#     file = file.path(data_dir, "malaria-replication", "prevalence_and_climate.csv")
+#   )
+
+replication_fp <- file.path(data_dir, "malaria-replication", "prevalence_and_climate.rds")
+
+dir.create(dirname(replication_fp), showWarnings = FALSE)
+
+readr::write_rds(replication, file = replication_fp)
+
+########################################################################
+# Diagnostic methods ----
+########################################################################
+
+## Read prevalence CSV
+prev_df <- file.path(
+  data_dir,
+  "Data",
+  'dataverse_files',
+  '00 Africa 1900-2015 SSA PR database (260617).csv'
+) %>%
+  readr::read_csv(
+    col_types = cols(
+      Long = col_double(),
+      Lat = col_double(),
+      MM = col_integer(),
+      YY = col_integer(),
+      Pf = col_double(),
+      `PfPR2-10` = col_double()
+    )
+  ) %>%
+  mutate(METHOD = str_to_upper(METHOD))
+
+## Convert to sf and join urban areas
+prev_sf <- st_as_sf(prev_df, coords = c("Long", "Lat"), crs = 4326)
+
+urban_areas <- here::here(
+  data_dir,
+  "Data",
+  "GHS_UCDB_REGION_SUB_SAHARAN_AFRICA_R2024A.gpkg"
+) %>%
+  read_sf() %>%
+  filter(GC_UCB_YOB_2025 <= 2015) %>%
+  st_transform(4326)
+
+prev_with_yob <- st_join(
+  prev_sf,
+  urban_areas %>% dplyr::select(GC_UCB_YOB_2025),
+  join = st_within,
+  left = TRUE
+)
+
+prev_classified <- prev_with_yob %>%
+  mutate(
+    urban = case_when(
+      !is.na(GC_UCB_YOB_2025) & YY >= GC_UCB_YOB_2025 ~ 1,
+      is.na(GC_UCB_YOB_2025) & YY >= 1975 ~ 0,
+      TRUE ~ NA_integer_
+    )
+  )
+
+## Join to continent shapefile
+prev_with_cont <- st_join(prev_classified, cont)
+
+
+## Determine dominant diagnostic method
+dominant_method <- prev_with_cont %>%
+  as_tibble() %>%
+  dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
+  dplyr::mutate(
+    month = factor(MM, levels = 1:12, labels = month.abb),
+    year = YY
+  ) %>%
+  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
+  dplyr::summarise(count = n(), .groups = 'drop') %>%
+  dplyr::group_by(OBJECTID, year, month) %>%
+  dplyr::slice_max(order_by = count, n = 1, with_ties = FALSE) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) %>%
+  dplyr::mutate(
+    simplified_METHOD = case_when(
+      dominant_METHOD %in%
+        c("RDT", "RDT/SLIDE CONFIRMED", "RDT/PCR CONFIRMED") ~
+        "RDT",
+      dominant_METHOD %in% c("MICROSCOPY", "MICROSCOPY/PCR CONFIRMED") ~
+        "MICROSCOPY",
+      TRUE ~ dominant_METHOD
+    )
+  ) %>%
+  dplyr::left_join(urban_summary, by = c("OBJECTID", "year", "month"))
+
+readr::write_csv(
+  dominant_method,
+  file.path(data_dir, "Data", 'dominant_diagnostic_method_summary.csv')
+)
+

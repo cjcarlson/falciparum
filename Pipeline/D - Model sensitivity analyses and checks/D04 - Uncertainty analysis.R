@@ -298,7 +298,7 @@ location_simple <- complete |>
     ),
     location = paste(short_region, ISO, OBJECTID, sep = ".")
   )
-centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
+centroid_fp <- file.path(data_dir, "Data", "ADM1-centroids.csv")
 centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE) |>
   dplyr::filter(OBJECTID %in% unique(complete$OBJECTID)) |>
   dplyr::left_join(location_simple, by = join_by(OBJECTID))
@@ -488,7 +488,8 @@ vvPplot = plot(
   main = "Prevalence (PfPR2)"
 )
 
-vars = ggarrange(vvplot, vvPplot, ncol = 2, nrow = 1, labels = "auto")
+# vars = ggarrange(vvplot, vvPplot, ncol = 2, nrow = 1)
+vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
 vars
 ggsave(
   file.path(

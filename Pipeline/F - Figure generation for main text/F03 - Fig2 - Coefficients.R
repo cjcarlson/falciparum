@@ -1,10 +1,12 @@
 ########################################################################
 # This script plots the main prevalence-temperature dose-response function
 # as well as its uncertainty over 1,000 bootstrap samples
+# This script plots the main prevalence-temperature dose-response function
+# as well as its uncertainty over 1,000 bootstrap samples
 ########################################################################
 
 # packages
-library(ggplot2)
+# library(ggplot2)
 library(lfe)
 library(reshape)
 library(tidyverse)
@@ -13,8 +15,10 @@ library(tidyr)
 library(zoo)
 library(lubridate)
 library(patchwork)
+library(stringr)
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
 source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
 
 ########################################################################
@@ -36,6 +40,8 @@ main <- as.data.frame(t(as.matrix(coefs))) |>
   )
 
 # function to compute optimal temp for each run
+optT <- function(beta1, beta2) {
+  opt = -beta1 / (2 * beta2)
 optT <- function(beta1, beta2) {
   opt = -beta1 / (2 * beta2)
   return(opt)
@@ -68,9 +74,10 @@ bootstraps <- all_mods |>
   dplyr::filter(model != "main")
 
 ########################################################################
-# C. Spaghetti plot of estimated T response functions
+# B. Spaghetti plot of estimated T response functions ----
 ########################################################################
 
+#setup
 #setup
 Tref = 24
 Tmin = 10
@@ -89,12 +96,11 @@ plotData = data.frame(x = xValsT[, 1] + Tref, main = response)
 # plotData$model = "main"
 
 # loop over all bootstraps, add to dataframe
-for (mod in 1:dim(bootstraps)[1]) {
-  #dim(df)[1]
-  sub = bootstraps[mod, ]
+for (mod in 1:dim(df)[1]) {
+  sub = df[mod, ]
   b = as.matrix(c(sub$temp, sub$temp2))
   boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
-  colnames(boot) = paste0("boot", mod)
+  colnames(boot) = sub$model # paste0("boot", mod)
   plotData = cbind(plotData, boot)
 
   # progress
@@ -103,21 +109,48 @@ for (mod in 1:dim(bootstraps)[1]) {
   }
 }
 
-plotData <- plotData |> 
-  tidyr::pivot_longer(
+plotData <- plotData %>%
+  pivot_longer(
     cols = -x,
     names_to = "model",
     values_to = "response"
   )
 
-# reshape
-# colnames(plotData)[3] = "boot1"
-# plotData = plotData %>% gather(plotData, response, boot1:boot1001)
-# colnames(plotData) = c("x", "model", "response")
+percentile_data <- plotData %>%
+  dplyr::filter(model != "main") %>%
+  group_by(x) %>%
+  summarize(
+    p05 = quantile(response, 0.05),
+    p95 = quantile(response, 0.95)
+  )
 
-# plot
-g = ggplot() +
+########################################################################
+# C. Temperature response ----
+########################################################################
+
+median_temps <- complete %>%
+  group_by(smllrgn) %>%
+  summarise(median_temp = median(temp, na.rm = TRUE)) %>%
+  ungroup() |>
+  mutate(
+    smllrgn = str_remove_all(smllrgn, "Sub-Saharan Africa \\("),
+    smllrgn = str_remove_all(smllrgn, "\\)")
+  )
+
+g <- ggplot() +
   geom_hline(yintercept = 0, color = "darkgrey", alpha = .5) +
+  geom_segment(
+    data = median_temps,
+    aes(
+      x = median_temp, # start & end x at the median
+      xend = median_temp,
+      y = 0, # start just above the curves
+      yend = min(subset(plotData, model != "main")$response, na.rm = T)
+    ),
+    linewidth = .5,
+    linetype = "solid",
+    colour = "black"
+  ) +
   geom_line(
     data = subset(plotData, model != "main"),
     aes(x = x, y = response, group = model),
@@ -128,23 +161,124 @@ g = ggplot() +
     data = subset(plotData, model == "main"),
     mapping = aes(x = x, y = response),
     color = "black",
-    linewidth = 1
+    linewidth = .5
   ) +
-  theme_bw() +
+  geom_line(
+    data = percentile_data,
+    aes(x = x, y = p05),
+    color = "black",
+    linewidth = 0.5,
+    linetype = "dashed"
+  ) +
+  geom_line(
+    data = percentile_data,
+    aes(x = x, y = p95),
+    color = "black",
+    linewidth = 0.5,
+    linetype = "dashed"
+  ) +
+  geom_text(
+    data = median_temps,
+    aes(x = median_temp, y = -30, label = smllrgn),
+    angle = 90, # letters run alongside the line
+    vjust = -0.3, # a little above the line tip
+    hjust = 0, # left‑aligned
+    size = 2
+  ) +
   labs(
-    x = expression(paste("Mean temperature (", degree, "C)")),
+    x = NULL,
     y = "Prevalence (%)"
   ) +
-  xlim(Tmin, Tmax) +
+  scale_x_continuous(
+    limits = c(Tmin, Tmax),
+    breaks = seq(Tmin, Tmax, by = 10),
+    labels = as.character(seq(Tmin, Tmax, by = 10)),
+    expand = expansion(mult = c(0.0, 0.0))
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, -40, -10),
+    labels = as.character(seq(0, -40, -10)),
+    expand = expansion(mult = c(0.0, 0.01))
+  ) +
+  theme_bw() +
   theme(
-    axis.title.x = element_text(vjust = -3),
-    axis.title.y = element_text(vjust = 5),
-    plot.margin = unit(c(0.3, 0.3, 1, 1), units = "cm")
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    plot.margin = unit(c(0.3, 0.3, 0, 1), units = "cm")
   )
-g
 
 ########################################################################
-# D. Lagged drought and flood responses
+# D. Temperature histogram inset ----
+########################################################################
+
+h <- ggplot(complete, aes(x = temp)) +
+  geom_histogram(
+    fill = "#8B3A4A",
+    alpha = 1,
+    bins = 30,
+    width = 0.7,
+    colour = "black"
+  ) +
+  theme_minimal() +
+  labs(x = NULL, y = NULL) +
+  xlim(Tmin - .0001, Tmax) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.margin = unit(c(-2, 0.3, 0.3, 1), "cm"),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank()
+  )
+
+# Create the histogram as a separate plot
+h_inset <- ggplot() +
+  geom_histogram(
+    data = complete, aes(x = temp),
+    fill = "#8B3A4A",
+    alpha = 1,
+    bins = 30,
+    colour = "black"
+  ) +
+  theme_void() +  
+  scale_x_continuous(
+    limits = c(Tmin, Tmax),
+    breaks = seq(Tmin, Tmax, by = 10),
+    labels = as.character(seq(Tmin, Tmax, by = 10)),
+    expand = expansion(mult = c(0.0, 0.0))
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, -40, -10),
+    labels = as.character(seq(0, -40, -10)),
+    expand = expansion(mult = c(0.0, 0.01))
+  )
+
+# Convert histogram to grob
+h_grob <- ggplotGrob(h_inset)
+
+# Add histogram to main plot
+g_with_hist <- g +
+  annotation_custom(
+    h_grob,
+    xmin = Tmin, xmax = Tmax,  # Match x-axis range
+    ymin = min(subset(plotData, model != "main")$response, na.rm = T),  # Position at bottom
+    ymax = -35   # Height of histogram
+  ) +
+  # labs(x = expression(paste("Mean temperature (", degree, "C)"))) +
+  labs(x = "Mean temperature (\u00B0C)") +
+  theme(
+    axis.title.x = element_text(vjust = -0.5),
+    plot.title.position = "plot",
+    axis.text.x = element_text(),  
+    # plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm"), 
+    plot.margin = unit(c(0.0, 0.0, 1, 0), units = "cm"), 
+    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
+  )
+
+g_with_hist
+
+########################################################################
+# E. Lagged drought and flood responses ----
 ########################################################################
 
 # reformat: want a dataset of lag x var x model for flood and drought
@@ -153,7 +287,7 @@ mycols = c(
   colnames(df)[grep("flood", colnames(df))],
   colnames(df)[grep("drought", colnames(df))]
 )
-rain = df %>% dplyr::select(all_of(mycols), model)
+rain = df %>% dplyr::select(dplyr::all_of(mycols), model)
 
 # calculate cumulative effect
 rain %>%
@@ -189,7 +323,22 @@ min_max <- c(
   )
 )
 
-# plot - flood
+custom_stats <- rain %>%
+  filter(model != "main") %>%
+  group_by(lag = factor(lag), var) %>%
+  summarise(
+    ymin = quantile(response, 0.05, na.rm = TRUE),
+    lower = quantile(response, 0.25, na.rm = TRUE),
+    middle = quantile(response, 0.50, na.rm = TRUE),
+    upper = quantile(response, 0.75, na.rm = TRUE),
+    ymax = quantile(response, 0.95, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+########################################################################
+# F. Flood plot ----
+########################################################################
+
 f = ggplot() +
   theme_bw() +
   geom_hline(
@@ -198,25 +347,32 @@ f = ggplot() +
     color = "darkgrey",
     alpha = .5
   ) +
-  geom_point(
-    data = subset(rain, model != "main" & var == "flood"),
-    aes(x = factor(lag), y = response),
+  geom_boxplot(
+    data = filter(custom_stats, var == "flood"),
+    aes(
+      x = lag,
+      ymin = ymin,
+      lower = lower,
+      middle = middle,
+      upper = upper,
+      ymax = ymax
+    ),
+    stat = "identity",
     color = "#43A7BA",
-    alpha = .1,
-    size = 1.75
+    fill = "#43A7BA",
+    alpha = 0.35,
+    size = 0.5,
+    width = 0.3
   ) +
   geom_point(
     data = subset(rain, model == "main" & var == "flood"),
     aes(x = factor(lag), y = response),
     color = "black",
     alpha = 1,
-    size = 4
+    size = .5
   ) +
   geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Flood (month lags)", y = NULL) +
-  # ylab(NULL) +
-  # xlab("Flood (month lags)") +
-  scale_y_continuous(breaks = c(-8, -4, 0, 4)) +
   scale_x_discrete(
     breaks = c("-1", "0", "1", "2", "3"),
     labels = c("cumulative\neffect", "0", "1", "2", "3")
@@ -263,16 +419,119 @@ d = ggplot() +
   theme(
     axis.title.x = element_text(vjust = -1),
     axis.title.y = element_text(vjust = 0),
-    plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm")
+    plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"),  
+    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
   ) +
-  ylim(min_max)
+  # ylim(-5, 5) +
+  scale_y_continuous(limits = c(-7, 5), expand = expansion(c(0, 0)), breaks = seq(-6, 4, by = 2)) 
 d
 
+
 ########################################################################
-# Middle row multipanel
+# H. Intervention plot ----
 ########################################################################
 
-g + f + d
+
+mycols = c(
+  colnames(df)[grep("intervention", colnames(df))]
+)
+inter = df %>%
+  dplyr::select(dplyr::all_of(mycols), model) |>
+  tidyr::pivot_longer(
+    cols = -model,
+    names_to = "var",
+    values_to = "response"
+  ) |>
+  dplyr::mutate(
+    var = stringr::str_replace_all(var, "I\\(intervention", "Int. "),
+    var = stringr::str_replace_all(var, "\\)", "")
+  )
+
+inter_stats <- inter |>
+  dplyr::filter(model != "main") |>
+  dplyr::group_by(var) |>
+  dplyr::summarise(
+    ymin = quantile(response, 0.05, na.rm = TRUE),
+    lower = quantile(response, 0.25, na.rm = TRUE),
+    middle = quantile(response, 0.50, na.rm = TRUE),
+    upper = quantile(response, 0.75, na.rm = TRUE),
+    ymax = quantile(response, 0.95, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+intervention_fig <- ggplot() +
+  theme_bw() +
+  geom_hline(
+    yintercept = 0,
+    linetype = "solid",
+    color = "darkgrey",
+    alpha = .5
+  ) +
+  geom_boxplot(
+    data = inter_stats,
+    aes(
+      x = var,
+      ymin = ymin,
+      lower = lower,
+      middle = middle,
+      upper = upper,
+      ymax = ymax
+    ),
+    stat = "identity",
+    color = "pink",
+    fill = "pink",
+    alpha = 0.35,
+    size = 0.5,
+    width = 0.3
+  ) +
+  geom_point(
+    data = subset(inter, model == "main"),
+    aes(x = factor(var), y = response),
+    color = "black",
+    alpha = 1,
+    size = .5
+  ) +
+  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  labs(x = "Interventions", y = NULL) +
+  # scale_x_discrete(
+  #   breaks = c("-1", "0", "1", "2", "3"),
+  #   labels = c("cumulative\neffect", "0", "1", "2", "3")
+  # ) +
+  theme(
+    axis.title.x = element_text(vjust = -1),
+    axis.title.y = element_text(vjust = 0),
+    plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"),  
+    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
+  ) +
+  scale_y_continuous(limits = c(-7, 5), expand = expansion(c(0, 0)), breaks = seq(-6, 4, by = 2)) 
+
+intervention_fig
+
+########################################################################
+# H. Top row ----
+########################################################################
+
+# g + f + d
+
+# g_with_hist + f + d + intervention_fig +
+#   plot_layout(ncol = 4, widths = c(5, 5, 5, 2)) &
+#   theme(
+#     axis.text = element_text(size = 8),
+#     axis.title = element_text(size = 10),
+#     plot.title = element_text(size = 12, hjust = 0.5)
+#   )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -390,7 +649,7 @@ percentile_data <- plotData %>%
     p95 = quantile(response, 0.925)
   )
 
-# data <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |>
+# data <- file.path(data_dir, "Data", "CRU-Reextraction-Aug2022.csv") |>
 #   read.csv() |>
 #   drop_na(PfPR2)
 
@@ -700,129 +959,5 @@ f
 # H. Drought plot ----
 ########################################################################
 
-d = ggplot() +
-  theme_bw() +
-  geom_hline(
-    yintercept = 0,
-    linetype = "solid",
-    color = "darkgrey",
-    alpha = .5
-  ) +
-  geom_boxplot(
-    data = filter(custom_stats, var == "drought"),
-    aes(
-      x = lag,
-      ymin = ymin,
-      lower = lower,
-      middle = middle,
-      upper = upper,
-      ymax = ymax
-    ),
-    stat = "identity",
-    color = "#C99776",
-    fill = "#C99776",
-    alpha = 0.35,
-    size = 0.5,
-    width = 0.3
-  ) +
-  geom_point(
-    data = subset(rain, model == "main" & var == "drought"),
-    aes(x = factor(lag), y = response),
-    color = "black",
-    alpha = 1,
-    size = .5
-  ) +
-  # geom_vline(xintercept = -0.5, linetype = "dashed") +
-  labs(x = "Drought (month lags)", y = NULL) +
-  scale_x_discrete(
-    drop = TRUE,
-    # limits = factor(-1:3), 
-    # expand = expansion(mult = c(-.9, 0.1)),
-    breaks = c("-1", "0", "1", "2", "3"),
-    labels = c("cumulative\neffect", "0", "1", "2", "3")
-  ) +
-  theme(
-    axis.title.x = element_text(vjust = -1),
-    axis.title.y = element_text(vjust = 0),
-    plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"),
-    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
-  ) +
-  # ylim(-5, 5) +
-  scale_y_continuous(
-    limits = min_max,
-    expand = expansion(add = c(0.2, 0.2)),
-    breaks = seq(-8, 4, by = 2)
-  )
-d
+g + f + d
 
-
-########################################################################
-# I. Intervention plot ----
-########################################################################
-
-intervention_fig <- ggplot() +
-  theme_bw() +
-  geom_hline(
-    yintercept = 0,
-    linetype = "solid",
-    color = "darkgrey",
-    alpha = .5
-  ) +
-  geom_boxplot(
-    data = inter_stats,
-    aes(
-      x = var,
-      ymin = ymin,
-      lower = lower,
-      middle = middle,
-      upper = upper,
-      ymax = ymax
-    ),
-    stat = "identity",
-    color = "pink",
-    fill = "pink",
-    alpha = 0.35,
-    size = 0.5,
-    width = 0.3
-  ) +
-  geom_point(
-    data = subset(inter, model == "main"),
-    aes(x = factor(var), y = response),
-    color = "black",
-    alpha = 1,
-    size = .5
-  ) +
-  # geom_vline(xintercept = -0.5, linetype = "dashed") +
-  labs(x = "Interventions", y = NULL) +
-  # scale_x_discrete(
-  #   breaks = c("-1", "0", "1", "2", "3"),
-  #   labels = c("cumulative\neffect", "0", "1", "2", "3")
-  # ) +
-  theme(
-    axis.title.x = element_text(vjust = -1),
-    axis.title.y = element_text(vjust = 0),
-    plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm"),
-    # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
-  ) +
-  scale_y_continuous(
-    limits = min_max,
-    expand = expansion(add = c(0.2, 0.2)),
-    breaks = seq(-8, 4, by = 2)
-  )
-
-intervention_fig
-
-########################################################################
-# J. View Plot ----
-########################################################################
-
-g_with_hist +
-  f +
-  d +
-  intervention_fig +
-  plot_layout(ncol = 4, widths = c(5, 5, 5, 2)) &
-  theme(
-    axis.text = element_text(size = 8),
-    axis.title = element_text(size = 10),
-    plot.title = element_text(size = 12, hjust = 0.5)
-  )

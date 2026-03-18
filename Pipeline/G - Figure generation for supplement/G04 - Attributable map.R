@@ -16,7 +16,7 @@ library(multiscales)
 
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 
-cont <- sf::read_sf(file.path(datadir, 'Data', 'AfricaADM1.shp'))|> 
+cont <- sf::read_sf(file.path(data_dir, 'Data', 'AfricaADM1.shp'))|> 
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
 
 iter.df <- here::here("TempFiles", "Fig3Big.feather")|> 

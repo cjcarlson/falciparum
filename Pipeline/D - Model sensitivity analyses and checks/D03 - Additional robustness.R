@@ -3,8 +3,6 @@
 # This script should be incorporated into D01 when a subset of 
 # tests are included in the main text and/or Supplement.
 ############################################################
-
-############################################################
 # Set up ----
 ############################################################
 

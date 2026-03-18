@@ -35,6 +35,11 @@ source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 source(A_utils_data_fp)
 
+# #### Alternatively, load the replication file by uncommenting and modify path
+# complete <- readr::read_rds(
+#   file.path(data_dir, "malaria-replication", "prevalence_and_climate.rds")
+# )
+
 ############################################################
 # Plotting toggles ----
 # Choose reference temperature for response function, as well

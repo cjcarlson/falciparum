@@ -8,7 +8,7 @@ library(patchwork)
 
 # setwd('C:/Users/cjcar/Dropbox/MalariaAttribution')
 
-gbod <- sf::read_sf(file.path(datadir, "Data", "OriginalGBD", "WorldRegions.shp"))
+gbod <- sf::read_sf(file.path(data_dir, "Data", "OriginalGBD", "WorldRegions.shp"))
 # gbod@proj4string <- CRS('+proj=longlat +datum=WGS84 +no_defs')
 
 # prev<- read.csv('./Data/dataverse_files/00 Africa 1900-2015 SSA PR database (260617).csv')

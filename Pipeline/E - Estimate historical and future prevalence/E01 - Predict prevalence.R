@@ -109,7 +109,7 @@ for (mode in c("historical", "future")) {
   for (dir in scenarios[idx]) {
     files <- c(
       files,
-      list.files(file.path(datadir, "Climate", dir), full.names = TRUE)
+      list.files(file.path(data_dir, "Climate", dir), full.names = TRUE)
     )
   }
 
