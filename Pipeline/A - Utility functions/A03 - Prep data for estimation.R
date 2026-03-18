@@ -156,7 +156,9 @@ unique(complete$simplified_METHOD)
 
 
 
-
+########################################################################
+# Replication file save ----
+########################################################################
 
 replication <- complete |> 
   dplyr::select(
@@ -194,3 +196,90 @@ replication_fp <- file.path(datadir, "malaria-replication", "prevalence_and_clim
 dir.create(dirname(replication_fp), showWarnings = FALSE)
 
 readr::write_rds(replication, file = replication_fp)
+
+########################################################################
+# Diagnostic methods ----
+########################################################################
+
+## Read prevalence CSV
+prev_df <- file.path(
+  datadir,
+  "Data",
+  'dataverse_files',
+  '00 Africa 1900-2015 SSA PR database (260617).csv'
+) %>%
+  readr::read_csv(
+    col_types = cols(
+      Long = col_double(),
+      Lat = col_double(),
+      MM = col_integer(),
+      YY = col_integer(),
+      Pf = col_double(),
+      `PfPR2-10` = col_double()
+    )
+  ) %>%
+  mutate(METHOD = str_to_upper(METHOD))
+
+## Convert to sf and join urban areas
+prev_sf <- st_as_sf(prev_df, coords = c("Long", "Lat"), crs = 4326)
+
+urban_areas <- here::here(
+  datadir,
+  "Data",
+  "GHS_UCDB_REGION_SUB_SAHARAN_AFRICA_R2024A.gpkg"
+) %>%
+  read_sf() %>%
+  filter(GC_UCB_YOB_2025 <= 2015) %>%
+  st_transform(4326)
+
+prev_with_yob <- st_join(
+  prev_sf,
+  urban_areas %>% dplyr::select(GC_UCB_YOB_2025),
+  join = st_within,
+  left = TRUE
+)
+
+prev_classified <- prev_with_yob %>%
+  mutate(
+    urban = case_when(
+      !is.na(GC_UCB_YOB_2025) & YY >= GC_UCB_YOB_2025 ~ 1,
+      is.na(GC_UCB_YOB_2025) & YY >= 1975 ~ 0,
+      TRUE ~ NA_integer_
+    )
+  )
+
+## Join to continent shapefile
+prev_with_cont <- st_join(prev_classified, cont)
+
+
+## Determine dominant diagnostic method
+dominant_method <- prev_with_cont %>%
+  as_tibble() %>%
+  dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
+  dplyr::mutate(
+    month = factor(MM, levels = 1:12, labels = month.abb),
+    year = YY
+  ) %>%
+  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
+  dplyr::summarise(count = n(), .groups = 'drop') %>%
+  dplyr::group_by(OBJECTID, year, month) %>%
+  dplyr::slice_max(order_by = count, n = 1, with_ties = FALSE) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) %>%
+  dplyr::mutate(
+    simplified_METHOD = case_when(
+      dominant_METHOD %in%
+        c("RDT", "RDT/SLIDE CONFIRMED", "RDT/PCR CONFIRMED") ~
+        "RDT",
+      dominant_METHOD %in% c("MICROSCOPY", "MICROSCOPY/PCR CONFIRMED") ~
+        "MICROSCOPY",
+      TRUE ~ dominant_METHOD
+    )
+  ) %>%
+  dplyr::left_join(urban_summary, by = c("OBJECTID", "year", "month"))
+
+readr::write_csv(
+  dominant_method,
+  file.path(datadir, "Data", 'dominant_diagnostic_method_summary.csv')
+)
+

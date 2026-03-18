@@ -123,6 +123,8 @@ plotPolynomialResponse <- function(
   # b <- as.matrix(beta[plotVars])
   b = as.matrix(beta[rownames(beta) %in% plotVars])
 
+  n = nrow(xValsT)
+  
   # 4) see if there are any interactions:
   if (any(grepl(":", plotVars))) {
     # build two design matrices, one for urban=0 (“rural”) and one for urban=1
