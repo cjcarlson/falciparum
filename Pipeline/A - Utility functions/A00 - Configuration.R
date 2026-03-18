@@ -140,3 +140,18 @@ historical_scenario_formulas <- purrr::map2(
 
 floodvars <- "flood + flood.lag + flood.lag2 + flood.lag3"
 droughtvars <- "drought + drought.lag + drought.lag2 + drought.lag3"
+
+
+
+# common variables in all regs
+common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
+country_time <- "country:monthyr + country:monthyr2"
+
+# Main Specification Formula (see other files for robustness/sensitivity checks)
+cXt2intrXm = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ", country_time, 
+    "| OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)

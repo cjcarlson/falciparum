@@ -1,11 +1,10 @@
-#############################################################################-
-# Title       : Climate × Urbanization Interaction Analysis
-# Description : Load, process, and analyze PfPR2-10 prevalence data with urbanization
-#               interactions; fit fixed-effects models and generate sensitivity plots.
-# Author      : Cullen Molitor
-# Email       : cullen_molitor@ucsb.edu
-# Date        : 2025-05-01
-#############################################################################-
+############################################################
+# This script assesses whether urbanization confounds the
+# main empirical specification by interacting an urban dummy
+# with all climate variables (temperature, drought, flood)
+# to test whether climate-PfPR2 relationships differ between
+# urban and rural survey locations.
+############################################################
 
 #-------------------------------------------------------------------------------
 # 0. Setup environment
@@ -216,15 +215,7 @@ ggplot(data = complete, aes(x = urban_dummy)) +
 # 6. Model estimation
 #-------------------------------------------------------------------------------
 
-## 6.1 Main specification formula
-cXt2intrXm <- as.formula(
-  paste0(
-    "PfPR2 ~ temp + temp2 + flood + flood.lag + flood.lag2 + flood.lag3",
-    " + drought + drought.lag + drought.lag2 + drought.lag3",
-    " + I(intervention) + country:monthyr + country:monthyr2",
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-  )
-)
+## 6.1 Main specification 
 
 model <- felm(data = complete, formula = cXt2intrXm)
 
@@ -247,7 +238,7 @@ model_int <- felm(
       country:monthyr2 |
       OBJECTID + as.factor(smllrgn):month |
       0 |
-      OBJECTID,
+      OBJECTID, # TODO: Change to country-5yr clustering later!
   data = complete
 )
 
@@ -279,7 +270,6 @@ kable(
 # 8. Polynomial & lagged effects plots
 #-------------------------------------------------------------------------------
 
-Tref <- 25 # reference temperature for recentering
 Tmin <- 10
 Tmax <- 40
 
@@ -335,12 +325,13 @@ combined_plot <- t +
 # 9. Save final figure
 #-------------------------------------------------------------------------------
 
-ggsave(
+ggplot2::ggsave(
   filename = "urban_sensitivity.pdf",
-  path = file.path(datadir, "Results", "Figures", "Diagnostics", "Fixed_effects"),
+  path = file.path(datadir, "Results", "Figures", "Diagnostics", "Urbanization"),
   plot = combined_plot,
   width = 7,
   height = 2.5,
   units = "in",
-  dpi = 300
+  dpi = 300,
+  create.dir = TRUE
 )

@@ -9,16 +9,14 @@ cont <- sf::read_sf(here::here(datadir, 'Data', 'AfricaADM1.shp')) |>
   dplyr::mutate(area_km2 = as.numeric(sf::st_area(.)) / 1e+06) |> 
   sf::st_transform("EPSG:4326")
 
-mean(cont$area_km2)
-median(cont$area_km2)
-
-cat("Mean area: ", mean(cont$area_km2), "km2\n","Median area: ", median(cont$area_km2), "km2\n", sep = "")
-cat("Median area: ", median(cont$area_km2), "km2\n", sep = "")
+cat(
+  "Mean area: ", mean(cont$area_km2), "km2\n",
+  "Median area: ", median(cont$area_km2), "km2\n", sep = ""
+)
 
 ggplot(data = cont, aes(x = area_km2)) +
   geom_histogram(bins = 100) +
   theme_classic()
-
 
 ggplot(data = cont, aes(fill = area_km2)) +
   geom_sf() +

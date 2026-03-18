@@ -469,3 +469,278 @@ plotLinearLags_urban = function(
 
   return(g)
 }
+
+# For D05
+plotPolynomialResponse_2_mod = function(
+  mod, 
+  patternForPlotVars, 
+  xVals, 
+  polyOrder, 
+  lag = NA, 
+  plotmax = T, 
+  cluster = T, 
+  xRef = 0, 
+  fillcolor = "#C1657C", 
+  xLab, 
+  yLab, 
+  title = "title", 
+  yLim = c(-1, 1), 
+  showYTitle = T,
+  mod2 = NULL,
+  model1_name = "Model 1",
+  model2_name = "Model 2",
+  fillcolor2 = "#43A7BA"
+) {
+  
+  # Function to extract polynomial response data for a single model
+  extractPolynomialData = function(model, pattern, xValues, polyOrd, lagVal, clusterFlag, xReference) {
+    # Handle different model types
+    if (inherits(model, "felm")) {
+      beta = model$coefficients 
+      vars = rownames(beta)
+    } else if (inherits(model, "fixest")) {
+      beta = model$coefficients
+      vars = names(beta)
+      beta = as.matrix(beta)
+      rownames(beta) = vars
+    } else {
+      beta = model$coefficients
+      vars = names(beta)
+      beta = as.matrix(beta)
+      rownames(beta) = vars
+    }
+    
+    # Get the variables that we're plotting
+    plotVars = vars[grepl(pattern = pattern, x = vars)] 
+    
+    # Recenter Xs so predictions are relative to the reference T
+    xValsT = genRecenteredXVals_polynomial(xValues, xReference, polyOrd, lagVal)
+    
+    # Get the estimated variance covariance matrix
+    if (clusterFlag == T) {
+      if (inherits(model, "fixest")) {
+        vcov_full = vcov(model)
+        vcov = getVcov(vcov_full, plotVars)
+      } else {
+        vcov = getVcov(model$clustervcv, plotVars)
+      }
+    } else {
+      if (inherits(model, "fixest")) {
+        vcov_full = vcov(model, se = "iid")
+        vcov = getVcov(vcov_full, plotVars)
+      } else {
+        vcov = getVcov(model$vcv, plotVars)
+      }
+    }
+    
+    b = as.matrix(beta[rownames(beta) %in% plotVars])
+    
+    response = as.matrix(xValsT) %*% b
+    length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
+    
+    lb = response - length
+    ub = response + length
+    
+    # Return data with x recentered to xRef
+    return(data.frame(
+      x = xValsT[,1] + xReference, 
+      response = response, 
+      lb = lb, 
+      ub = ub
+    ))
+  }
+  
+  # Extract data for first model
+  plotData1 = extractPolynomialData(mod, patternForPlotVars, xVals, polyOrder, lag, cluster, xRef)
+  plotData1$model = model1_name
+  
+  # If second model provided, extract its data too
+  if (!is.null(mod2)) {
+    plotData2 = extractPolynomialData(mod2, patternForPlotVars, xVals, polyOrder, lag, cluster, xRef)
+    plotData2$model = model2_name
+    plotData = rbind(plotData1, plotData2)
+  } else {
+    plotData = plotData1
+  }
+  
+  # Calculate maximum points for vertical lines if needed
+  if (plotmax == T) {
+    sub1 = plotData1[plotData1$x >= 10 & plotData1$x <= 30, ]
+    maxX1 = max(sub1$x[sub1$response == max(sub1$response)])
+    
+    if (!is.null(mod2)) {
+      sub2 = plotData2[plotData2$x >= 10 & plotData2$x <= 30, ]
+      maxX2 = max(sub2$x[sub2$response == max(sub2$response)])
+    }
+  }
+  
+  # Create the plot
+  if (is.null(mod2)) {
+    # Single model plot (original behavior)
+    if (sum(is.na(yLim)) > 0) {
+      g = ggplot(data = plotData) + 
+        geom_hline(yintercept = 0, color = "grey88") +
+        geom_ribbon(aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = fillcolor) +
+        geom_line(mapping = aes(x = x, y = response), color = "black", linewidth = 1) + 
+        theme_classic() +
+        labs(x = xLab, y = yLab) +
+        ggtitle(title)
+    } else {
+      g = ggplot(data = plotData) + 
+        geom_hline(yintercept = 0, color = "grey88") +
+        geom_ribbon(aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = fillcolor) +
+        geom_line(mapping = aes(x = x, y = response), color = "black", linewidth = 1) +
+        theme_classic() +
+        labs(x = xLab, y = yLab) +
+        coord_cartesian(ylim = yLim) + 
+        ggtitle(title)
+    }
+    
+    if (plotmax == T) {
+      g = g + geom_vline(mapping = aes(xintercept = maxX1), linetype = "solid", colour = "grey39") +
+        annotate(geom = "text", x = maxX1 + 3, y = 5, label = paste0(maxX1, " C"), color = "grey39")
+    }
+    
+  } else {
+    # Two model plot
+    if (sum(is.na(yLim)) > 0) {
+      g = ggplot(data = plotData) + 
+        geom_hline(yintercept = 0, color = "grey88") +
+        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "Grid level"))), alpha = 0.4) +
+        geom_line(aes(x = x, y = response, color = factor(model, levels = c("Main", "Grid level"))), linewidth = 1) + 
+        theme_classic() +
+        labs(x = xLab, y = yLab) +
+        ggtitle(title) +
+        scale_fill_manual(values = c(fillcolor, fillcolor2)) +
+        scale_color_manual(values = c("black", "black")) +
+        theme(legend.position = "bottom", legend.title = element_blank())
+    } else {
+      g = ggplot(data = plotData) + 
+        geom_hline(yintercept = 0, color = "grey88") +
+        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "Grid level"))), alpha = 0.4) +
+        geom_line(
+          aes(x = x, y = response, color = factor(model, levels = c("Main", "Grid level")),
+           linetype=factor(model, levels = c("Main", "Grid level"))), linewidth = 0.5) +
+        theme_classic() +
+        labs(x = xLab, y = yLab) +
+        coord_cartesian(ylim = yLim) + 
+        ggtitle(title) +
+        scale_fill_manual(values = c(fillcolor, fillcolor2)) +
+        scale_color_manual(values = c("black", "black")) +
+        scale_linetype_manual(values = c("solid", "dashed")) +
+        theme(legend.position = "bottom", legend.title = element_blank())
+    }
+    
+    if (plotmax == T) {
+      g = g + 
+        geom_vline(xintercept = maxX1, linetype = "solid", colour = "black") +
+        geom_vline(xintercept = maxX2, linetype = "dashed", colour = "black") +
+        annotate(geom = "text", x = maxX1 - 4, y = 4, 
+                label = paste0(maxX1, " C"), color = "grey39", size = 3) +
+        annotate(geom = "text", x = maxX2 + 4, y = 4,
+                label = paste0(maxX2, " C "), color = "grey39", size = 3)
+    }
+  }
+  
+  if (!showYTitle) {
+    g = g + theme(axis.title.y = element_blank())
+  }
+  
+  return(g)
+}
+
+plotLinearLags_2_mod = function(
+  mod,
+  patternForPlotVars,
+  cluster = T,
+  laglength = 3,
+  xLab,
+  yLab,
+  title = "title",
+  yLim = c(-1, 1),
+  mod2 = NULL,
+  model1_name = "Model 1",
+  model2_name = "Model 2"
+) {
+  
+  # Function to extract data for a single model
+  extractModelData = function(model, pattern, cluster_flag, lag_length) {
+    beta = model$coefficients
+    vars = rownames(beta)
+    plotVars = vars[grepl(pattern = pattern, x = vars)]
+    b = as.matrix(beta[rownames(beta) %in% plotVars])
+    
+    if (cluster_flag == T) {
+      vcov = getVcov(model$clustervcv, plotVars)
+    } else {
+      vcov = getVcov(model$vcv, plotVars)
+    }
+    
+    response = 1 * b
+    length = 1.96 * sqrt(diag(vcov))
+    lb = response - length
+    ub = response + length
+    
+    return(data.frame(
+      lag = 0:lag_length,
+      response = response,
+      lb = lb,
+      ub = ub
+    ))
+  }
+  
+  # Extract data for first model
+  plotData1 = extractModelData(mod, patternForPlotVars, cluster, laglength)
+  plotData1$model = model1_name
+  
+  # If second model provided, extract its data too
+  if (!is.null(mod2)) {
+    plotData2 = extractModelData(mod2, patternForPlotVars, cluster, laglength)
+    plotData2$model = model2_name
+    plotData = rbind(plotData1, plotData2)
+  } else {
+    plotData = plotData1
+  }
+  
+  # Determine colors
+  if (is.null(mod2)) {
+    # Single model - use original color logic
+    beta = mod$coefficients
+    vars = rownames(beta)
+    plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
+    
+    if (plotVars[1] == "drought") {
+      mycolor = "#C99776"
+    } else if (plotVars[1] == "flood") {
+      mycolor = "#43A7BA"
+    } else {
+      mycolor = "black"
+    }
+    
+    g = ggplot(data = plotData, aes(x = lag)) +
+      geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
+      geom_point(aes(y = response), color = mycolor, size = 2) +
+      geom_errorbar(aes(ymin = lb, ymax = ub), color = mycolor, width = .1) +
+      theme_classic() +
+      labs(x = xLab, y = yLab) +
+      coord_cartesian(ylim = yLim) +
+      ggtitle(title) +
+      theme(plot.title = element_text(size = 8), text = element_text(size = 8))
+  } else {
+    # Two models - use different colors/shapes for each
+    g = ggplot(data = plotData, aes(x = lag, color = factor(model, levels = c("Main", "Grid level")))) +
+      geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
+      geom_point(aes(y = response), size = 2, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = lb, ymax = ub), width = .1, position = position_dodge(width = 0.5)) +
+      theme_classic() +
+      labs(x = xLab, y = yLab) +
+      coord_cartesian(ylim = yLim) +
+      ggtitle(title) +
+      theme(plot.title = element_text(size = 8), text = element_text(size = 8),
+            legend.position = "bottom", legend.title = element_blank()) +
+    scale_color_manual(values = c("Main" = "#C1657C", "Grid level" = "grey50")) 
+  }
+  
+  return(g)
+}
+

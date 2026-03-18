@@ -77,10 +77,6 @@ percentile_data <- plotData %>%
     p95 = quantile(response, 0.95)
   )
 
-# data <- file.path(datadir, "Data", "CRU-Reextraction-Aug2022.csv") |>
-#   read.csv() |>
-#   drop_na(PfPR2)
-
 ########################################################################
 # C. Temperature response ----
 ########################################################################

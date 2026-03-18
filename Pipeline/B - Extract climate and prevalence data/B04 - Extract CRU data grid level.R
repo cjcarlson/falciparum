@@ -2,10 +2,6 @@
 #### Extract temperature and precipitation data from CRU-TS4.XX at point locations
 #### This modified version extracts climate data at specific survey lat/lon points
 #### rather than averaging across administrative units
-#### -----------------------------------------------------------------------.
-#### Created by: Cullen Molitor
-#### Date: 2024-10-08
-#### e-mail: cmolitor@berkeley.edu
 #############################################################################-
 
 rm(list = ls())
