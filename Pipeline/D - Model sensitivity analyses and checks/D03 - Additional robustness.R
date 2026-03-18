@@ -11,23 +11,31 @@
 rm(list = ls())
 
 # packages
-library(here)
-library(lfe)
-library(reshape)
-library(stargazer)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(cowplot)
-library(multcomp)
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(
+  here,
+  lfe,
+  reshape,
+  stargazer,
+  tidyverse,
+  zoo,
+  lubridate,
+  cowplot,
+  multcomp
+)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
-source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
+source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
+source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
+#### Call external script for data cleaning
+source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
 
 ############################################################
-# Plotting toggles
+# Plotting toggles ----
 # Choose reference temperature for response function, as well
 # as minimum and maximum for range of temperature
 ############################################################
@@ -37,13 +45,7 @@ Tmin = 10 # min T for x axis
 Tmax = 40 # max T for x axis
 
 ########################################################################
-# Data clean up ----
-########################################################################
-
-#### Call external script for data cleaning
-source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
-
-########################################################################
+# Prevalence ag ----
 # Check for missing values if we were to use prevalence lag
 ########################################################################
 
@@ -74,7 +76,7 @@ difference <- starting_obs - obs_after_lag
 percent_lost <- (difference / starting_obs) * 100
 
 ########################################################################
-# Does diagnostic method change with T and P shocks? ---- 
+# Main model ----
 ########################################################################
 
 # common variables in all regs
@@ -83,45 +85,91 @@ country_time <- "country:monthyr + country:monthyr2"
 
 # main spec: cXt2intrXm
 cXt2intrXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-
-# new outcome var: Probability method is XX
-complete <- complete |> mutate(microscopy = (simplified_METHOD=="MICROSCOPY"))
-PrMicro = as.formula(paste0("microscopy ~ temp + temp2 + ", floodvars, " + ", droughtvars, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-
-Micromod = felm(data = complete, formula = PrMicro)
 mainmod = felm(data = complete, formula = cXt2intrXm)
-
-# stargazer
-dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
-stargazer(Micromod,
-          title="Microscopy method test", align=TRUE,
-          keep = c("temp", "flood", "drought"),
-          out = file.path(resdir, "Tables", "sensitivity","Microscopy_sample_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 
 ########################################################################
 # Overdispersion? ----
 ########################################################################
 
 # Plot model residuals
-complete <- complete |> mutate(res = c(residuals(mainmod)))
+complete <- complete |> 
+  mutate(res = c(residuals(mainmod)))
+
 g <- ggplot(data=complete) + 
   geom_histogram(aes(x=res), color= "seagreen", fill = "seagreen") + 
   xlab("model residuals") +
   theme_classic()
 g
 
-dir.create(file.path(resdir, "Figures", "Diagnostics","Residuals"), showWarnings = FALSE)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = g, width = 7, height = 7)
+ggsave(
+  filename = "model_residuals.pdf",
+  path = figure_diag_res_dir,
+  plot = g, 
+  width = 7, 
+  height = 7
+)
+
+########################################################################
+# Does diagnostic method change with T and P shocks? ---- 
+########################################################################
+
+dominant_method <- diag_meth_fn |> 
+  readr::read_csv(show_col_types = FALSE) |> 
+  dplyr::mutate(year = factor(year))
+
+complete_dm <- complete |> 
+  dplyr::left_join(dominant_method, by = join_by(OBJECTID, month, year)) |> 
+  dplyr::mutate(
+    microscopy = simplified_METHOD == "MICROSCOPY"
+  ) |> 
+  filter(dominant_METHOD != "LAMP")
+
+complete_dm$dominant_METHOD = as.factor(complete_dm$dominant_METHOD)
+complete_dm$simplified_METHOD = as.factor(complete_dm$simplified_METHOD)
+
+complete_dm$month = as.factor(complete_dm$month)
+complete_dm$year = as.factor(complete_dm$year)
+
+# new outcome var: Probability method is XX
+PrMicro = as.formula(
+  paste0(
+    "microscopy ~ temp + temp2 + ", 
+    floodvars, " + ", droughtvars,
+     " + I(intervention) + ", country_time,
+      " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    )
+  )
+
+Micromod = felm(data = complete_dm, formula = PrMicro)
+
+# stargazer
+stargazer(Micromod,
+          title="Microscopy method test", align=TRUE,
+          keep = c("temp", "flood", "drought"),
+          out = file.path(table_sens_dir, "Microscopy_sample_sensitivity.tex"), 
+           omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F)
 
 ########################################################################
 # Control for diagnostic method ----
 ########################################################################
 
-###### Estimate regressions #######
-complete_dm <- filter(complete, dominant_METHOD != "LAMP")
 
-cXt2intrXmDM = as.formula(paste0(common, " + dominant_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
-cXt2intrXmSM = as.formula(paste0(common, " + simplified_METHOD + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+cXt2intrXmDM = as.formula(
+  paste0(
+    common,
+    " + dominant_METHOD + I(intervention) + ",
+    country_time,
+    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
+cXt2intrXmSM = as.formula(
+  paste0(
+    common,
+    " + simplified_METHOD + I(intervention) + ",
+    country_time,
+    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
 
 myforms = c(cXt2intrXm, cXt2intrXmDM, cXt2intrXmSM) 
 
@@ -139,14 +187,14 @@ for (m in myforms) {
 }
 
 mynote = "Column specifications: (1) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (2) same as (1), but with additional controls for diagnostic method: Microscopy, Microcscopy/PCR Confirmed, PCR, RDT, RDT/PCR Confirmed, and RDT/SLIDE Confirmed; (3) same as (2) but using simplified diagnostic method control set: Microscopy, PCR, RDT."
-dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
+
 stargazer(
   modellist,
   title = "Sensitivity to controlling for diagnostic method", 
   align = TRUE, 
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "METHOD"),
-  out = file.path(resdir, "Tables", "sensitivity","DiagMethod_sensitivity.tex"),  
+  out = file.path(table_sens_dir,"DiagMethod_sensitivity.tex"),  
   omit.stat = c("f", "ser"), 
   out.header = FALSE,
   type = "latex", 
@@ -253,8 +301,9 @@ h_pre <- ggplot(data = pre_data, aes(x = temp)) +
   geom_vline(xintercept = percentiles_list[[1]]$p99, colour = "grey39", linetype = "dashed") +
   annotate(
     geom = "text", x = 36, y = 0, vjust = -1, 
-    label = bquote(italic("N")~"="~.(percentiles_list[[1]]$n)),
-    size = 3
+    label = paste0("italic(N) == ", percentiles_list[[1]]$n),
+    size = 3,
+    parse = TRUE
   ) +
   xlim(Tmin - .0001, Tmax) +
     geom_vline(xintercept = 22, colour = "grey39") +
@@ -280,8 +329,9 @@ h_post <- ggplot(data = pos_data, aes(x = temp)) +
   geom_vline(xintercept = percentiles_list[[2]]$p99, colour = "grey39", linetype = "dashed") +
   annotate(
     geom = "text", x = 36, y = 0, vjust = -1, 
-    label = bquote(italic("N")~"="~.(percentiles_list[[2]]$n)),
-    size = 3
+    label = paste0("italic(N) == ", percentiles_list[[2]]$n),
+    size = 3,
+    parse = TRUE
   ) +
   theme(
     axis.text.y = element_blank(),
@@ -314,7 +364,7 @@ p = plot_grid(
 
 ggsave(
   filename = "split_sample_1995.pdf",
-  # path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"),
+  path = figure_diag_sub_dir,
   plot = p, 
   width = 10, 
   height = 5
@@ -399,8 +449,9 @@ for(i in 1:length(regions)) {
     geom_vline(xintercept = temp_p99, colour = "grey39", linetype = "dashed") +
     annotate(
       geom = "text", x = 36, y = 0, vjust = -1, 
-      label = bquote(italic("N")~"="~.(n)),
-      size = 3
+      label = paste0("italic(N) == ", n),
+      size = 3,
+      parse = TRUE
     ) +
     theme(
       axis.text.y = element_blank(),
@@ -457,7 +508,7 @@ p = plot_grid(
 # p
 ggsave(
   filename = "split_GBOD_temp_hist.pdf",
-  # path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"), 
+  path = figure_diag_sub_dir, 
   plot = p, 
   width = 12,
   height = 4
@@ -552,5 +603,11 @@ g = ggplot()  +
     plot.margin = unit(c(0.3,0.3,1,1), units = "cm"))
 g
 
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Fixed_effects", "overlaid_specifications_Tresponse.pdf"), plot = g, width = 4.5, height = 5)
+ggsave(
+  filename = "overlaid_specifications_Tresponse.pdf", 
+  path = figure_diag_fe_dir, 
+  plot = g, 
+  width = 4.5, 
+  height = 5
+)
 

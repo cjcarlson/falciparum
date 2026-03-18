@@ -15,6 +15,8 @@ library(cowplot)
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
 source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
+#### Call external script for data cleaning
+source(file.path(repo, 'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
 
 #######################################################################
 # S1A: Theoretical
@@ -77,9 +79,6 @@ data %>%
 # make space
 rm(data)
 
-#### Call external script for data cleaning
-# CRUversion = "4.03"
-source(file.path(repo, 'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
 
 # Formula & estimation
 cXt2intrXm = as.formula(

@@ -27,15 +27,6 @@ source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
 source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
-# CRUversion = "4.03" # "4.06"
-if (CRUversion=="4.03") {
-  resdir = file.path(datadir, "Results")
-} else if (CRUversion=="4.06") {
-  resdir = file.path(datadir, "Results_CRU-TS4-06")
-} else {
-  print('CRU version not supported! Use 4.03 or 4.06.')
-}
-
 ############################################################
 # Plotting toggles
 # Choose reference temperature for response function, as well

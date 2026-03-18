@@ -9,15 +9,6 @@
 
 rm(list = ls())
 
-if (CRUversion=="4.03") {
-  resdir = file.path(datadir, "Results")
-} else if (CRUversion=="4.06") {
-  resdir = file.path(datadir, "Results_CRU-TS4-06")
-} else {
-  print('CRU version not supported! Use 4.03 or 4.06.')
-}
-
-# source functions for easy plotting and estimation
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
