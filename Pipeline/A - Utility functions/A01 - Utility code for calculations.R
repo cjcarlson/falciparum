@@ -108,3 +108,37 @@ computePrcpExtremes = function(
   # return
   return(dfoutcome)
 }
+
+
+# Function to process each power
+process_clim_powers <- function(
+  power,
+  clim_data,
+  adm_data,
+  rast_times,
+  var_name
+) {
+  clim_data_k <- clim_data^power
+
+  clim_extract_k <- exactextractr::exact_extract(
+    x = clim_data_k,
+    y = adm_data,
+    fun = 'mean',
+    progress = TRUE,
+    append_cols = c("OBJECTID", "lon", "lat")
+  )
+
+  colnames(clim_extract_k) <- c("OBJECTID", "lon", "lat", rast_times)
+
+  clim_extract_k <- clim_extract_k |>
+    tidyr::pivot_longer(
+      cols = -c(OBJECTID, lon, lat),
+      names_to = "date",
+      values_to = paste0(var_name, ifelse(power == 1, "", power))
+    ) |>
+    tidyr::separate(date, into = c('year', 'month', 'day'), sep = '-') |>
+    dplyr::select(-day) |>
+    dplyr::mutate(month = month.abb[as.numeric(month)])
+
+  return(clim_extract_k)
+}
