@@ -30,15 +30,9 @@ pacman::p_load(
 )
 
 # source functions for easy plotting and estimation
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
-source(A_utils_data_fp)
-
-# #### Alternatively, load the replication file by uncommenting and modify path
-# complete <- readr::read_rds(
-#   file.path(data_dir, "malaria-replication", "prevalence_and_climate.rds")
-# )
 
 ############################################################
 # Plotting toggles ----
@@ -50,37 +44,23 @@ Tref = 24 #reference temperature - curve gets recentered to 0 here
 Tmin = 10 #min T for x axis
 Tmax = 40 #max T for x axis
 
-########################################################################
-# Data clean up ----
-# Build country × N-year clustering variable
-########################################################################
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
 
-complete <- complete |>
-  dplyr::mutate(yr_bin = floor(yearnum / yr_bin_size) * yr_bin_size) |>
-  dplyr::group_by(country, yr_bin) |>
-  dplyr::arrange(OBJECTID, monthyr) |> 
-  dplyr::mutate(cntry_yrbin = dplyr::cur_group_id()) |>
-  dplyr::ungroup()
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
 
 ########################################################################
 # Estimation ----
-# Formula: same fixed effects as original, but clustering on country × N-year
+# Formula: loaded from configuration file
 ########################################################################
 
-cXt2intrXm = as.formula(
-  paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2",
-    " | ",
-    "OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin"
-  )
-)
-
 # Model estimation
-mainmod = felm(data = complete, formula = cXt2intrXm)
+mainmod = lfe::felm(data = complete, formula = cXt2intrXm)
 coeffs = as.data.frame(mainmod$coefficients)
 vcov = as.data.frame(mainmod$clustervcv)
 
@@ -90,7 +70,6 @@ saveRDS(vcov, file = main_mod_vcov_fn)
 
 ########################################################################
 # Table ----
-# Formula: same fixed effects as original, but clustering on country × N-year
 ########################################################################
 
 # Stargazer output
@@ -120,8 +99,8 @@ stargazer(
 
 ########################################################################
 # Plot ----
-# Note: analogous to Fig 2A but with analytically derived confidence intervals
-# in place of bootstrap runs shown in Fig 2A
+# Note: analogous to Fig 2A but with analytically derived confidence 
+# intervals in place of bootstrap runs.
 ########################################################################
 
 # Temperature support

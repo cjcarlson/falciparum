@@ -5,89 +5,52 @@
 ############################################################
 
 ############################################################
-# Set up
+# Set up ----
 ############################################################
 
 rm(list = ls())
 
 # packages
-library(here)
-library(lfe)
-library(reshape)
-library(stargazer)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(cowplot)
-library(multcomp)
-library(patchwork)
-
-# source functions for easy plotting and estimation
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here(
-  "Pipeline",
-  "A - Utility functions",
-  "A01 - Utility code for calculations.R"
-))
-source(here::here(
-  "Pipeline",
-  "A - Utility functions",
-  "A02 - Utility code for plotting.R"
-))
-
-# CRUversion = "4.03" # "4.06"
-if (CRUversion == "4.03") {
-  resdir = file.path(data_dir, "Results")
-} else if (CRUversion == "4.06") {
-  resdir = file.path(data_dir, "Results_CRU-TS4-06")
-} else {
-  print('CRU version not supported! Use 4.03 or 4.06.')
+if (!require("pacman")) {
+  install.packages("pacman")
 }
 
+pacman::p_load(
+  here,
+  lfe,
+  reshape,
+  stargazer,
+  tidyverse,
+  zoo,
+  lubridate,
+  cowplot,
+  multcomp,
+  patchwork
+)
+
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
+
 ############################################################
-# Plotting toggles
+# Plotting toggles ----
 # Choose reference temperature for response function, as well
 # as minimum and maximum for range of temperature
 ############################################################
 
-Tmin = 10 #min T for x axis
-Tmax = 40 #max T for x axis
+Tmin = 10 # min T for x axis
+Tmax = 40 # max T for x axis
 
-########################################################################
-# Data clean up
-########################################################################
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence
+# and CRU temperature and precipitation data aggregated to
+# the first level of Administrative division.
+############################################################
 
-#### Call external script for data cleaning
-complete <- readr::read_csv(
-  file.path(
-    data_dir,
-    "Data",
-    paste0('CRU-', CRUversion, '-Points-Reextraction-May2025.csv')
-  ),
-  show_col_types = FALSE
-)
-
-# cont <- sf::read_sf(here::here(data_dir, 'Data', 'AfricaADM1.shp'))
-
-# # Convert to sf object with POINT geometry
-# prev_sf <- sf::st_as_sf(
-#   prev_df,
-#   coords = c("Long", "Lat"),
-#   crs = 4326
-# )
-
-# # Join the prevalence data to the continent shapefile
-# prev_with_cont <- sf::st_join(prev_sf, cont)
-
-# include: contemporaneous temp, then distributed lag in flood and drought
-floodvars = paste(
-  colnames(complete)[grep("flood", colnames(complete))],
-  collapse = " + "
-)
-droughtvars = paste(
-  colnames(complete)[grep("drought", colnames(complete))],
-  collapse = " + "
-)
+print("Loading data")
+complete <- readr::read_csv(prev_clim_data_grid_fp, show_col_types = FALSE)
 
 # need this for country specific quadratic trends
 complete$monthyr2 = complete$monthyr^2
@@ -106,7 +69,6 @@ complete$month = as.factor(complete$month)
 complete$year = as.factor(complete$year)
 
 complete <- dplyr::rename(complete, country = COUNTRY)
-
 
 gbod <- sf::read_sf(
   file.path(
@@ -136,9 +98,6 @@ gboddf$country = ifelse(
 complete$country = as.character(complete$country)
 complete = left_join(complete, gboddf, by = "country")
 complete$country = as.factor(complete$country)
-
-# complete$dominant_METHOD = as.factor(complete$dominant_METHOD)
-# complete$simplified_METHOD = as.factor(complete$simplified_METHOD)
 
 #### Create necessary subfolders
 dir.create(file.path(resdir, "Tables"), showWarnings = FALSE)
@@ -231,7 +190,7 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 #   title = NULL,
 #   yLim = c(-30, 10),
 #   showYTitle = TRUE
-# ) 
+# )
 
 # ylims <- c(-3, 3)
 
@@ -264,7 +223,7 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 #   theme(
 #     axis.text = element_text(size = 8),
 #     axis.title = element_text(size = 8),
-#     # legend.position = "bottom", 
+#     # legend.position = "bottom",
 #     # legend.margin = margin(0, 0, 0, 0)
 #   )
 
@@ -282,7 +241,6 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 #   height = 2.5,
 # )
 
-
 ########################################################################
 ########################################################################
 ########################################################################
@@ -290,36 +248,19 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 ########################################################################
 ########################################################################
 
-########################################################################
-# Data clean up
-########################################################################
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
 
-#### Call external script for data cleaning
-source(here::here(
-  "Pipeline",
-  "A - Utility functions",
-  "A03 - Prep data for estimation.R"
-))
-
-#### Create necessary subfolders
-dir.create(file.path(resdir, "Tables"), showWarnings = FALSE)
-dir.create(file.path(resdir, "Figures"), showWarnings = FALSE)
-dir.create(file.path(resdir, "Models"), showWarnings = FALSE)
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
 
 ########################################################################
 # Estimation
 ########################################################################
-
-# Formula (see other files for robustness/sensitivity checks)
-cXt2intrXm = as.formula(
-  paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
-  )
-)
 
 # Estimation & save model results
 mainmod = felm(data = complete, formula = cXt2intrXm)
@@ -373,7 +314,7 @@ d1 <- plotLinearLags_2_mod(
   yLim = c(-4, 4),
   mod2 = highresmod,
   model2_name = "Grid level"
-) 
+)
 d1
 
 f1 <- plotLinearLags_2_mod(
@@ -388,7 +329,7 @@ f1 <- plotLinearLags_2_mod(
   yLim = c(-4, 4),
   mod2 = highresmod,
   model2_name = "Grid level"
-) 
+)
 f1
 
 combined_plot1 <- t1 +
@@ -399,7 +340,7 @@ combined_plot1 <- t1 +
     axis.text = element_text(size = 8),
     axis.title = element_text(size = 8),
     legend.text = element_text(size = 6),
-    legend.position = "bottom", 
+    legend.position = "bottom",
     legend.margin = margin(0, 0, 0, 0)
   )
 
@@ -417,4 +358,3 @@ ggsave(
   height = 2.5,
   dpi = 300
 )
-

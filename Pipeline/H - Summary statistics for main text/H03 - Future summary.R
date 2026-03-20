@@ -2,7 +2,7 @@ library(tidyverse)
 library(vroom)
 library(here)
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 process_data <- function(data, region_name = NULL) {
   
@@ -191,7 +191,7 @@ library(sf)
 library(here)
 library(tidyverse)
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 iter.df <- here::here("TempFiles", "Fig4Big.feather") |> 
   arrow::read_feather() |> 

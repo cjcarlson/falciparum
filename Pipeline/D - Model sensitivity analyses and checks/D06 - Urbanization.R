@@ -42,11 +42,10 @@ sf::sf_use_s2(FALSE)
 # Configuration & utility functions ----
 #-------------------------------------------------------------------------------
 
-# Load config and helper functions
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
-source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
-source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
 
 #-------------------------------------------------------------------------------
 # Data loading ----
@@ -161,11 +160,17 @@ aggregated_data <- mean_data %>%
   dplyr::mutate(year = as.character(year), month = as.character(month))
 
 
-#-------------------------------------------------------------------------------
-# Data cleaning & prep for estimation ----
-#-------------------------------------------------------------------------------
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
 
-complete <- complete %>%
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
+
+complete <- complete |> 
   drop_na(n_urban) |>
   mutate(urban_dummy = ifelse(n_urban > 0, 1, 0))
 

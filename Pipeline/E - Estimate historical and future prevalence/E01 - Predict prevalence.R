@@ -41,7 +41,7 @@ numCores <- 10
 
 tictoc::tic("Total execution time")
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 ############################################################

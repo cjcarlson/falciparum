@@ -35,14 +35,12 @@ pacman::p_load(
 )
 
 # source functions for easy plotting and estimation
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
-source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
-#### Call external script for data cleaning
-source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
 
 ############################################################
-# Plotting toggles
+# Plotting toggles ----
 # Choose reference temperature for response function, as well
 # as minimum and maximum for range of temperature
 ############################################################
@@ -51,23 +49,22 @@ Tref = 25 # reference temperature - curve gets recentered to 0 here
 Tmin = 10 # min T for x axis
 Tmax = 40 # max T for x axis
 
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
+
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
+
 ########################################################################
 # Estimate main model, store residuals ----
 ########################################################################
 
-# Formula
-cXt2intrXm = as.formula(
-  paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
-  )
-)
-
 # Estimation & residuals
-mainmod = felm(data = complete, formula = cXt2intrXm)
+mainmod = lfe::felm(data = complete, formula = cXt2intrXm)
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 
 ########################################################################

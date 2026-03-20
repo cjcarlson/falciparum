@@ -14,7 +14,7 @@ library(tidyverse)
 library(lubridate)
 
 # source functions from previous script
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
 
 ########################################################################

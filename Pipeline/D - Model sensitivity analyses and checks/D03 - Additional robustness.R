@@ -3,6 +3,8 @@
 # This script should be incorporated into D01 when a subset of 
 # tests are included in the main text and/or Supplement.
 ############################################################
+
+############################################################
 # Set up ----
 ############################################################
 
@@ -26,11 +28,9 @@ pacman::p_load(
 )
 
 # source functions for easy plotting and estimation
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
-source(here::here(pipeline_A_dir, "A02 - Utility code for plotting.R"))
-#### Call external script for data cleaning
-source(here::here(pipeline_A_dir, "A03 - Prep data for estimation.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
 
 ############################################################
 # Plotting toggles ----
@@ -42,8 +42,18 @@ Tref = 25 # reference temperature - curve gets recentered to 0 here
 Tmin = 10 # min T for x axis
 Tmax = 40 # max T for x axis
 
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
+
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
+
 ########################################################################
-# Prevalence ag ----
+# Prevalence lag ----
 # Check for missing values if we were to use prevalence lag
 ########################################################################
 

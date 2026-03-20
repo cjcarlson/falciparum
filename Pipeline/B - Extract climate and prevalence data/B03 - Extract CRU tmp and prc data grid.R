@@ -14,7 +14,7 @@ library(tidyverse)
 sf::sf_use_s2(FALSE)
 
 # Load configuration and utility functions
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
 
 # Function to process each power for point data

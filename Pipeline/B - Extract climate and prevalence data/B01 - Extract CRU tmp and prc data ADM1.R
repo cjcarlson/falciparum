@@ -1,22 +1,13 @@
 rm(list = ls())
 
-user = "Tamma" #"Colin"
-if (user == "Colin") {
-  data_dir = 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/' #location for data and output
-  repo = 'C:/Users/cjcar/Documents/Github/falciparum' #location for cloned repo
-} else if (user == "Tamma") {
-  data_dir ='/Users/tammacarleton/Dropbox/MalariaAttribution/Data/'
-  repo = '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum'
-} else {
-  wd = NA
-  print('Script not configured for this user!')
-}
-
+library(sp)
 library(ncdf4)
 library(raster)
 library(rgdal)
-library(sp)
 library(velox)
+library(here)
+
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 # This function takes in a raster that is in x=lat, y=lon format (native CRU is like this) and 
 # rotates it 90 degrees to be in x=lon, y=lat format. It also crops to the extent of Africa.

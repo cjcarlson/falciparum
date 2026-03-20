@@ -31,6 +31,12 @@ r0t <- function(T, na.rm = TRUE) {
   return(R0 / 87.13333) # that's the max
 }
 
+# function to compute optimal temp for each run
+optT <- function(beta1, beta2) {
+  opt = -beta1 / (2 * beta2)
+  return(opt)
+}
+
 
 computePrcpExtremes = function(
   dfclimate,

@@ -5,30 +5,35 @@
 ############################################################
 
 ############################################################
-# Set up
+# Set up ----
 ############################################################
 
 rm(list = ls())
 
+if (!require("pacman")) {
+  install.packages("pacman")
+}
 
 # packages
-library(here)
-library(lfe)
-library(reshape)
-library(stargazer)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(cowplot)
-library(multcomp)
+pacman::p_load(
+  here,
+  lfe,
+  reshape,
+  stargazer,
+  tidyverse,
+  zoo,
+  lubridate,
+  cowplot,
+  multcomp,
+)
 
 # source functions for easy plotting and estimation
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
-source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
 
 ############################################################
-# Plotting toggles
+# Plotting toggles ----
 # Choose reference temperature for response function, as well
 # as minimum and maximum for range of temperature
 ############################################################
@@ -37,12 +42,15 @@ Tref = 25 # reference temperature - curve gets recentered to 0 here
 Tmin = 10 # min T for x axis
 Tmax = 40 # max T for x axis
 
-########################################################################
-# Data clean up
-########################################################################
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
 
-#### Call external script for data cleaning
-source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
 
 ########################################################################
 # Estimation
@@ -52,14 +60,11 @@ source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for esti
 
 # Formula (see other files for robustness/sensitivity checks)
 
-common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
-country_time <- "country:monthyr + country:monthyr2"
-
 cym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | OBJECTID"))
 cXt2m = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + month | 0 | OBJECTID"))
 cXt2cXm = as.formula(paste0(common, " + ", country_time, " | OBJECTID + country:month | 0 | OBJECTID"))
 cXt2intm = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + intervention + month | 0 | OBJECTID"))
-cXt2intrXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
+# cXt2intrXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"))
 cXt2intcXm = as.formula(paste0(common, " + I(intervention) + ", country_time, " | OBJECTID  + country:month | 0 | OBJECTID"))
 rXyrXm = as.formula(paste0(common, " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"))
 rXycXm = as.formula(paste0(common, " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"))

@@ -3,7 +3,7 @@ library(here)
 library(terra)
 library(ncdf4)
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 scenarios <- c("hist-ssp126", "hist-ssp245", "hist-ssp585")
 gwl_time_int <- c("GWL05", "GWL10", "GWL20")

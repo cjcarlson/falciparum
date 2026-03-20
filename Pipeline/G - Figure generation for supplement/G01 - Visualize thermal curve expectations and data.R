@@ -2,21 +2,32 @@
 # This script makes all four panels of Figure S1.
 ############################################################
 
-# packages
-library(lfe)
-library(zoo)
-library(here)
-library(reshape)
-library(tidyverse)
-library(lubridate)
-library(patchwork)
-library(cowplot)
+############################################################
+# Set up ----
+############################################################
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
-source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
-#### Call external script for data cleaning
-source(file.path(repo, 'Pipeline/A - Utility functions/A03 - Prep data for estimation.R'))
+rm(list = ls())
+
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+# packages
+pacman::p_load(
+  lfe,
+  zoo,
+  here,
+  reshape,
+  tidyverse,
+  lubridate,
+  patchwork,
+  cowplot
+)
+
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
 
 #######################################################################
 # S1A: Theoretical
@@ -79,6 +90,16 @@ data %>%
 # make space
 rm(data)
 
+
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
+
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
 
 # Formula & estimation
 cXt2intrXm = as.formula(

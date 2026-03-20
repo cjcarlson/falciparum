@@ -2,7 +2,7 @@ library(tidyverse)
 library(here)
 library(sf)
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 cont <- sf::read_sf(here::here(data_dir, 'Data', 'AfricaADM1.shp')) |> 
   sf::st_transform("ESRI:54009") %>%

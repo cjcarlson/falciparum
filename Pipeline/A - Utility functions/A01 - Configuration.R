@@ -2,7 +2,7 @@
 # General ----
 ############################################################
 
-print("Loading A00 - Configuration.R")
+print("Loading A01 - Configuration.R")
 
 user = Sys.info()['user']
 
@@ -37,14 +37,16 @@ print(paste0("repository directory set to: ", repo_dir))
 # Build a label used for folder names, file names, and plot titles
 ############################################################
 
-yr_bin_size <- 5
-# yr_bin_size <- 10
+yr_bin_size <- 5 # 10
 
 clust_label <- paste0("country_x_", yr_bin_size, "yr")
 
 ############################################################
 # Directories ----
 ############################################################
+
+replication_fp <- file.path(data_dir, "malaria-replication", "prevalence_and_climate.rds")
+dir.create(dirname(replication_fp), showWarnings = FALSE)
 
 clust_dir <- file.path(data_dir, clust_label)
 
@@ -62,10 +64,8 @@ climate_dir <- file.path(repo_dir, "Climate")
 precip_fp <- file.path(climate_dir, "PrecipKey.csv") 
 
 pipeline_A_dir <- file.path(repo_dir, "Pipeline", "A - Utility functions")
-A_utils_calc_fp <- file.path(pipeline_A_dir, "A01 - Utility code for calculations.R")
-A_utils_plot_fp <- file.path(pipeline_A_dir, "A02 - Utility code for plotting.R")
-A_utils_data_fp <- file.path(pipeline_A_dir, "A03 - Prep data for estimation.R")
-
+A_utils_calc_fp <- file.path(pipeline_A_dir, "A02 - Utility code for calculations.R")
+A_utils_plot_fp <- file.path(pipeline_A_dir, "A03 - Utility code for plotting.R")
 
 bc_cru_ts_dir <- file.path(data_dir, "BC-ClimateData20230626", "3-Outputs")
 bc_cruts_output_dir <- file.path(bc_cru_ts_dir, "bc_cruts4.03")
@@ -75,14 +75,31 @@ data_data_dir <- file.path(data_dir, "Data")
 ADM1_fp <- file.path(data_data_dir, 'AfricaADM1.shp') 
 world_regions_fp <- file.path(data_data_dir, "OriginalGBD", "WorldRegions.shp")
 
+prev_DB_fp <- file.path(
+  data_data_dir,
+  'dataverse_files',
+  '00 Africa 1900-2015 SSA PR database (260617).csv'
+)
+
+climate_prev_wide <- file.path(
+  data_dir,
+  'Dataframe backups',
+  'shapefile-backup.csv'
+)
+
 diag_meth_fn <- file.path(
   data_data_dir,
   'dominant_diagnostic_method_summary.csv'
 )
 
-resdir = file.path(clust_dir, "Results")
-data_fp <- file.path(data_dir, 'Data', 'CRU-Reextraction-Aug2022.csv')
+prev_clim_data_adm1_fp <- file.path(data_data_dir, 'CRU-Reextraction-Aug2022.csv')
 
+prev_clim_data_grid_fp <- file.path(
+    data_data_dir,
+    paste0('CRU-4.03-Points-Reextraction-May2025.csv')
+  )
+
+resdir = file.path(clust_dir, "Results")
 dir.create(resdir, showWarnings = FALSE, recursive = TRUE)
 
 ############################################################
@@ -269,10 +286,10 @@ common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
 country_time <- "country:monthyr + country:monthyr2"
 
 # Main Specification Formula (see other files for robustness/sensitivity checks)
-cXt2intrXm = as.formula(
+cXt2intrXm <- as.formula(
   paste0(
     common,
     " + I(intervention) + ", country_time, 
-    "| OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+    "| OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin"
   )
 )

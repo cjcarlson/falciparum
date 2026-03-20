@@ -3,7 +3,7 @@ library(tidyverse)
 library(data.table)
 library(patchwork)
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 calculate_baseline_mean <- function(df, variable) {
   df |> 

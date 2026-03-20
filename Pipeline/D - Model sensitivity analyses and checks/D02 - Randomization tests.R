@@ -4,39 +4,50 @@
 ############################################################
 
 ############################################################
-# Set up
+# Set up ----
 ############################################################
 
 rm(list = ls())
 
-# source functions for easy plotting and estimation
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
-source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
+if (!require("pacman")) {
+  install.packages("pacman")
+}
 
 # packages
-library(lfe)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(dplyr)
-library(data.table)
-library(doParallel)
-
-########################################################################
-# Data clean up
-########################################################################
-
-#### Call external script for data cleaning
-source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
-
-# Main specification: cXt2intrXm (country specific quadratic trends, intervention dummies, GBOD region by month FE)
-myform = as.formula(
-  paste0(
-    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
-  )
+pacman::p_load(
+  lfe,
+  here,
+  tidyverse,
+  zoo,
+  lubridate,
+  data.table,
+  doParallel,
 )
+
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
+
+############################################################
+# Plotting toggles ----
+# Choose reference temperature for response function, as well
+# as minimum and maximum for range of temperature
+############################################################
+
+Tref = 25 # reference temperature - curve gets recentered to 0 here
+Tmin = 10 # min T for x axis
+Tmax = 40 # max T for x axis
+
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence 
+# and CRU temperature and precipitation data aggregated to 
+# the first level of Administrative division.
+############################################################
+
+print("Loading clean data")
+complete <- readr::read_rds(replication_fp) 
 
 ########################################################################
 # Randomly reassign weather within each panel unit

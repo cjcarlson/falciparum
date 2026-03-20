@@ -6,7 +6,7 @@ library(data.table)
 library(colorspace)
 library(multiscales)
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 cont <- sf::read_sf(file.path(data_dir, 'Data', 'AfricaADM1.shp')) |> 
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))

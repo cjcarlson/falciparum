@@ -25,7 +25,7 @@ library(data.table)
 
 tictoc::tic("Total execution time")
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 num_cores <- 50
 log_file <- here::here("TempFiles", "parallel_log.txt")

@@ -31,7 +31,7 @@ pacman::p_load(
   data.table
 )
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 for (mode in c("historical", "future")) {
   # mode <- "historical"
