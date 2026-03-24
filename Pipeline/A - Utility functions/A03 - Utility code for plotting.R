@@ -1,3 +1,13 @@
+############################################################
+# Start ----
+############################################################
+
+print("Begin loading A03 - Utility code for plotting.R")
+
+############################################################
+# calcVariance ----
+############################################################
+
 ############## plot a polynomial response curve ##############
 ##### CalcVariance and getVcov are helper functions to plotPolynomialResponse
 calcVariance = function(cvec, vcovMat) {
@@ -7,15 +17,23 @@ calcVariance = function(cvec, vcovMat) {
   return(t(cvec) %*% vcovMat %*% cvec)
 }
 
+############################################################
+# getVcov ----
+############################################################
 
 getVcov = function(vcv, vars) {
   #from the entire variance covariance matrix, select the portion corresponding to the variable you're interested in.
   return(vcv[vars, vars])
 }
 
+############################################################
+# genRecenteredXVals_polynomial ----
+############################################################
 
 genRecenteredXVals_polynomial = function(xVals, xRef, polyOrder, lag = NA) {
-  ### This function generates X values that are recentered around value xRef. The output of this function can be passed to plotPolynomialResponse to generate recentered polynomial response functions
+  ### This function generates X values that are recentered around value xRef. 
+  ### The output of this function can be passed to plotPolynomialResponse to 
+  ### generate recentered polynomial response functions
   ### xVals are the x values you want to pass to your plotting function
   ### xRef is the reference value you want to recenter around
   ### polyOrder is the order of the polynomial
@@ -47,6 +65,9 @@ genRecenteredXVals_polynomial = function(xVals, xRef, polyOrder, lag = NA) {
   }
 }
 
+############################################################
+# plotPolynomialResponse ----
+############################################################
 
 plotPolynomialResponse <- function(
   mod,
@@ -277,6 +298,9 @@ plotPolynomialResponse <- function(
   return(g)
 }
 
+############################################################
+# plotPolynomialResponseSimple ----
+############################################################
 
 plotPolynomialResponseSimple = function(
   coefs,
@@ -290,8 +314,10 @@ plotPolynomialResponseSimple = function(
   yLim = c(-1, 1),
   showYTitle = T
 ) {
-  ### same as plotPolynomialResponse(), but input is not a model but the actual set of coefficients, and no SE are plotted
-  ### temporary function until I can figure out how to get the right SEs on the cumulative effects
+  ### same as plotPolynomialResponse(), but input is not a model 
+  ### but the actual set of coefficients, and no SE are plotted
+  ### temporary function until I can figure out how to get the 
+  ### right SEs on the cumulative effects
 
   beta = coefs ##See if this works
 
@@ -345,6 +371,9 @@ plotPolynomialResponseSimple = function(
   return(g)
 }
 
+############################################################
+# plotLinearLags ----
+############################################################
 
 # Plot linear responses that are lagged
 plotLinearLags = function(
@@ -401,6 +430,9 @@ plotLinearLags = function(
   return(g)
 }
 
+############################################################
+# plotLinearLags_urban ----
+############################################################
 
 plotLinearLags_urban = function(
   mod,
@@ -471,6 +503,10 @@ plotLinearLags_urban = function(
 
   return(g)
 }
+
+############################################################
+# plotPolynomialResponse_2_mod ----
+############################################################
 
 # For D05
 plotPolynomialResponse_2_mod = function(
@@ -651,6 +687,10 @@ plotPolynomialResponse_2_mod = function(
   return(g)
 }
 
+############################################################
+# plotLinearLags_2_mod ----
+############################################################
+
 plotLinearLags_2_mod = function(
   mod,
   patternForPlotVars,
@@ -746,3 +786,8 @@ plotLinearLags_2_mod = function(
   return(g)
 }
 
+print("Done loading A03 - Utility code for plotting.R")
+
+############################################################
+# End of file ----
+############################################################

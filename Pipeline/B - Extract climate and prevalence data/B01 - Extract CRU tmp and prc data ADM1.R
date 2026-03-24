@@ -1,199 +1,122 @@
+###########################################################
+# Extract CRU climate data (temperature and precipitation)
+# from CRU-TS4.03 NetCDFs at ADM1 level.
+#
+# Note:: This script will not work in modern versions of R (> 4.2.3).
+# The packages rgdal is no longer supported and Velox requires
+# sp and rgdal. To replicate this script exactly, it is
+# recomended to use docker to create a stable environment that
+# supports these packages.
+# See https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general
+# for a working container that can run this script.
+############################################################
+
+############################################################
+# Set up ----
+############################################################
+
 rm(list = ls())
 
-library(sp)
-library(ncdf4)
-library(raster)
-library(rgdal)
-library(velox)
-library(here)
+if (!require("pacman")) {
+  install.packages("pacman")
+}
 
+pacman::p_load(
+  sp,
+  here,
+  ncdf4,
+  raster,
+  rgdal,
+  velox,
+  tidyverse,
+  future,
+  future.apply,
+  arrow
+)
+
+# Source configuration and utility functions
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
 
-# This function takes in a raster that is in x=lat, y=lon format (native CRU is like this) and 
-# rotates it 90 degrees to be in x=lon, y=lat format. It also crops to the extent of Africa.
-swirl <- function(input.raster) {
-  input.raster <- flip(t(input.raster),direction='y')
-  extent(input.raster) <- c(-180,180,-90,90)
-  input.raster = crop(input.raster, c(-30,60,-37,40))
-  return(input.raster)
-}
+options(future.globals.maxSize = 3 * 1024^3)
 
+N_CORES <- 12L
 
-r0t <- function(T, na.rm=TRUE) {
-  suppressWarnings(if(is.na(T)) return(NA))
-  if(T<=14) {return(0)}
-  a = 0.000203*T*(T-11.7)*((42.3-T)^0.5)
-  bc = -0.54*T*T + 25.2*T - 206
-  p = -0.000828*T*T + 0.0367*T + 0.522 # e^-mu
-  mu = -1*log(p)
-  PDR = 0.000111*T*(T-14.7)*((34.4-T)^0.5) # 1/EIP
-  pEA = -0.00924*T*T + 0.453*T - 4.77
-  MDR = 0.000111*T*(T-14.7)*((34-T)^0.5) # 1/tauEA
-  EFD = -0.153*T*T + 8.61*T - 97.7
-  
-  R0 = (((a^2)*bc*(p^(1/PDR))*EFD*pEA*MDR)/(mu^3))^(1/2)
-  if(is.nan(R0)){return(0)}
-  return(R0/87.13333) # that's the max
-}
+future::plan(future::multicore, workers = N_CORES)
 
-nct <- nc_open(file.path(data_dir,"CRU_TS403_data", "tmp", "cru_ts4.03.1901.2018.tmp.dat.nc", "cru_ts4.03.1901.2018.tmp.dat.nc"))
+############################################################
+# Load admin ----
+############################################################
 
-g <- ncvar_get(nct, 'tmp')
-lons <- ncvar_get(nct,'lon')
-time <- ncvar_get(nct,'time')
+admin_regions <- rgdal::readOGR(ADM1_fp)
 
-#############
+############################################################
+# Extract temperature ----
+############################################################
 
-cont <- readOGR(file.path(data_dir,'AfricaADM1.shp'))
-month = c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')
+admin_regions <- extract_cru_variable(
+  nc_filepath = cru_tmp_fp,
+  nc_varname = "tmp",
+  admin_sp = admin_regions,
+  var_prefix = "temp",
+  max_power = 5L,
+  start_year = 1901L
+)
 
+############################################################
+# Extract precipitation ----
+############################################################
 
-########################### R0
-# confirm input data format require swirl()
-if( dim(g)[1]==length(lons) ) {
-  print("Input format as expected for CRU (lat,lon); pipeline will rotate native raster to (lon,lat) format")
-} else {
-  stop("Input format not as expected for CRU; stopping process.")
-}
+admin_regions <- extract_cru_variable(
+  nc_filepath = cru_prc_fp,
+  nc_varname = "pre",
+  admin_sp = admin_regions,
+  var_prefix = "ppt",
+  max_power = 5L,
+  start_year = 1901L
+)
 
-# loop over all time periods: note that time is in units of days since 1900-01-01, but are monthly intervals
-for (i in 1:dim(g)[3]) { 
-  r <- swirl(raster(g[,,i]))
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'temp',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(r)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  
-  c <- r*r
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'temp2',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  
-  
-  c <- r^3
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'temp3',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  
-  c <- r^4
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'temp4',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  
-  c <- r^5
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'temp5',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  print(i)
-}
+future::plan(future::sequential)
 
-####################
+############################################################
+# Save intermediate climate data ----
+############################################################
 
+climate_df <- admin_regions@data
 
-ncp <- nc_open(file.path(data_dir,"CRU_TS403_data", "pr", "cru_ts4.03.1901.2018.pre.dat.nc","cru_ts4.03.1901.2018.pre.dat.nc"))
-g <- ncvar_get(ncp, 'pre')
-lonsp <- ncvar_get(ncp,'lon')
+# Drop original shapefile attribute columns (cols 2-15),
+# keeping OBJECTID (col 1) plus all extracted climate columns
+climate_df <- climate_df[, -c(2:15)]
 
-# confirm input data format require swirl()
-if( dim(g)[1]==length(lonsp) ) {
-  print("Input format as expected for CRU (lat,lon); pipeline will rotate native raster to (lon,lat) format")
-} else {
-  stop("Input format not as expected for CRU; stopping process.")
-}
+# Wide -> long
+climate_long <- tidyr::pivot_longer(
+  climate_df,
+  cols = -OBJECTID,
+  names_to = "variable",
+  values_to = "value"
+)
 
-# loop over all time periods: note that time is in units of days since 1900-01-01, but are monthly intervals
-for (i in 1:dim(g)[3]) {
-  r <- swirl(raster(g[,,i]))
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'ppt',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(r)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  
-  c <- r*r
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'ppt2',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  print(i)
-  
-  c <- r^3
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'ppt3',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  print(i)
-  
-  c <- r^4
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'ppt4',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  print(i)
-  
-  c <- r^5
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1901,sep='.'),'ppt5',sep='.')
-  cont@data[,name] <- unlist(lapply(velox(c)$extract(cont,
-                                                     fun = function(x) mean(x, na.rm = TRUE),
-                                                     small=TRUE),
-                                    mean,na.rm=TRUE))
-  print(i)
-}
+# Parse "Mon.YYYY.var" naming convention
+climate_long <- tidyr::separate(
+  climate_long,
+  col = variable,
+  into = c("month", "year", "var"),
+  sep = "\\."
+)
 
+# Long -> wide by variable type
+climate_wide <- tidyr::pivot_wider(
+  climate_long,
+  names_from = "var",
+  values_from = "value"
+)
 
-############
+climate_wide$year <- as.numeric(climate_wide$year)
 
-prev<- read.csv('./dataverse_files/00 Africa 1900-2015 SSA PR database (260617).csv')
-prev <- SpatialPointsDataFrame(coords=prev[,c('Long','Lat')], data=prev[,c('MM','YY','Pf','PfPR2.10')])
-prev@proj4string <- cont@proj4string
+############################################################
+# Write results ----
+############################################################
 
-overtest <- over(cont, prev, returnList = TRUE)
+readr::write_csv(climate_wide, intermediate_CRU_fp)
 
-library(tidyr)
-library(dplyr)
-
-for (i in 1:1416) {
-  mon <- 1+(i-1)%%12
-  yr <- ((i-1 - (i-1)%%12)/12)+1900
-  
-  pf <- function(x) {x<-x[x$MM==mon,]
-                      x<-x[x$YY==yr,]
-                      mean(x$Pf)}
-  pfr <- function(x) {x<-x[x$MM==mon,]
-                      x<-x[x$YY==yr,]
-                      mean(x$PfPR2.10)}
-  
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1900,sep='.'),'PfPR2',sep='.')
-  cont@data[,name] <- unlist(lapply(overtest, pfr))
-  
-  name=paste(paste(month[(i-1)%%12 + 1], ((i-1 - (i-1)%%12)/12)+1900,sep='.'),'Pf',sep='.')
-  cont@data[,name] <- unlist(lapply(overtest, pf))
-  
-  print(i)
-}
-
-###########
-
-library(reshape)
-contdf <- cont@data
-contdf <- contdf[,-c(2:15)]
-contdf <- melt(contdf, id='OBJECTID')
-
-dffix <- separate(contdf,  variable, into=c('month','year','var'), sep='\\.')
-#dffix <- cast(dffix, OBJECTID+month+year ~ var) # Why did I do it this way originally 
-dffix <- dffix %>% pivot_wider(names_from = 'var', values_from = 'value')
-dffix$year <- as.numeric(dffix$year)
-
-readr::write_csv(dffix, '~/Github/falciparum/Climate/CRU-Reextraction-Aug2022.csv')
+message(sprintf("Climate data saved to:\n  %s\n  %s", intermediate_CRU_fp))

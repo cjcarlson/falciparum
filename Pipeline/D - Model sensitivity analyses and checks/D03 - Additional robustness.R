@@ -121,15 +121,15 @@ ggsave(
 # Does diagnostic method change with T and P shocks? ---- 
 ########################################################################
 
-dominant_method <- diag_meth_fn |> 
-  readr::read_csv(show_col_types = FALSE) |> 
-  dplyr::mutate(year = factor(year))
+# dominant_method <- diag_meth_fn |> 
+#   readr::read_csv(show_col_types = FALSE) |> 
+#   dplyr::mutate(year = factor(year))
 
 complete_dm <- complete |> 
-  dplyr::left_join(dominant_method, by = join_by(OBJECTID, month, year)) |> 
-  dplyr::mutate(
-    microscopy = simplified_METHOD == "MICROSCOPY"
-  ) |> 
+  # dplyr::left_join(dominant_method, by = join_by(OBJECTID, month, year)) |> 
+  # dplyr::mutate(
+  #   microscopy = simplified_METHOD == "MICROSCOPY"
+  # ) |> 
   filter(dominant_METHOD != "LAMP")
 
 complete_dm$dominant_METHOD = as.factor(complete_dm$dominant_METHOD)

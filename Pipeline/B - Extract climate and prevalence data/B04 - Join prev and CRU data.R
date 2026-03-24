@@ -16,29 +16,19 @@ if (!require("pacman")) {
 }
 
 # packages
-pacman::p_load(
-  here,
-  sf,
-  tidyverse,
-  lubridate,
-  zoo
-  # ,
-  # reshape,
-  # stargazer,
-  # cowplot,
-  # multcomp,
-)
+pacman::p_load(here, sf, tidyverse, lubridate, zoo)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
+sf::sf_use_s2(FALSE)
+
 ########################################################################
 # Spatial data ----
-# gbod = Define Global Burden of Disease regions
-# cont = Administrative units level 1
 ########################################################################
 
+# Define Global Burden of Disease regions
 gbod <- world_regions_fp |>
   sf::read_sf() |>
   as.data.frame() |>
@@ -56,76 +46,112 @@ gbod <- world_regions_fp |>
     country = as.character(country),
     country = str_replace(country, "Cote D'Ivoire", "Côte d'Ivoire")
   )
-
+# Administrative units level 1
 cont <- ADM1_fp |>
-  sf::st_read() |>
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
+  sf::read_sf() |>
+  dplyr::mutate(
+    OBJECTID = as.numeric(OBJECTID)
+  ) |>
+  dplyr::select(OBJECTID, country = NAME_0)
+
+########################################################################
+# Intermediate climate data ----
+########################################################################
+
+climate_data <- readr::read_csv(intermediate_CRU_fp)
 
 ########################################################################
 # Prevalence data ----
 ########################################################################
 
-data <- readr::read_csv(prev_clim_data_adm1_fp, show_col_types = FALSE) 
+# Load the raw prevalence data
+prev_df <- prev_DB_fp |>
+  readr::read_csv(
+    col_types = readr::cols(
+      Long = col_double(),
+      Lat = col_double(),
+      MM = col_integer(),
+      YY = col_integer(),
+      Pf = col_double(),
+      `PfPR2-10` = col_double()
+    )
+  ) |>
+  dplyr::mutate(METHOD = str_to_upper(METHOD)) |>
+  sf::st_as_sf(coords = c("Long", "Lat"), crs = 4326, remove = FALSE) |>
+  sf::st_join(cont) |>
+  sf::st_drop_geometry() |>
+  dplyr::as_tibble()
 
-#### Spatial data
-spatial <- read.csv(file.path(
-  data_dir,
-  'Dataframe backups',
-  'shapefile-backup.csv'
-))
-countrydf <- unique(spatial[, c('OBJECTID', 'NAME_0')])
-data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x) {
-  which(countrydf$OBJECTID == x)
-})]
-data$country <- countrydf$NAME_0[sapply(data$OBJECTID, function(x) {
-  which(countrydf$OBJECTID == x)
-})]
-# iso = data %>% group_by(country, month, year) %>% summarize_all(mean, na.rm=T)
-# data_iso <- iso[complete.cases(iso),]
+# Find the dominant diagnostic method for each year, month, and ADM1
+diagnostic_method_summary <- prev_df |>
+  dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) |>
+  dplyr::mutate(
+    month = factor(MM, levels = 1:12, labels = month.abb),
+    year = YY
+  ) |>
+  dplyr::group_by(OBJECTID, year, month, METHOD) |>
+  dplyr::summarise(count = n(), .groups = 'drop') |>
+  dplyr::group_by(OBJECTID, year, month) |>
+  dplyr::slice_max(order_by = count, n = 1, with_ties = FALSE) |>
+  dplyr::ungroup() |>
+  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) |>
+  dplyr::mutate(
+    simplified_METHOD = case_when(
+      dominant_METHOD %in%
+        c("RDT", "RDT/SLIDE CONFIRMED", "RDT/PCR CONFIRMED") ~
+        "RDT",
+      dominant_METHOD %in% c("MICROSCOPY", "MICROSCOPY/PCR CONFIRMED") ~
+        "MICROSCOPY",
+      TRUE ~ dominant_METHOD
+    )
+  )
 
-#### Dates & times
-data$yearnum <- data$year
-data$year <- factor(data$year)
-
-data.reset <- data %>%
-  unite("monthyr", month:year, sep = ' ', remove = FALSE) %>%
-  mutate(monthyr = as.Date(as.yearmon(monthyr))) %>%
-  mutate(monthyr = as.numeric(ymd(monthyr) - ymd("1900-01-01"))) 
-
-cols_to_check <- setdiff(names(data.reset), c("avg_urban", "n_urban"))
-## Store complete records only
-complete <- data.reset[complete.cases(data.reset[, cols_to_check]), ]
-
-complete$country = as.character(complete$country)
-complete = left_join(complete, gbod, by = "country")
-complete$country = as.factor(complete$country)
-
-# data <- prev_clim_data_adm1_fp |>
-#   readr::read_csv(show_col_types = FALSE) |>
-#   dplyr::left_join(
-#     cont |> sf::st_drop_geometry() |> dplyr::distinct(OBJECTID, NAME_0),
-#     by = "OBJECTID"
-#   ) |>
-#   dplyr::rename(country = NAME_0) |>
-#   tidyr::unite("monthyr", month:year, sep = ' ', remove = FALSE) |>
-#   dplyr::mutate(
-#     yearnum = year,
-#     year = factor(year),
-#     monthyr = as.Date(zoo::as.yearmon(monthyr)),
-#     monthyr = as.numeric(lubridate::ymd(monthyr) - lubridate::ymd("1900-01-01"))
-#   )
-# 
-# complete <- data |>
-#   dplyr::left_join(gbod, by = "country") |>
-#   dplyr::mutate(country = as.factor(country))
+# Summarise the prevalence data to the ADM 1 level
+prev_mean_df <- prev_df |>
+  dplyr::select(OBJECTID, MM, YY, Pf, `PfPR2-10`, METHOD) |>
+  dplyr::mutate(
+    month = factor(MM, levels = 1:12, labels = month.abb),
+    year = YY
+  ) |>
+  dplyr::group_by(OBJECTID, year, month) |>
+  dplyr::summarise(
+    Pf = mean(Pf, na.rm = TRUE),
+    PfPR2 = mean(`PfPR2-10`, na.rm = TRUE),
+    .groups = 'drop'
+  ) |>
+  dplyr::ungroup() |>
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID)) |>
+  dplyr::left_join(
+    diagnostic_method_summary,
+    by = join_by(OBJECTID, year, month)
+  )
 
 ########################################################################
-# Define covariates ----
-# a) Drought/flood events
-# b) Malaria intervention periods
+# Join clim and prev ----
 ########################################################################
 
-##### Define flood/drought variables - need to pass the climate data separately from the merged dataset with the outcome
+clim_prev_full_df <- climate_data |>
+  dplyr::left_join(prev_mean_df, by = c("OBJECTID", "year", "month")) |>
+  dplyr::left_join(sf::st_drop_geometry(cont), by = dplyr::join_by(OBJECTID)) |>
+  dplyr::mutate(yearnum = year, year = factor(year))
+
+########################################################################
+# Subset to complete records ----
+########################################################################
+
+data.reset <- clim_prev_full_df |>
+  tidyr::unite("monthyr", month:year, sep = ' ', remove = FALSE) |>
+  dplyr::mutate(monthyr = as.Date(as.yearmon(monthyr))) |>
+  dplyr::mutate(monthyr = as.numeric(ymd(monthyr) - ymd("1900-01-01")))
+
+complete <- data.reset[complete.cases(data.reset), ]
+
+########################################################################
+# Drought and flood ----
+########################################################################
+
+##### Define flood/drought variables - need to pass the climate data 
+##### separately from the merged dataset with the outcome
 ##### variable because we want to define climate over the whole period
 complete <- computePrcpExtremes(
   dfclimate = data.reset,
@@ -141,27 +167,29 @@ complete |>
   distinct() |>
   write_csv(file = precip_fp)
 
-# need this for country specific quadratic trends
-complete$monthyr2 = complete$monthyr^2
+########################################################################
+# Clean variables ----
+########################################################################
 
-# define key intervention periods
-complete$intervention = ifelse(
-  complete$yearnum >= 1955 & complete$yearnum <= 1969,
-  1,
-  0
-)
-complete$intervention[complete$yearnum >= 2000 & complete$yearnum <= 2015] = 2
-complete$intervention = as.factor(complete$intervention)
-
-# classes: important for ensuring felm is treating these correctly
-complete$month = as.factor(complete$month)
-complete$year = as.factor(complete$year)
-
-# Build the country × N-year clustering variable
 complete <- complete |>
-  dplyr::mutate(yr_bin = floor(yearnum / yr_bin_size) * yr_bin_size) |>
+  dplyr::left_join(gbod, by = "country") |>
+  dplyr::mutate(
+    monthyr2 = monthyr^2,
+    intervention = dplyr::case_when(
+      dplyr::between(yearnum, 1955, 1969) ~ 1,
+      dplyr::between(yearnum, 2000, 2015) ~ 2,
+      TRUE ~ 0
+    ),
+    intervention = as.factor(intervention),
+    month = as.factor(month),
+    year = as.factor(year),
+    country = as.factor(country),
+    simplified_METHOD = as.factor(simplified_METHOD),
+    dominant_METHOD = as.factor(dominant_METHOD),
+    yr_bin = floor(yearnum / yr_bin_size) * yr_bin_size
+  ) |>
   dplyr::group_by(country, yr_bin) |>
-  dplyr::arrange(OBJECTID, monthyr) |> 
+  dplyr::arrange(OBJECTID, monthyr) |>
   dplyr::mutate(cntry_yrbin = dplyr::cur_group_id()) |>
   dplyr::ungroup()
 
@@ -196,122 +224,40 @@ readr::write_rds(replication, file = replication_fp)
 # Urban summary ----
 ############################################################
 
-## Read prevalence CSV
-prev_df <- prev_DB_fp %>%
-  readr::read_csv(
-    col_types = cols(
-      Long = col_double(),
-      Lat = col_double(),
-      MM = col_integer(),
-      YY = col_integer(),
-      Pf = col_double(),
-      `PfPR2-10` = col_double()
-    )
-  ) %>%
-  mutate(METHOD = str_to_upper(METHOD))
+urban_areas <- urban_centers_fp |>
+  sf::read_sf() |>
+  dplyr::filter(GC_UCB_YOB_2025 <= 2015) |>
+  sf::st_transform(4326) |>
+  dplyr::select(GC_UCB_YOB_2025)
 
-## Convert to sf and join urban areas
-prev_sf <- st_as_sf(prev_df, coords = c("Long", "Lat"), crs = 4326)
-
-urban_areas <- here::here(
-  data_dir,
-  "Data",
-  "GHS_UCDB_REGION_SUB_SAHARAN_AFRICA_R2024A.gpkg"
-) %>%
-  read_sf() %>%
-  filter(GC_UCB_YOB_2025 <= 2015) %>%
-  st_transform(4326)
-
-prev_with_yob <- st_join(
-  prev_sf,
-  urban_areas %>% dplyr::select(GC_UCB_YOB_2025),
-  join = st_within,
-  left = TRUE
-)
-
-prev_classified <- prev_with_yob %>%
-  mutate(
-    urban = case_when(
+## Compute urban dummy
+urban_summary <- prev_df |>
+  sf::st_as_sf(coords = c("Long", "Lat"), crs = 4326) |>
+  sf::st_join(urban_areas, join = st_within, left = TRUE) |>
+  dplyr::mutate(
+    urban = dplyr::case_when(
       !is.na(GC_UCB_YOB_2025) & YY >= GC_UCB_YOB_2025 ~ 1,
       is.na(GC_UCB_YOB_2025) & YY >= 1975 ~ 0,
       TRUE ~ NA_integer_
-    )
-  )
-
-## Join to continent shapefile
-
-prev_with_cont <- st_join(prev_classified, cont)
-
-## Compute mean prevalence and urban share
-urban_summary <- prev_with_cont %>%
-  as_tibble() %>%
-  dplyr::select(
-    OBJECTID,
-    MM,
-    YY,
-    Pf,
-    `PfPR2-10`,
-    METHOD,
-    GC_UCB_YOB_2025,
-    urban
-  ) %>%
-  dplyr::mutate(
-    month = factor(MM, levels = 1:12, labels = month.abb),
-    year = YY
-  ) %>%
-  dplyr::group_by(OBJECTID, year, month) %>%
-  dplyr::summarise(
-    n_methods = n_distinct(METHOD),
-    n_urban = sum(urban, na.rm = TRUE),
-    n_surveys = n(),
-    avg_urban = n_urban / n_surveys,
-    Pf_mean = mean(Pf, na.rm = TRUE),
-    PfPR2_mean = mean(`PfPR2-10`, na.rm = TRUE),
-    .groups = 'drop'
-  ) %>%
+    ),
+    month = factor(MM, levels = 1:12, labels = month.abb)
+  ) |>
+  dplyr::as_tibble() |>
+  dplyr::group_by(OBJECTID, month, year = YY) |>
+  dplyr::summarise(n_urban = sum(urban, na.rm = TRUE), .groups = 'drop') |>
   dplyr::mutate(
     n_urban = ifelse(year < 1975, NA_integer_, n_urban),
-    avg_urban = ifelse(year < 1975, NA_real_, avg_urban)
-  ) %>%
-  dplyr::select(OBJECTID, year, month, n_urban, n_surveys, avg_urban, n_methods)
+    urban_dummy = ifelse(n_urban > 0, 1, 0)
+  ) |>
+  dplyr::select(OBJECTID, year, month, urban_dummy)
 
-########################################################################
-# Diagnostic methods ----
-########################################################################
+readr::write_csv(urban_summary, urban_summary_fp)
 
-## Determine dominant diagnostic method
-dominant_method <- prev_with_cont %>%
-  as_tibble() %>%
-  dplyr::select(OBJECTID, MM, YY, `PfPR2-10`, METHOD) %>%
-  dplyr::mutate(
-    month = factor(MM, levels = 1:12, labels = month.abb),
-    year = YY
-  ) %>%
-  dplyr::group_by(OBJECTID, year, month, METHOD) %>%
-  dplyr::summarise(count = n(), .groups = 'drop') %>%
-  dplyr::group_by(OBJECTID, year, month) %>%
-  dplyr::slice_max(order_by = count, n = 1, with_ties = FALSE) %>%
-  dplyr::ungroup() %>%
-  dplyr::select(OBJECTID, year, month, dominant_METHOD = METHOD) %>%
-  dplyr::mutate(
-    simplified_METHOD = case_when(
-      dominant_METHOD %in%
-        c("RDT", "RDT/SLIDE CONFIRMED", "RDT/PCR CONFIRMED") ~
-        "RDT",
-      dominant_METHOD %in% c("MICROSCOPY", "MICROSCOPY/PCR CONFIRMED") ~
-        "MICROSCOPY",
-      TRUE ~ dominant_METHOD
-    )
-  ) %>%
-  dplyr::left_join(urban_summary, by = c("OBJECTID", "year", "month"))
+# complete <- readr::read_rds(replication_fp)
 
-readr::write_csv(
-  dominant_method,
-  file.path(data_dir, "Data", 'dominant_diagnostic_method_summary.csv')
-)
+# cols_to_check <- c("PfPR2", "temp", "temp2", "ppt")
 
-# complete$dominant_METHOD = as.factor(complete$dominant_METHOD)
-# complete$simplified_METHOD = as.factor(complete$simplified_METHOD)
-
-# unique(complete$dominant_METHOD)
-# unique(complete$simplified_METHOD)
+# for (col in cols_to_check) {
+#   result <- all.equal(complete[[col]], replication[[col]], tolerance = 1e-8)
+#   cat(col, ":", if (isTRUE(result)) "MATCH" else result, "\n")
+# }

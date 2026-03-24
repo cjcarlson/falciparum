@@ -40,9 +40,8 @@ source(A_utils_plot_fp)
 # as minimum and maximum for range of temperature
 ############################################################
 
-Tref = 24 #reference temperature - curve gets recentered to 0 here
-Tmin = 10 #min T for x axis
-Tmax = 40 #max T for x axis
+Tmin = 10 # min T for x axis
+Tmax = 40 # max T for x axis
 
 ############################################################
 # Load data ----
@@ -108,6 +107,8 @@ plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
 # plot relative to max of quadratic function
 coefs = summary(mainmod)$coefficients[1:2]
+
+#reference temperature - curve gets recentered to 0 here
 myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 
 fig = plotPolynomialResponse(

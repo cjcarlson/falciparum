@@ -4,66 +4,27 @@
 #### rather than averaging across administrative units
 #############################################################################-
 
+############################################################
+# Set up ----
+############################################################
+
 rm(list = ls())
 
-library(sf)
-library(here)
-library(terra)
-library(tidyverse)
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(sf, here, terra, tidyverse)
+
+# Source configuration and utility functions
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
 
 sf::sf_use_s2(FALSE)
 
-# Load configuration and utility functions
-source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
-source(here::here(pipeline_A_dir, "A01 - Utility code for calculations.R"))
-
-# Function to process each power for point data
-process_clim_powers_points <- function(
-  power,
-  clim_data,
-  points_sf,
-  rast_times,
-  var_name
-) {
-  # power = 1
-  # clim_data = tmp
-  # points_sf = prev_sf
-  # rast_times = time_names
-  # var_name = "temp"
-  cat("Processing power: ", power, "\n", sep = "")
-  # Apply power transformation
-  clim_data_k <- clim_data^power
-
-  cat("\tExtracting values\n")
-  # Extract values at point locations
-  clim_extract_k <- terra::extract(
-    x = clim_data_k,
-    y = points_sf,
-  )
-
-  cat("\tAdding point IDs\n")
-  # Add the point ID back
-  clim_extract_k$point_id <- 1:nrow(points_sf)
-  clim_extract_k$OBJECTID <- points_sf$OBJECTID
-
-  cat("\tRenaming columns\n")
-  # Rename columns
-  colnames(clim_extract_k)[2:(ncol(clim_extract_k) - 2)] <- rast_times
-
-  cat("\tReshaping data\n")
-  # Reshape from wide to long format
-  clim_extract_k <- clim_extract_k |>
-    tidyr::pivot_longer(
-      cols = -c(ID, point_id, OBJECTID),
-      names_to = c("year", "month", "day"),
-      names_sep = "-",
-      values_to = paste0(var_name, ifelse(power == 1, "", power))
-    ) |>
-    dplyr::select(-day, -ID) |>
-    dplyr::mutate(month = month.abb[as.numeric(month)])
-  cat("\tDone\n\n")
-  return(clim_extract_k)
-}
+############################################################
+# Prevalence data ----
+############################################################
 
 # Read the prevalence CSV file first to get point locations
 prev_df <- file.path(
@@ -100,15 +61,30 @@ prev_sf <- sf::st_as_sf(
 ) |>
   sf::st_join(cont)
 
+# Prepare prevalence data for joining
+prev_join <- prev_df |>
+  dplyr::select(
+    point_id,
+    Long,
+    Lat,
+    MM,
+    YY,
+    Pf,
+    `PfPR2-10`,
+    METHOD,
+    everything()
+  ) |>
+  dplyr::mutate(
+    month = factor(MM, levels = 1:12, labels = month.abb),
+    year = as.character(YY),
+  )
+
+############################################################
+# Extract temperature data ----
+############################################################
+
 # Read and process temperature raster data
-tmp <- file.path(
-  data_dir,
-  "Data",
-  "CRU_TS403_data",
-  "tmp",
-  "cru_ts4.03.1901.2018.tmp.dat.nc",
-  "cru_ts4.03.1901.2018.tmp.dat.nc"
-) |>
+tmp <- cru_tmp_fp |>
   terra::rast() |>
   terra::crop(cont) %>%
   terra::subset(grep("tmp_", names(.)))
@@ -135,15 +111,12 @@ temp_df <- purrr::reduce(
   by = c("OBJECTID", "point_id", 'year', 'month')
 )
 
+############################################################
+# Extract precipitation data ----
+############################################################
+
 # Read and process precipitation raster data
-pre <- file.path(
-  data_dir,
-  "Data",
-  "CRU_TS403_data",
-  "pr",
-  "cru_ts4.03.1901.2018.pre.dat.nc",
-  "cru_ts4.03.1901.2018.pre.dat.nc"
-) |>
+pre <- cru_prc_fp |>
   terra::rast() |>
   terra::crop(cont) %>%
   terra::subset(grep("pre_", names(.)))
@@ -167,23 +140,9 @@ pre_df <- purrr::reduce(
   by = c("OBJECTID", "point_id", 'year', 'month')
 )
 
-# Prepare prevalence data for joining
-prev_join <- prev_df |>
-  dplyr::select(
-    point_id,
-    Long,
-    Lat,
-    MM,
-    YY,
-    Pf,
-    `PfPR2-10`,
-    METHOD,
-    everything()
-  ) |>
-  dplyr::mutate(
-    month = factor(MM, levels = 1:12, labels = month.abb),
-    year = as.character(YY),
-  )
+############################################################
+# Combine tmp and prc data ----
+############################################################
 
 # Join the temperature, precipitation, and prevalence data
 complete_df <- dplyr::left_join(
@@ -211,10 +170,10 @@ complete_df <- dplyr::left_join(
     METHOD,
     everything()
   )
-## ------------------------------------------------------------------------- ##
-## Flag floods (>= 90 th pct.), droughts (<= 10 th pct.)
-## and generate 1-, 2- and 3-month lags for every survey point
-## ------------------------------------------------------------------------- ##
+
+############################################################
+# Flood and lag ----
+############################################################
 
 # > You can modify these if you want a different baseline or thresholds
 pct_flood <- 0.90 # 90 th percentile ⇒ “flood”
@@ -258,13 +217,10 @@ complete_df <- complete_df |>
   ) |>
   ungroup()
 
+############################################################
+# Save data ----
+############################################################
+
 complete_df <- tidyr::drop_na(complete_df, `PfPR2-10`)
 
-readr::write_csv(
-  complete_df,
-  file.path(
-    data_dir,
-    "Data",
-    paste0('CRU-', CRUversion, '-Points-Reextraction-May2025.csv')
-  )
-)
+readr::write_csv(complete_df, prev_clim_data_grid_fp)

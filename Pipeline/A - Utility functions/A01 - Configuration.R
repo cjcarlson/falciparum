@@ -2,7 +2,7 @@
 # General ----
 ############################################################
 
-print("Loading A01 - Configuration.R")
+print("Begin loading A01 - Configuration.R")
 
 user = Sys.info()['user']
 
@@ -13,7 +13,8 @@ data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
-  user == "cmolitor" ~ '/global/scratch/projects/co_carleton/carleton_colab/projects/malaria-attribution',
+  user ==
+    "cmolitor" ~ '/global/scratch/projects/co_carleton/carleton_colab/projects/malaria-attribution',
   TRUE ~ NA_character_
 )
 
@@ -42,11 +43,19 @@ yr_bin_size <- 5 # 10
 clust_label <- paste0("country_x_", yr_bin_size, "yr")
 
 ############################################################
-# Directories ----
+# Replication file ----
 ############################################################
 
-replication_fp <- file.path(data_dir, "malaria-replication", "prevalence_and_climate.rds")
+replication_fp <- file.path(
+  data_dir,
+  "malaria-replication",
+  "prevalence_and_climate.rds"
+)
 dir.create(dirname(replication_fp), showWarnings = FALSE)
+
+############################################################
+# Intermediate files ----
+############################################################
 
 clust_dir <- file.path(data_dir, clust_label)
 
@@ -60,25 +69,73 @@ dir.create(iter_futu_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(summ_hist_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(summ_futu_dir, showWarnings = FALSE, recursive = TRUE)
 
-climate_dir <- file.path(repo_dir, "Climate") 
-precip_fp <- file.path(climate_dir, "PrecipKey.csv") 
+data_data_dir <- file.path(data_dir, "Data")
+dir.create(data_data_dir, showWarnings = FALSE, recursive = TRUE)
+
+############################################################
+# Spatial data ----
+############################################################
+
+ADM1_fp <- file.path(data_data_dir, 'AfricaADM1.shp')
+world_regions_fp <- file.path(data_data_dir, "OriginalGBD", "WorldRegions.shp")
+
+############################################################
+# Utility files ----
+############################################################
 
 pipeline_A_dir <- file.path(repo_dir, "Pipeline", "A - Utility functions")
-A_utils_calc_fp <- file.path(pipeline_A_dir, "A02 - Utility code for calculations.R")
-A_utils_plot_fp <- file.path(pipeline_A_dir, "A03 - Utility code for plotting.R")
+A_utils_calc_fp <- file.path(
+  pipeline_A_dir,
+  "A02 - Utility code for calculations.R"
+)
+A_utils_plot_fp <- file.path(
+  pipeline_A_dir,
+  "A03 - Utility code for plotting.R"
+)
+
+############################################################
+# Climate Model files ----
+############################################################
 
 bc_cru_ts_dir <- file.path(data_dir, "BC-ClimateData20230626", "3-Outputs")
 bc_cruts_output_dir <- file.path(bc_cru_ts_dir, "bc_cruts4.03")
 bc_cruts_old_output_dir <- file.path(bc_cru_ts_dir, "bc_crts4.06")
-data_data_dir <- file.path(data_dir, "Data")
 
-ADM1_fp <- file.path(data_data_dir, 'AfricaADM1.shp') 
-world_regions_fp <- file.path(data_data_dir, "OriginalGBD", "WorldRegions.shp")
+############################################################
+# CRU Files ----
+############################################################
 
-prev_DB_fp <- file.path(
+climate_dir <- file.path(repo_dir, "Climate")
+precip_fp <- file.path(climate_dir, "PrecipKey.csv")
+
+cru_dir <- file.path(data_data_dir, "CRU_TS403_data")
+
+cru_tmp_fp <- file.path(
+  cru_dir,
+  "tmp",
+  "cru_ts4.03.1901.2018.tmp.dat.nc",
+  "cru_ts4.03.1901.2018.tmp.dat.nc"
+)
+cru_prc_fp <- file.path(
+  cru_dir,
+  "pr",
+  "cru_ts4.03.1901.2018.pre.dat.nc",
+  "cru_ts4.03.1901.2018.pre.dat.nc"
+)
+
+intermediate_CRU_fp <- file.path(
   data_data_dir,
-  'dataverse_files',
-  '00 Africa 1900-2015 SSA PR database (260617).csv'
+  "CRU-climate-intermediate.csv"
+)
+
+prev_clim_data_adm1_fp <- file.path(
+  data_data_dir,
+  'CRU-Reextraction-Aug2022.csv'
+)
+
+prev_clim_data_grid_fp <- file.path(
+  data_data_dir,
+  paste0('CRU-4.03-Points-Reextraction-May2025.csv')
 )
 
 climate_prev_wide <- file.path(
@@ -87,39 +144,58 @@ climate_prev_wide <- file.path(
   'shapefile-backup.csv'
 )
 
-diag_meth_fn <- file.path(
+############################################################
+# Prevalence files ----
+############################################################
+
+prev_DB_fp <- file.path(
   data_data_dir,
-  'dominant_diagnostic_method_summary.csv'
+  'dataverse_files',
+  '00 Africa 1900-2015 SSA PR database (260617).csv'
 )
 
-prev_clim_data_adm1_fp <- file.path(data_data_dir, 'CRU-Reextraction-Aug2022.csv')
+# diag_meth_fn <- file.path(
+#   data_data_dir,
+#   'dominant_diagnostic_method_summary.csv'
+# )
 
-prev_clim_data_grid_fp <- file.path(
-    data_data_dir,
-    paste0('CRU-4.03-Points-Reextraction-May2025.csv')
-  )
+############################################################
+# Urban files ----
+############################################################
 
-resdir = file.path(clust_dir, "Results")
-dir.create(resdir, showWarnings = FALSE, recursive = TRUE)
+urban_centers_fp <- file.path(
+  data_data_dir,
+  "GHS_UCDB_REGION_SUB_SAHARAN_AFRICA_R2024A.gpkg"
+)
+
+urban_summary_fp <- file.path(data_data_dir, 'urban_summary.csv')
 
 ############################################################
 # Figure directories ----
 # Create necessary subfolders
 ############################################################
 
+resdir = file.path(clust_dir, "Results")
+dir.create(resdir, showWarnings = FALSE, recursive = TRUE)
+
 figure_dir <- file.path(resdir, "Figures")
-figure_main_dir <- file.path(figure_dir, "main")
+figure_main_dir <- file.path(figure_dir, "Main_model")
 figure_diag_dir <- file.path(resdir, "Figures", "Diagnostics")
 figure_diag_sub_dir <- file.path(figure_diag_dir, "Subsamples")
 figure_diag_res_dir <- file.path(figure_diag_dir, "Residuals")
 figure_diag_fe_dir <- file.path(figure_diag_dir, "Fixed_effects")
+figure_diag_temp_dir <- file.path(figure_diag_dir, "Temp_lags")
+figure_diag_df_dir <- file.path(figure_diag_dir, "Drought_flood_defn")
+figure_diag_tff_dir <- file.path(figure_diag_dir, "Temp_functionalForm")
 
 dir.create(figure_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_main_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_sub_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_res_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_res_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_diag_fe_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_diag_temp_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_diag_df_dir, showWarnings = FALSE, recursive = TRUE)
 
 ############################################################
 # Model directories ----
@@ -230,34 +306,6 @@ future_scenario_formulas <- purrr::map2(
   rlang::new_formula
 )
 
-historical_scenario_formulas <- purrr::map2(
-  names(historical_scenario_names),
-  unname(historical_scenario_names),
-  names(historical_scenario_names),
-  unname(historical_scenario_names),
-  rlang::new_formula
-)
-
-yr_1901 <- 1901:1905
-yr_2014 <- 2010:2014
-yr_2015 <- 2015:2019
-yr_2050 <- 2048:2052
-yr_2100 <- 2096:2100
-
-# Year bins — defined once, reused everywhere
-yr_bins <- list(
-  "1901" = 1901:1905,
-  "2014" = 2010:2014,
-  "2015" = 2015:2019,
-  "2050" = 2048:2052,
-  "2100" = 2096:2100
-)
-
-# Build a named lookup vector: original_year -> bin_year
-yr_lookup <- unlist(lapply(names(yr_bins), function(nm) {
-  setNames(rep(as.integer(nm), length(yr_bins[[nm]])), yr_bins[[nm]])
-}))
-
 yr_1901 <- 1901:1905
 yr_2014 <- 2010:2014
 yr_2015 <- 2015:2019
@@ -289,7 +337,10 @@ country_time <- "country:monthyr + country:monthyr2"
 cXt2intrXm <- as.formula(
   paste0(
     common,
-    " + I(intervention) + ", country_time, 
+    " + I(intervention) + ",
+    country_time,
     "| OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin"
   )
 )
+
+print("Finished loading A01 - Configuration.R")
