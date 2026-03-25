@@ -79,43 +79,42 @@ computePrcpExtremes = function(
   }
 
   # flood definition
-  data %>%
+  ppt.90 <- data %>%
     dplyr::filter(yearnum <= yearcutoff) %>%
     dplyr::group_by(OBJECTID) %>%
-    dplyr::summarize(ppt.90 = quantile(na.omit(ppt), pctflood)) -> ppt.90
+    dplyr::summarize(ppt.90 = quantile(na.omit(ppt), pctflood))
+
   data <- dplyr::left_join(data, ppt.90)
   data$flood <- as.numeric(data$ppt >= data$ppt.90)
   colnames(data)[dim(data)[2] - 1] = paste0("ppt_pctile", pctflood)
 
   # flood lags
-  data %>%
-
+  data <- data %>%
     dplyr::group_by(OBJECTID) %>%
     dplyr::mutate(
       flood.lag = lag(flood, order_by = monthyr),
       flood.lag2 = lag(flood, order_by = monthyr, n = 2),
       flood.lag3 = lag(flood, order_by = monthyr, n = 3)
-    ) -> data
+    )
 
   # drought definition
-  data %>%
+  ppt.10 <- data %>%
     dplyr::filter(yearnum <= yearcutoff) %>%
     dplyr::group_by(OBJECTID) %>%
-    dplyr::summarize(ppt.10 = quantile(na.omit(ppt), pctdrought)) -> ppt.10
+    dplyr::summarize(ppt.10 = quantile(na.omit(ppt), pctdrought))
 
   data <- left_join(data, ppt.10)
   data$drought <- as.numeric(data$ppt <= data$ppt.10)
   colnames(data)[dim(data)[2] - 1] = paste0("ppt_pctile", pctdrought)
 
   # drought lags
-  data %>%
-
+  data <- data %>%
     dplyr::group_by(OBJECTID) %>%
     dplyr::mutate(
       drought.lag = lag(drought, order_by = monthyr),
       drought.lag2 = lag(drought, order_by = monthyr, n = 2),
       drought.lag3 = lag(drought, order_by = monthyr, n = 3)
-    ) -> data
+    )
 
   # merge into outcome dataframe
   tokeep = c("OBJECTID", "monthyr", "month", "year")
@@ -495,22 +494,45 @@ make_filename <- function(clim, model, scenario, grid, date_range) {
 }
 
 ############################################################
+# extract_long ----
+############################################################
+
+# Helper: extract, pivot to long, return data.table with one value column
+extract_long <- function(rast, polygons, rast_times, value_name) {
+  ex <- exactextractr::exact_extract(
+    x = rast,
+    y = polygons,
+    fun = 'mean',
+    progress = TRUE,
+    append_cols = "OBJECTID"
+  )
+  colnames(ex) <- c("OBJECTID", rast_times)
+
+  dt <- as.data.table(ex)
+  dt <- melt(
+    dt,
+    id.vars = "OBJECTID",
+    variable.name = "date",
+    value.name = value_name
+  )
+  dt[, c("year", "month") := tstrsplit(date, "-", keep = 1:2)]
+  dt[, month := month.abb[as.integer(month)]]
+  dt[, date := NULL]
+  dt
+}
+
+############################################################
 # process_clim_powers_points ----
 ############################################################
 
 # Function to process each power for point data
 process_clim_powers_points <- function(
-  power,
-  clim_data,
-  points_sf,
-  rast_times,
-  var_name
+  power, # power = 1
+  clim_data, # clim_data = tmp
+  points_sf, # points_sf = prev_df
+  rast_times, # rast_times = time_names
+  var_name # var_name = "temp"
 ) {
-  # power = 1
-  # clim_data = tmp
-  # points_sf = prev_sf
-  # rast_times = time_names
-  # var_name = "temp"
   cat("Processing power: ", power, "\n", sep = "")
   # Apply power transformation
   clim_data_k <- clim_data^power
@@ -520,33 +542,58 @@ process_clim_powers_points <- function(
   clim_extract_k <- terra::extract(
     x = clim_data_k,
     y = points_sf,
+    ID = FALSE
   )
 
   cat("\tAdding point IDs\n")
   # Add the point ID back
-  clim_extract_k$point_id <- 1:nrow(points_sf)
-  clim_extract_k$OBJECTID <- points_sf$OBJECTID
+  clim_extract_k$point_id <- points_sf$point_id
+  clim_extract_k$Lat <- points_sf$Lat
+  clim_extract_k$Long <- points_sf$Long
 
   cat("\tRenaming columns\n")
   # Rename columns
-  colnames(clim_extract_k)[2:(ncol(clim_extract_k) - 2)] <- rast_times
+  colnames(clim_extract_k) <- c(rast_times, "point_id", "Lat", "Long")
 
   cat("\tReshaping data\n")
   # Reshape from wide to long format
   clim_extract_k <- clim_extract_k |>
     tidyr::pivot_longer(
-      cols = -c(ID, point_id, OBJECTID),
+      cols = -c(point_id, Lat, Long),
       names_to = c("year", "month", "day"),
       names_sep = "-",
       values_to = paste0(var_name, ifelse(power == 1, "", power))
     ) |>
-    dplyr::select(-day, -ID) |>
+    dplyr::select(-day) |>
     dplyr::mutate(month = month.abb[as.numeric(month)])
   cat("\tDone\n\n")
   return(clim_extract_k)
 }
 
 print("Finished loading A01 - Utility code for calculations.R")
+
+############################################################
+# Logging utility ----
+############################################################
+
+create_logger <- function(log_file = NULL) {
+  # Create directory up front if needed
+  if (!is.null(log_file)) {
+    log_dir <- dirname(log_file)
+    if (!dir.exists(log_dir)) {
+      dir.create(log_dir, recursive = TRUE)
+    }
+  }
+
+  function(msg) {
+    timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+    formatted_msg <- sprintf("[%s] %s", timestamp, msg)
+    cat(formatted_msg, "\n")
+    if (!is.null(log_file)) {
+      cat(formatted_msg, "\n", file = log_file, append = TRUE)
+    }
+  }
+}
 
 ############################################################
 # End of file ----

@@ -49,8 +49,15 @@ clust_label <- paste0("country_x_", yr_bin_size, "yr")
 replication_fp <- file.path(
   data_dir,
   "malaria-replication",
-  "prevalence_and_climate.rds"
+  "prevalence_and_climate_adm1.rds"
 )
+
+replication_grid_fp <- file.path(
+  data_dir,
+  "malaria-replication",
+  "prevalence_and_climate_grid.rds"
+)
+
 dir.create(dirname(replication_fp), showWarnings = FALSE)
 
 ############################################################
@@ -93,6 +100,8 @@ A_utils_plot_fp <- file.path(
   "A03 - Utility code for plotting.R"
 )
 
+logs_dir <- file.path(repo_dir, "code_logs")
+
 ############################################################
 # Climate Model files ----
 ############################################################
@@ -107,6 +116,7 @@ bc_cruts_old_output_dir <- file.path(bc_cru_ts_dir, "bc_crts4.06")
 
 climate_dir <- file.path(repo_dir, "Climate")
 precip_fp <- file.path(climate_dir, "PrecipKey.csv")
+precip_grid_fp <- file.path(climate_dir, "PrecipKey_grid.csv")
 
 cru_dir <- file.path(data_data_dir, "CRU_TS403_data")
 
@@ -232,6 +242,11 @@ dir.create(table_sens_dir, showWarnings = FALSE, recursive = TRUE)
 ############################################################
 # Constants ----
 ############################################################
+
+# > You can modify these if you want a different baseline or thresholds
+pct_flood <- 0.90 # 90 th percentile ⇒ “flood”
+pct_drought <- 0.10 # 10 th percentile ⇒ “drought”
+year_cutoff <- NA # e.g. 2000 if you want climatology up to year 2000 only
 
 models <- c(
   "ACCESS-CM2",

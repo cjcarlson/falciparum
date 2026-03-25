@@ -50,7 +50,7 @@ Tmax = 40 # max T for x axis
 ############################################################
 
 print("Loading data")
-complete <- readr::read_csv(prev_clim_data_grid_fp, show_col_types = FALSE)
+complete <- readr::read_rds(replication_grid_fp)
 
 # need this for country specific quadratic trends
 complete$monthyr2 = complete$monthyr^2
@@ -99,25 +99,9 @@ complete$country = as.character(complete$country)
 complete = left_join(complete, gboddf, by = "country")
 complete$country = as.factor(complete$country)
 
-#### Create necessary subfolders
-dir.create(file.path(resdir, "Tables"), showWarnings = FALSE)
-dir.create(file.path(resdir, "Figures"), showWarnings = FALSE)
-dir.create(file.path(resdir, "Models"), showWarnings = FALSE)
-
 ########################################################################
 # Estimation
 ########################################################################
-
-# Formula (see other files for robustness/sensitivity checks)
-cXt2intrXm = as.formula(
-  paste0(
-    "`PfPR2-10` ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
-  )
-)
 
 # Estimation & save model results
 highresmod = felm(data = complete, formula = cXt2intrXm)
