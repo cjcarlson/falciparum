@@ -39,7 +39,8 @@ source(A_utils_plot_fp)
 ############################################################
 
 print("Loading clean data")
-complete <- replication_fp |> 
+
+complete <- analysis_ready_adm1_fp |> 
   readr::read_rds() 
 
 ########################################################################
@@ -47,8 +48,7 @@ complete <- replication_fp |>
 ########################################################################
 
 all_mods <- boot_mod_full_fn |>
-  readRDS() |>
-  tibble::as_tibble()
+  readr::read_csv(show_col_types = FALSE)
 
 main <- all_mods |>
   dplyr::filter(model == "main")
@@ -60,6 +60,8 @@ bootstraps <- all_mods |>
 # Spaghetti plot of estimated T response functions ----
 ########################################################################
 
+conf_level <- 0.90
+
 Tref = 24
 Tmin = 10
 Tmax = 40
@@ -67,39 +69,97 @@ int = 0.1
 plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
 xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
 
+# # point estimate
+# b = as.matrix(c(main$temp, main$temp2))
+# response = as.matrix(xValsT) %*% b #Prediction
+
+# plotData = data.frame(x = xValsT[, 1] + Tref, main = response)
+
+# # loop over all bootstraps, add to dataframe
+# for (mod in 1:dim(bootstraps)[1]) {
+#   sub = bootstraps[mod, ]
+#   b = as.matrix(c(sub$temp, sub$temp2))
+#   boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
+#   colnames(boot) = sub$model # paste0("boot", mod)
+#   plotData = cbind(plotData, boot)
+
+#   # progress
+#   if (mod / 100 == round(mod / 100)) {
+#     print(paste0('--------- DONE WITH ITERATION ', mod, ' of 1000 --------'))
+#   }
+# }
+
+# plotData <- plotData |>
+#   tidyr::pivot_longer(
+#     cols = -x,
+#     names_to = "model",
+#     values_to = "response"
+#   )
+
+
+
 # point estimate
-b = as.matrix(c(main$temp, main$temp2))
-response = as.matrix(xValsT) %*% b #Prediction
+b <- as.matrix(c(main$temp, main$temp2))
+response <- as.matrix(xValsT) %*% b
 
-plotData = data.frame(x = xValsT[, 1] + Tref, main = response)
+plotData <- data.frame(
+  x = xValsT[, 1] + Tref,
+  model = "main",
+  response = as.numeric(response),
+  n = length(complete$OBJECTID)
+)
 
-# loop over all bootstraps, add to dataframe
-for (mod in 1:dim(bootstraps)[1]) {
-  sub = bootstraps[mod, ]
-  b = as.matrix(c(sub$temp, sub$temp2))
-  boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
-  colnames(boot) = sub$model # paste0("boot", mod)
-  plotData = cbind(plotData, boot)
+# collect bootstrap results as a list, then row-bind once
+boot_list <- vector("list", nrow(bootstraps))
 
-  # progress
-  if (mod / 100 == round(mod / 100)) {
-    print(paste0('--------- DONE WITH ITERATION ', mod, ' of 1000 --------'))
+for (mod in seq_len(nrow(bootstraps))) {
+  sub <- bootstraps[mod, ]
+  b <- as.matrix(c(sub$temp, sub$temp2))
+  boot_response <- as.numeric(as.matrix(xValsT) %*% b)
+
+  boot_list[[mod]] <- data.frame(
+    x = xValsT[, 1] + Tref,
+    model = sub$model,
+    response = boot_response,
+    n = sub$n
+  )
+
+  if (mod %% 100 == 0) {
+    print(paste0("--------- DONE WITH ITERATION ", mod, " of 1000 --------"))
   }
 }
 
-plotData <- plotData |>
-  tidyr::pivot_longer(
-    cols = -x,
-    names_to = "model",
-    values_to = "response"
-  )
+plotData <- rbind(plotData, do.call(rbind, boot_list))
+
+# plotData |> 
+#   as_tibble() |> 
+#   dplyr::filter(x == 15, response > 0) |> 
+#   dplyr::summarise(mean = mean(n))
+
+# plotData |> 
+#   as_tibble() |> 
+#   dplyr::filter(x == 15, response < 0) |> 
+#   dplyr::summarise(mean = mean(n))
+
+# plotData |> 
+#   as_tibble() |> 
+#   dplyr::filter(x == 15, response > 0) |> 
+#   dplyr::arrange(response) |> 
+#   print(n = 65) |> 
+#   ggplot() +
+#   geom_point(aes(x = n, y = response), alpha = 0.5)
+
+# ggsave(
+#   filename = "test12.jpg",
+#   path = here("Figures")
+# )
 
 percentile_data <- plotData |>
   dplyr::filter(model != "main") |>
   dplyr::group_by(x) |>
   dplyr::summarize(
-    p05 = quantile(response, 0.05),
-    p95 = quantile(response, 0.95)
+    lower_bound = quantile(response, 0 + ((1 - conf_level) / 2)),
+    upper_bound = quantile(response, 1 - ((1 - conf_level) / 2))
   )
 
 ########################################################################
@@ -143,14 +203,14 @@ g <- ggplot() +
   ) +
   geom_line(
     data = percentile_data,
-    aes(x = x, y = p05),
+    aes(x = x, y = lower_bound),
     color = "black",
     linewidth = 0.5,
     linetype = "dashed"
   ) +
   geom_line(
     data = percentile_data,
-    aes(x = x, y = p95),
+    aes(x = x, y = upper_bound),
     color = "black",
     linewidth = 0.5,
     linetype = "dashed"
@@ -333,7 +393,7 @@ f = ggplot() +
     alpha = 1,
     size = 0.5
   ) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  # geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Flood (month lags)", y = NULL) +
   scale_x_discrete(
     breaks = c("-1", "0", "1", "2", "3"),
@@ -383,7 +443,7 @@ d = ggplot() +
     alpha = 1,
     size = .5
   ) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  # geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Drought (month lags)", y = NULL) +
   scale_x_discrete(
     breaks = c("-1", "0", "1", "2", "3"),
@@ -465,7 +525,7 @@ intervention_fig <- ggplot() +
     alpha = 1,
     size = .5
   ) +
-  geom_vline(xintercept = -0.5, linetype = "dashed") +
+  # geom_vline(xintercept = -0.5, linetype = "dashed") +
   labs(x = "Interventions", y = NULL) +
   theme(
     axis.title.x = element_text(vjust = -1),
@@ -480,19 +540,6 @@ intervention_fig <- ggplot() +
   )
 
 intervention_fig
-
-########################################################################
-# Top row ----
-########################################################################
-
-# g_with_hist + f + d + intervention_fig +
-#   plot_layout(ncol = 4, widths = c(5, 5, 5, 2)) &
-#   theme(
-#     axis.text = element_text(size = 8),
-#     axis.title = element_text(size = 10),
-#     plot.title = element_text(size = 12, hjust = 0.5)
-#   )
-
 
 ########################################################################
 # Global time series ----
@@ -524,11 +571,10 @@ graph.data <- graph.data |>
 
   ### Start plotting in 1902 and 2016 because it's the first full year with lags incorporated right.
   filter(!(year %in% c(1901, 2015))) |>
-
   ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
   ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
   ############ this is for plotting purposes ONLY and text stats give full CI's
-  mutate(lower = pmax(lower, -1.75)) |>
+  mutate(lower = pmax(lower, -1.75)) 
 
  s <- graph.data |>
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) +
@@ -604,3 +650,4 @@ ggsave(
   height = 7.69,
   units = "in"
 )
+

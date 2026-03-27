@@ -2,11 +2,10 @@
 # Extract CRU climate data (temperature and precipitation)
 # from CRU-TS4.03 NetCDFs at ADM1 level.
 #
-# Note:: This script will not work in modern versions of R (> 4.2.3).
-# The packages rgdal is no longer supported and Velox requires
-# sp and rgdal. To replicate this script exactly, it is
-# recomended to use docker to create a stable environment that
-# supports these packages.
+# Note: This script will not work in modern versions of R (> 4.2.3).
+# The packages rgdal and velox are no longer supported. To replicate 
+# this script exactly, it is recomended to use docker to create a 
+# stable environment that supports these packages.
 # See https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general
 # for a working container that can run this script.
 ############################################################
@@ -58,7 +57,9 @@ log_msg(sprintf("  Using %d cores for parallel processing", N_CORES))
 ############################################################
 
 log_msg("Loading admin regions")
+
 admin_regions <- rgdal::readOGR(ADM1_fp)
+
 log_msg(sprintf("  Loaded %d admin regions", length(admin_regions)))
 
 ############################################################
@@ -85,7 +86,7 @@ log_msg("  Temperature extraction complete")
 log_msg("Extracting CRU precipitation data at ADM1 level")
 
 admin_regions <- extract_cru_variable(
-  nc_filepath = cru_prc_fp,
+  nc_filepath = cru_pre_fp,
   nc_varname = "pre",
   admin_sp = admin_regions,
   var_prefix = "ppt",
@@ -144,7 +145,7 @@ log_msg(sprintf(
 # Write results ----
 ############################################################
 
-log_msg(sprintf("Saving climate data to: %s", intermediate_CRU_fp))
-readr::write_csv(climate_wide, intermediate_CRU_fp)
+log_msg(sprintf("Saving climate data to: %s", intermediate_CRU_adm1_fp))
+readr::write_csv(climate_wide, intermediate_CRU_adm1_fp)
 
-log_msg("Script B01 completed successfully")
+log_msg("Script `B01 - Extract CRU tmp and prc data ADM1.R` completed successfully")

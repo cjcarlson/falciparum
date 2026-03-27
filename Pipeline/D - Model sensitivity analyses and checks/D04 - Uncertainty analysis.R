@@ -57,7 +57,7 @@ Tmax = 40 # max T for x axis
 ############################################################
 
 print("Loading clean data")
-complete <- readr::read_rds(replication_fp) 
+complete <- readr::read_rds(analysis_ready_adm1_fp) 
 
 ########################################################################
 # Estimate main model, store residuals ----
@@ -100,7 +100,7 @@ df = data.frame(
 write.csv(
   df,
   file.path(
-    resdir,
+    results_dir,
     "Tables",
     "Diagnostics",
     "Residuals",
@@ -177,7 +177,7 @@ df = data.frame(
 write.csv(
   df,
   file.path(
-    resdir,
+    results_dir,
     "Tables",
     "Diagnostics",
     "Residuals",
@@ -190,7 +190,7 @@ box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels = "auto")
 box
 ggsave(
   file.path(
-    resdir,
+    results_dir,
     "Figures",
     "Diagnostics",
     "Residuals",
@@ -206,7 +206,7 @@ hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels = "auto")
 hists
 ggsave(
   file.path(
-    resdir,
+    results_dir,
     "Figures",
     "Diagnostics",
     "Residuals",
@@ -490,7 +490,7 @@ vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
 vars
 ggsave(
   file.path(
-    resdir,
+    results_dir,
     "Figures",
     "Diagnostics",
     "Residuals",
@@ -932,7 +932,7 @@ stargazer(
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
   out = file.path(
-    resdir,
+    results_dir,
     "Tables",
     "Diagnostics",
     "Residuals",

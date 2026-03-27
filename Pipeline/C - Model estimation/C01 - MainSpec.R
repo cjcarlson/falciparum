@@ -17,17 +17,7 @@ if (!require("pacman")) {
 }
 
 # packages
-pacman::p_load(
-  here,
-  lfe,
-  reshape,
-  stargazer,
-  tidyverse,
-  zoo,
-  lubridate,
-  cowplot,
-  multcomp,
-)
+pacman::p_load(lfe, here, tidyverse, stargazer, fixest)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
@@ -44,32 +34,48 @@ Tmin = 10 # min T for x axis
 Tmax = 40 # max T for x axis
 
 ############################################################
+# Set up logging ----
+############################################################
+
+log_file_path <- file.path(logs_dir, "C01_main_spec.log")
+
+log_msg <- create_logger(log_file_path)
+
+log_msg("Starting script C01 - MainSpec")
+
+############################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence 
-# and CRU temperature and precipitation data aggregated to 
+# Read in the analysis ready data file with malaria prevalence
+# and CRU temperature and precipitation data aggregated to
 # the first level of Administrative division.
 ############################################################
 
-print("Loading clean data")
-complete <- readr::read_rds(replication_fp) 
+log_msg("Loading analysis ready data")
+complete <- readr::read_rds(analysis_ready_adm1_fp)
 
 ########################################################################
 # Estimation ----
-# Formula: loaded from configuration file
+# Formula cXt2intrXm is loaded from configuration file
 ########################################################################
 
-# Model estimation
+log_msg("Begin modeling")
+
 mainmod = lfe::felm(data = complete, formula = cXt2intrXm)
+
 coeffs = as.data.frame(mainmod$coefficients)
 vcov = as.data.frame(mainmod$clustervcv)
 
-#Save results
+log_msg("Save model coefficients and vcov")
+
+# Save results
 saveRDS(coeffs, file = main_mod_beta_fn)
 saveRDS(vcov, file = main_mod_vcov_fn)
 
 ########################################################################
 # Table ----
 ########################################################################
+
+log_msg("Save table results")
 
 # Stargazer output
 mynote = paste0(
@@ -98,9 +104,11 @@ stargazer(
 
 ########################################################################
 # Plot ----
-# Note: analogous to Fig 2A but with analytically derived confidence 
+# Note: analogous to Fig 2A but with analytically derived confidence
 # intervals in place of bootstrap runs.
 ########################################################################
+
+log_msg("Plot temperature response")
 
 # Temperature support
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
@@ -122,8 +130,11 @@ fig = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = paste0("Main spec: ", clust_label),
   yLim = c(-30, 5),
-  showYTitle = T
+  showYTitle = T,
+  ci_level = 0.95
 )
+
+log_msg("Save temperature response plot")
 
 ggplot2::ggsave(
   filename = "temp_response_cXt2intrXm.pdf",
@@ -133,3 +144,5 @@ ggplot2::ggsave(
   height = 7,
   create.dir = TRUE
 )
+
+log_msg("Script `C01 - MainSpec.R` completed successfully")

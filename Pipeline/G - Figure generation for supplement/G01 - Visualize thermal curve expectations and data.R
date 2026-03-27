@@ -99,7 +99,7 @@ rm(data)
 ############################################################
 
 print("Loading clean data")
-complete <- readr::read_rds(replication_fp) 
+complete <- readr::read_rds(analysis_ready_adm1_fp) 
 
 # Formula & estimation
 cXt2intrXm = as.formula(

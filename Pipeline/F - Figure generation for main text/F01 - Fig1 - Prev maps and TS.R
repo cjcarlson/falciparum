@@ -18,7 +18,6 @@ pacman::p_load(
   here,
   tidyverse,
   lubridate,
-  magrittr,
   patchwork,
   viridisLite
 )
@@ -31,31 +30,22 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 # Load data ----
 ############################################################
 
-cont <- st_read(file.path(data_dir, 'Data', 'AfricaADM1.shp')) |>
+cont <- ADM1_fp |> 
+  sf::st_read() |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
 
-gbod <- sf::read_sf(file.path(
-  data_dir,
-  "Data",
-  "OriginalGBD",
-  "WorldRegions.shp"
-))
+gbod <- sf::read_sf(gbd_fp)
 
-prev_sf <- file.path(
-  data_dir,
-  'Data',
-  'dataverse_files',
-  '00 Africa 1900-2015 SSA PR database (260617).csv'
-) |>
+prev_sf <- prev_DB_fp |>
   read.csv() |>
   st_as_sf(coords = c("Long", "Lat"), crs = st_crs(cont))
 
-cont$meanprev <- st_join(cont, prev_sf) %>%
-  group_by(OBJECTID) %>%
-  summarise(meanprev = mean(PfPR2.10, na.rm = TRUE)) %>%
+cont$meanprev <- st_join(cont, prev_sf) |>
+  group_by(OBJECTID) |>
+  summarise(meanprev = mean(PfPR2.10, na.rm = TRUE)) |>
   pull(meanprev)
 
-cont$npts <- st_intersects(cont, prev_sf) %>%
+cont$npts <- st_intersects(cont, prev_sf) |>
   lengths()
 
 ############################################################
@@ -67,7 +57,7 @@ map.n <- ggplot() +
   coord_sf(datum = NA, xlim = c(-19, 53)) +
   theme_void() +
   theme(legend.position = c(0.2, 0.3)) +
-  scale_fill_gradientn('Samples', colours = mako(100), trans = "log10") +
+  scale_fill_gradientn('Samples', colours = viridisLite::mako(100), trans = "log10") +
   guides(fill = guide_colourbar(ticks = FALSE)) 
 
 map.p <- ggplot(cont) +
@@ -77,7 +67,7 @@ map.p <- ggplot(cont) +
   theme(legend.position = c(0.2, 0.3)) +
   scale_fill_gradientn(
     'Prevalence (%)',
-    colours = mako(100),
+    colours = viridisLite::mako(100),
     limits = c(0, 85)
   ) +
   guides(fill = guide_colourbar(ticks = FALSE))
@@ -88,22 +78,23 @@ top <- map.n + map.p
 # Bottom row of plot ----
 ############################################################
 
-o <- st_join(prev_sf, gbod)
+o <- sf::st_join(prev_sf, gbod)
 
-df <- tibble(prev_sf)
+df <- tibble::tibble(prev_sf)
 df$region <- o$SmllRgn
 
-df %<>% unite("monthyr", MM:YY, sep = ' 1 ', remove = FALSE)
-df %<>% mutate(monthyr = mdy(monthyr))
+df <- df |>
+  tidyr::unite("monthyr", MM:YY, sep = " 1 ", remove = FALSE) |>
+  dplyr::mutate(monthyr = lubridate::mdy(monthyr))
 
 df2 <- df
 df2$region <- 'Continent-wide'
 df <- bind_rows(df2, df)
 
-df <- df %>%
-  filter(!is.na(region)) %>%
-  mutate(
-    region = recode(
+df <- df |>
+  dplyr::filter(!is.na(region)) |>
+  dplyr::mutate(
+    region = dplyr::recode(
       region,
       !!!c(
         'Sub-Saharan Africa (Central)' = 'Central Africa',
@@ -112,8 +103,8 @@ df <- df %>%
         'Sub-Saharan Africa (West)' = 'West Africa'
       )
     )
-  ) %>%
-  mutate(
+  ) |>
+  dplyr::mutate(
     region = factor(
       region,
       levels = c(
@@ -126,7 +117,7 @@ df <- df %>%
     )
   ) 
 
-ts <- df %>%
+ts <- df |>
   ggplot(aes(x = monthyr, y = PfPR2.10)) +
   theme_bw() +
   geom_rect(
@@ -165,11 +156,11 @@ ts
 ############################################################
 
 p1 <- ((map.n / map.p) | ts) +
-  plot_layout(widths = c(1.5, 1)) +
-  plot_annotation(tag_levels = 'A')
+  patchwork::plot_layout(widths = c(1.5, 1)) +
+  patchwork::plot_annotation(tag_levels = 'A')
 
 
-ggsave(
+ggplot2::ggsave(
   filename = "Figure1.pdf",
   plot = p1,
   path = here::here("Figures"),
@@ -180,7 +171,7 @@ ggsave(
   dpi = 1200
 )
 
-ggsave(
+ggplot2::ggsave(
   filename = "Figure1.jpg",
   plot = p1,
   path = here::here("Figures"),

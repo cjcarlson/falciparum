@@ -50,7 +50,7 @@ Tmax = 40 # max T for x axis
 ############################################################
 
 print("Loading clean data")
-complete <- readr::read_rds(replication_fp)
+complete <- readr::read_rds(analysis_ready_adm1_fp)
 
 ########################################################################
 # Estimation

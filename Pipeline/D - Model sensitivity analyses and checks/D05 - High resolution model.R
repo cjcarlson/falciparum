@@ -107,15 +107,15 @@ complete$country = as.factor(complete$country)
 highresmod = felm(data = complete, formula = cXt2intrXm)
 coeffs = as.data.frame(highresmod$coefficients)
 vcov = as.data.frame(highresmod$clustervcv)
-dir.create(file.path(resdir, "Models", "reproducibility"), showWarnings = FALSE)
+dir.create(file.path(results_dir, "Models", "reproducibility"), showWarnings = FALSE)
 bfn = file.path(
-  resdir,
+  results_dir,
   "Models",
   "reproducibility",
   "coefficients_cXt2intrXm_highres.rds"
 )
 vfn = file.path(
-  resdir,
+  results_dir,
   "Models",
   "reproducibility",
   "vcv_cXt2intrXm-highres.rds"
@@ -125,14 +125,14 @@ saveRDS(vcov, file = vfn)
 
 # Stargazer output
 mynote = "High Resolution Model: Country-specific quad. trends with intervention FE and country by month FE."
-dir.create(file.path(resdir, "Tables", "main"), showWarnings = FALSE)
+dir.create(file.path(results_dir, "Tables", "main"), showWarnings = FALSE)
 stargazer(
   highresmod,
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "intervention"),
   out = file.path(
-    resdir,
+    results_dir,
     "Tables",
     "main",
     "main_specification_cXt2intrXm-highres.tex"
@@ -214,12 +214,12 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 # combined_plot
 
 # dir.create(
-#   file.path(resdir, "Figures", "Diagnostics", "Main_model"),
+#   file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
 #   showWarnings = FALSE
 # )
 # ggsave(
 #   filename = "temp_response_cXt2intrXm-highres.pdf",
-#   path = file.path(resdir, "Figures", "Diagnostics", "Main_model"),
+#   path = file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
 #   plot = combined_plot,
 #   width = 7,
 #   height = 2.5,
@@ -240,7 +240,7 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 ############################################################
 
 print("Loading clean data")
-complete <- readr::read_rds(replication_fp) 
+complete <- readr::read_rds(analysis_ready_adm1_fp) 
 
 ########################################################################
 # Estimation
@@ -250,14 +250,14 @@ complete <- readr::read_rds(replication_fp)
 mainmod = felm(data = complete, formula = cXt2intrXm)
 coeffs = as.data.frame(mainmod$coefficients)
 vcov = as.data.frame(mainmod$clustervcv)
-dir.create(file.path(resdir, "Models", "reproducibility"), showWarnings = FALSE)
+dir.create(file.path(results_dir, "Models", "reproducibility"), showWarnings = FALSE)
 bfn = file.path(
-  resdir,
+  results_dir,
   "Models",
   "reproducibility",
   "coefficients_cXt2intrXm.rds"
 )
-vfn = file.path(resdir, "Models", "reproducibility", "vcv_cXt2intrXm.rds")
+vfn = file.path(results_dir, "Models", "reproducibility", "vcv_cXt2intrXm.rds")
 saveRDS(coeffs, file = bfn)
 saveRDS(vcov, file = vfn)
 
@@ -331,12 +331,12 @@ combined_plot1 <- t1 +
 combined_plot1
 
 dir.create(
-  file.path(resdir, "Figures", "Diagnostics", "Main_model"),
+  file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
   showWarnings = FALSE
 )
 ggsave(
   filename = "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.pdf",
-  path = file.path(resdir, "Figures", "Diagnostics", "Main_model"),
+  path = file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
   plot = combined_plot1,
   width = 7,
   height = 2.5,

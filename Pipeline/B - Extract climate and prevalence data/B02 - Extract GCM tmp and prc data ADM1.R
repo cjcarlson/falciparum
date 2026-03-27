@@ -21,21 +21,20 @@ if (!require("pacman")) {
 pacman::p_load(
   here,
   terra,
-  tictoc,
-  foreach,
+  future,
   tidyverse,
-  doParallel,
-  exactextractr,
-  data.table
+  progressr,
+  parallelly,
+  data.table,
+  future.apply,
+  exactextractr
 )
 
 # Source configuration and utility functions
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
-overwrite <- FALSE
-
-tictoc::tic()
+overwrite <- TRUE
 
 ############################################################
 # Set up logging ----
@@ -45,17 +44,16 @@ log_msg <- create_logger(file.path(logs_dir, "B02_extract_GCM_ADM1.log"))
 
 log_msg("Starting script B02 - Extract GCM tmp and prc data ADM1")
 
-############################################################
-# Make cluster----
-############################################################
+#############################################################################
+# Make cluster ----
+#############################################################################
 
-numCores <- 12
+n_workers <- min(length(models), availableCores())
+future::plan(multicore, workers = n_workers)
 
-cl <- makeCluster(numCores, outfile = "")
-
-registerDoParallel(cl)
-
-log_msg(sprintf("  Registered parallel cluster with %d cores", numCores))
+handlers(handler_progress(
+  format = ":spin :current/:total [:bar] :percent :message"
+))
 
 ############################################################
 # Loop over scenarios ----
@@ -63,7 +61,6 @@ log_msg(sprintf("  Registered parallel cluster with %d cores", numCores))
 
 for (scenario in scenarios) {
   # scenario = "historical"
-  tictoc::tic()
   log_msg(sprintf("Starting scenario: %s", scenario))
 
   date_range <- dplyr::case_when(
@@ -82,96 +79,85 @@ for (scenario in scenarios) {
   # Loop over Models ----
   ############################################################
 
-  cont <- sf::read_sf(here::here(data_dir, 'Data', 'AfricaADM1.shp'))
-  for (model in models) {
-    # model = "ACCESS-CM2"
-    tictoc::tic()
-    log_msg(sprintf("  Starting model: %s (%d months)", model, year_mon))
+  progressr::with_progress({
+    p <- progressr::progressor(along = models)
 
-    grid <- dplyr::case_when(
-      model == "GFDL-ESM4" ~ "gr1",
-      model == "IPSL-CM6A-LR" ~ "gr",
-      TRUE ~ "gn"
-    )
-    prc_fn <- make_filename("pr", model, scenario, grid, date_range)
-    tmp_fn <- make_filename("tas", model, scenario, grid, date_range)
+    future_lapply(
+      models,
+      function(model) {
+        # ---- Load cont fresh on each worker (avoids sf serialization) ----
+        cont <- sf::read_sf(ADM1_fp)
 
-    ############################################################
-    # Extraction ----
-    ############################################################
+        grid <- dplyr::case_when(
+          model == "GFDL-ESM4" ~ "gr1",
+          model == "IPSL-CM6A-LR" ~ "gr",
+          TRUE ~ "gn"
+        )
+        prc_fn <- make_filename("pr", model, scenario, grid, date_range)
+        tmp_fn <- make_filename("tas", model, scenario, grid, date_range)
 
-    output_path <- file.path(
-      data_dir,
-      "int",
-      scenario,
-      paste0(model, ".csv")
-    )
+        output_path <- file.path(
+          inter_cmip6_ex_dir,
+          scenario,
+          paste0(model, ".csv")
+        )
+        output_path |>
+          dirname() |>
+          dir.create(showWarnings = FALSE, recursive = TRUE)
 
-    dir.create(dirname(output_path), showWarnings = FALSE, recursive = TRUE)
+        if (!file.exists(output_path) | overwrite) {
+          temp_rast <- terra::rast(file.path(
+            climate_bc_cmip6_dir,
+            scenario,
+            tmp_fn
+          ))
+          rast_times <- as.character(terra::time(temp_rast))
 
-    if (!file.exists(output_path) | overwrite) {
-      temp_rast <- file.path(bc_cruts_output_dir, scenario, tmp_fn) |>
-        terra::rast()
+          temp_dt <- extract_long(
+            rast = temp_rast,
+            polygons = cont,
+            rast_times = rast_times,
+            value_name = "temp"
+          )
 
-      rast_times <- as.character(time(temp_rast))
+          temp2_dt <- extract_long(
+            rast = temp_rast * temp_rast,
+            polygons = cont,
+            rast_times = rast_times,
+            value_name = "temp2"
+          )
+          temp_dt[, temp2 := temp2_dt$temp2]
+          rm(temp2_dt)
 
-      ############################################################
-      # Extract temp ----
-      ############################################################
+          precip_rast <- terra::rast(file.path(
+            climate_bc_cmip6_dir,
+            scenario,
+            prc_fn
+          ))
 
-      temp_dt <- extract_long(
-        rast = temp_rast,
-        polygons = cont,
-        rast_times = rast_times,
-        value_name = "temp"
-      )
+          precip_dt <- extract_long(
+            rast = precip_rast,
+            polygons = cont,
+            rast_times = as.character(terra::time(precip_rast)),
+            value_name = "ppt"
+          )
+          temp_dt[, ppt := precip_dt$ppt]
+          rm(precip_dt)
 
-      ############################################################
-      # Extract temp^2 ----
-      ############################################################
+          data.table::fwrite(temp_dt, output_path)
+        }
 
-      temp2_dt <- extract_long(
-        rast = temp_rast * temp_rast,
-        polygons = cont,
-        rast_times = rast_times,
-        value_name = "temp2"
-      )
-      temp_dt[, temp2 := temp2_dt$temp2]
-      rm(temp2_dt) # free immediately
-
-      precip_rast <- file.path(bc_cruts_output_dir, scenario, prc_fn) |>
-        terra::rast()
-
-      ############################################################
-      # Extract precip ----
-      ############################################################
-
-      precip_dt <- extract_long(
-        rast = precip_rast,
-        polygons = cont,
-        rast_times = as.character(time(precip_rast)),
-        value_name = "ppt"
-      )
-      temp_dt[, ppt := precip_dt$ppt]
-      rm(precip_dt)
-
-      ############################################################
-      # Save results ----
-      ############################################################
-
-      data.table::fwrite(temp_dt, output_path)
-    }
-    log_msg(sprintf("  Finished model: %s", model))
-
-    tictoc::toc()
-  }
+        p(message = sprintf("%s done", model))
+        return(NULL)
+      },
+      future.seed = NULL
+    ) 
+  })
   log_msg(sprintf("Finished scenario: %s", scenario))
-  tictoc::toc()
 }
-tictoc::toc()
-stopCluster(cl)
+future::plan(sequential)
 
-log_msg("Script B02 completed successfully")
+log_msg("Script `B02 - Extract GCM tmp and prc data ADM1.R` completed successfully")
 
 ############################################################
 # End of file ----

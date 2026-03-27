@@ -28,16 +28,21 @@ pacman::p_load(
   here,
   terra,
   tictoc,
-  foreach,
+  progressr,
   tidyverse,
   lubridate,
   data.table,
-  doParallel,
   future.apply
 )
 
 overwrite <- FALSE
 numCores <- 10
+options(future.globals.maxSize = 6 * 1024^3) # 4 GiB
+
+handlers(handler_progress(
+  format = ":spin :current/:total (:percent) [:bar] ETA: :eta",
+  width = 60
+))
 
 tictoc::tic("Total execution time")
 
@@ -60,7 +65,7 @@ countrydf <- ADM1_fp |>
 # Region data ----
 ############################################################
 
-gboddf <- world_regions_fp |>
+gboddf <- gbd_fp |>
   sf::read_sf() |>
   tibble::as_tibble() |>
   dplyr::select("ISO", "NAME_0", "SmllRgn") |>
@@ -73,7 +78,7 @@ gboddf <- world_regions_fp |>
 # Precipitation thresholds ----
 ############################################################
 
-precip.key <- precip_fp |>
+precip.key <- precip_adm1_fp |>
   readr::read_csv(show_col_types = FALSE)
 
 ############################################################
@@ -81,15 +86,18 @@ precip.key <- precip_fp |>
 ############################################################
 
 bootstrap <- boot_mod_full_fn |>
-  readRDS() |>
-  tibble::as_tibble()
+  readr::read_csv(show_col_types = FALSE)
+# readRDS() |>s
+# tibble::as_tibble()
 
 ############################################################
 # Loop over modes ----
 ############################################################
 
+# for (mode in c("future")) {
 for (mode in c("historical", "future")) {
   # mode <- "historical"
+
   print(paste0("Starting: ", mode))
   tictoc::tic(paste0("Finished: ", mode))
 
@@ -97,23 +105,28 @@ for (mode in c("historical", "future")) {
   if (mode == "historical") {
     idx <- c(1, 2)
     start_date <- lubridate::ymd("1900-01-01")
-    results_dir <- iter_hist_dir
+    scen_subset <- scenarios[1:2]
+    row_years <- c(yr_bins[["1901"]], yr_bins[["2014"]])
   } else {
     idx <- c(3, 4, 5)
     start_date <- lubridate::ymd("2015-01-01")
-    results_dir <- iter_futu_dir
+    scen_subset <- scenarios[3:5]
+    row_years <- c(yr_bins[["2015"]], yr_bins[["2050"]], yr_bins[["2100"]])
   }
+  temp_dir <- file.path(inter_cmip6_pre_dir, mode)
+  summary_dir <- file.path(inter_cmip6_sum_dir, mode)
+  dir.create(temp_dir, showWarnings = FALSE, recursive = TRUE)
 
   files <- vector("character")
 
   for (dir in scenarios[idx]) {
     files <- c(
       files,
-      list.files(file.path(data_dir, "Climate", dir), full.names = TRUE)
+      list.files(file.path(inter_cmip6_ext_dir, dir), full.names = TRUE)
     )
   }
 
-  plan(multisession, workers = 12)
+  plan(multisession, workers = numCores)
 
   ## Climate Scenario data ----
 
@@ -124,50 +137,57 @@ for (mode in c("historical", "future")) {
   exclude_regions <- c("Asia (Southeast)", "North Africa & Middle East")
 
   data <- rbindlist(
-    future_lapply(
-      files,
-      function(f) {
-        dt <- fread(f)
-        dt[, `:=`(
-          scenario = basename(dirname(f)),
-          model = tools::file_path_sans_ext(basename(f))
-        )]
+    with_progress({
+      p <- progressor(along = files)
+      future_lapply(
+        files,
+        function(f) {
+          dt <- fread(f)
+          dt[, `:=`(
+            scenario = basename(dirname(f)),
+            model = tools::file_path_sans_ext(basename(f))
+          )]
 
-        # Drop NAs early to reduce size before join
-        dt <- dt[complete.cases(dt)]
+          # Drop NAs early to reduce size before join
+          dt <- dt[complete.cases(dt)]
 
-        # Filter to valid IDs early
-        dt <- dt[OBJECTID %in% valid_ids]
+          # Filter to valid IDs early
+          dt <- dt[OBJECTID %in% valid_ids]
 
-        # Joins
-        dt <- countrydt[dt, on = "OBJECTID", nomatch = NULL]
-        dt <- gboddt[dt, on = "country", nomatch = NULL]
+          # Joins
+          dt <- countrydt[dt, on = "OBJECTID", nomatch = NULL]
+          dt <- gboddt[dt, on = "country", nomatch = NULL]
 
-        # Filter regions
-        dt <- dt[!region %in% exclude_regions]
+          # Filter regions
+          dt <- dt[!region %in% exclude_regions]
 
-        # Date computation
-        dt[, monthyr := as.Date(zoo::as.yearmon(paste(month, year, sep = " ")))]
-        dt[, monthyr := as.numeric(monthyr - start_date)]
+          # Date computation
+          dt[,
+            monthyr := as.Date(zoo::as.yearmon(paste(month, year, sep = " ")))
+          ]
+          dt[, monthyr := as.numeric(monthyr - start_date)]
 
-        # Select columns to minimize memory for rbindlist
-        dt[, .(
-          scenario,
-          model,
-          region,
-          ISO,
-          country,
-          OBJECTID,
-          month,
-          year,
-          monthyr,
-          temp,
-          temp2,
-          ppt
-        )]
-      },
-      future.seed = NULL
-    )
+          p(sprintf("Read %s", basename(f)))
+
+          # Select columns to minimize memory for rbindlist
+          dt[, .(
+            scenario,
+            model,
+            region,
+            ISO,
+            country,
+            OBJECTID,
+            month,
+            year,
+            monthyr,
+            temp,
+            temp2,
+            ppt
+          )]
+        },
+        future.seed = NULL
+      )
+    })
   )
 
   ## Prepare data for predictions ----
@@ -196,9 +216,9 @@ for (mode in c("historical", "future")) {
   ]
 
   ### Save metadata ----
-  meta_path <- file.path(results_dir, "RowMetadata.feather")
+  meta_path <- file.path(temp_dir, "RowMetadata.feather")
   if (!file.exists(meta_path) | overwrite) {
-    dt[, .(
+    meta <- dt[, .(
       OBJECTID,
       monthyr,
       month,
@@ -208,122 +228,113 @@ for (mode in c("historical", "future")) {
       country,
       ISO,
       region
-    )] |>
-      arrow::write_feather(meta_path)
+    )]
+
+    meta |> arrow::write_feather(meta_path)
+    meta <- meta[, .(OBJECTID, year, month, scenario, model, region)]
   }
+
+  ## Apply model coefficients ----
+  results <- with_progress({
+    p <- progressor(steps = 1000)
+    future_lapply(
+      1:1000,
+      function(i) {
+        file_name <- paste0("iter_", i, ".feather")
+        file_path <- file.path(temp_dir, file_name)
+
+        if (!file.exists(file_path) | overwrite) {
+          tictoc::tic(i)
+          coef <- bootstrap[i, ]
+
+          Pf.temp <- coef$temp * dt$temp + coef$temp2 * dt$temp2
+
+          Pf.flood <- (coef[["flood"]] *
+            dt$flood +
+            coef[["flood.lag"]] * dt$flood.lag +
+            coef[["flood.lag2"]] * dt$flood.lag2 +
+            coef[["flood.lag3"]] * dt$flood.lag3)
+
+          Pf.drought <- (coef[["drought"]] *
+            dt$drought +
+            coef[["drought.lag"]] * dt$drought.lag +
+            coef[["drought.lag2"]] * dt$drought.lag2 +
+            coef[["drought.lag3"]] * dt$drought.lag3)
+
+          Pf.prec <- Pf.flood + Pf.drought
+          Pred <- Pf.temp + Pf.prec
+
+          pred_data <- data.table(
+            Pred = Pred,
+            Pf.temp = Pf.temp,
+            Pf.flood = Pf.flood,
+            Pf.drought = Pf.drought
+          )
+
+          pred_data |> arrow::write_feather(file_path)
+
+          pred_data[, names(meta) := meta]
+
+          ## Scen, mod, yr summary
+          scen_yr_mean <- pred_data[,
+            .(Pred = mean(Pred, na.rm = TRUE)),
+            by = .(scenario, model, year)
+          ]
+          scen_yr_mean[, run := i]
+
+          ## Scen, mod, yr, reg summary
+          scen_mod_yr_reg_mean <- pred_data[,
+            .(Pred = mean(Pred, na.rm = TRUE)),
+            by = .(scenario, model, year, region)
+          ]
+          scen_mod_yr_reg_mean[, run := i]
+
+          ## Scen, mod, yr, obj summary
+          map_row_idx <- which(
+            meta$scenario %in% scen_subset & meta$year %in% row_years
+          )
+          maps_dt <- pred_data[map_row_idx]
+          maps_dt[, year := yr_lookup[as.character(year)]]
+
+          scen_yr_adm_mean <- maps_dt[,
+            .(Pred = mean(Pred, na.rm = TRUE)),
+            by = .(scenario, model, year, OBJECTID)
+          ]
+          scen_yr_adm_mean[, run := i]
+
+          tictoc::toc()
+
+          p(sprintf("iter_%d", i))
+
+          list(
+            scen_mod_yr = scen_yr_mean,
+            scen_mod_yr_reg = scen_mod_yr_reg_mean,
+            scen_mod_yr_obj = scen_yr_adm_mean
+          )
+        } else {
+          p(sprintf("iter_%d (skipped)", i))
+          NULL
+        }
+      },
+      future.seed = NULL
+    )
+  })
 
   plan(sequential)
 
-  ## Make cluster ----
-  cl <- makeCluster(numCores, outfile = "")
-  registerDoParallel(cl)
+  ## Compile and save summaries ----
+  # Drop NULLs (skipped iterations)
+  results <- results[!vapply(results, is.null, logical(1))]
 
-  ## Apply model coefficients ----
-  # for (i in c(1:1000)) { # i <- 1
-  foreach(
-    i = 1:1000,
-    .export = c("results_dir", "dt", "bootstrap")
-  ) %dopar%
-    {
-      tictoc::tic(i)
+  for (stype in c("scen_mod_yr", "scen_mod_yr_reg", "scen_mod_yr_obj")) {
+    compiled <- rbindlist(lapply(results, `[[`, stype))
+    out_path <- file.path(summary_dir, paste0(stype, ".feather"))
+    dir.create(dirname(out_path), showWarnings = FALSE, recursive = TRUE)
+    arrow::write_feather(compiled, out_path)
+    cat(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
+  }
 
-      file_name <- paste0("iter_", i, ".feather")
-      file_path <- file.path(results_dir, file_name)
-      # meta_path <- file.path(results_dir, "RowMetadata.feather")
-
-      if (!file.exists(file_path) | overwrite) {
-        coef <- bootstrap[i, ]
-
-        Pf.temp <- coef$temp * dt$temp + coef$temp2 * dt$temp2
-
-        Pf.flood <- (coef[["flood"]] *
-          dt$flood +
-          coef[["flood.lag"]] * dt$flood.lag +
-          coef[["flood.lag2"]] * dt$flood.lag2 +
-          coef[["flood.lag3"]] * dt$flood.lag3)
-
-        Pf.drought <- (coef[["drought"]] *
-          dt$drought +
-          coef[["drought.lag"]] * dt$drought.lag +
-          coef[["drought.lag2"]] * dt$drought.lag2 +
-          coef[["drought.lag3"]] * dt$drought.lag3)
-
-        Pf.prec <- Pf.flood + Pf.drought
-        Pred <- Pf.temp + Pf.prec
-
-        data.table(
-          Pred = Pred,
-          Pf.temp = Pf.temp,
-          Pf.flood = Pf.flood,
-          Pf.drought = Pf.drought
-        ) |>
-          arrow::write_feather(file_path)
-      }
-      #   coef <- bootstrap[i, ]
-
-      #   iter.df <- data |>
-      #     dplyr::left_join(precip.key, by = "OBJECTID") |>
-      #     dplyr::rename(ppt.90 = ppt_pctile0.9, ppt.10 = ppt_pctile0.1) |>
-      #     dplyr::group_by(OBJECTID, scenario, model) |>
-      #     dplyr::mutate(
-      #       Pf.temp = coef$temp * temp + coef$temp2 * temp2,
-      #       flood = as.numeric(ppt >= ppt.90),
-      #       drought = as.numeric(ppt <= ppt.10),
-      #       flood.lag = dplyr::lag(flood, order_by = monthyr),
-      #       flood.lag2 = dplyr::lag(flood, order_by = monthyr, n = 2),
-      #       flood.lag3 = dplyr::lag(flood, order_by = monthyr, n = 3),
-      #       drought.lag = dplyr::lag(drought, order_by = monthyr),
-      #       drought.lag2 = dplyr::lag(drought, order_by = monthyr, n = 2),
-      #       drought.lag3 = dplyr::lag(drought, order_by = monthyr, n = 3),
-      #       Pf.flood = (coef[['flood']] *
-      #         flood +
-      #         coef[['flood.lag']] * flood.lag +
-      #         coef[['flood.lag2']] * flood.lag2 +
-      #         coef[['flood.lag3']] * flood.lag3),
-      #       Pf.drought = (coef[['drought']] *
-      #         drought +
-      #         coef[['drought.lag']] * drought.lag +
-      #         coef[['drought.lag2']] * drought.lag2 +
-      #         coef[['drought.lag3']] * drought.lag3),
-      #       Pf.prec = (Pf.flood + Pf.drought),
-      #       Pred = (Pf.temp + Pf.prec)
-      #     ) |>
-      #     dplyr::ungroup()
-
-      #   ### Save metadata ----
-      #   if (i == 1) {
-      #     iter.df |>
-      #       dplyr::select(
-      #         OBJECTID,
-      #         monthyr,
-      #         month,
-      #         year,
-      #         scenario,
-      #         model,
-      #         country,
-      #         ISO,
-      #         region
-      #       ) |>
-      #       arrow::write_feather(meta_path)
-      #   }
-      #   ### Save predictions ----
-      #   iter.df |>
-      #     dplyr::select(
-      #       Pred,
-      #       Pf.temp,
-      #       Pf.flood,
-      #       Pf.drought
-      #     ) |>
-      #     arrow::write_feather(file_path)
-
-      #   tictoc::toc()
-      # } else {
-      #   tictoc::toc()
-      #   return(NULL)
-      # }
-    }
   tictoc::toc()
-  stopCluster(cl)
 }
 tictoc::toc()
 

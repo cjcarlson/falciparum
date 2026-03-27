@@ -83,7 +83,8 @@ plotPolynomialResponse <- function(
   yLab,
   title = "title",
   yLim = c(-1, 1),
-  showYTitle = TRUE
+  showYTitle = TRUE,
+  ci_level = 0.95
 ) {
   ### mod is a model regression model object (e.g. mod = lm(y~x) or mode = felm(y~x)).
   ### patternForPlotVars is a string that is in the variables from the model that you want to plot but not in the ones you don't want to plot.
@@ -146,6 +147,8 @@ plotPolynomialResponse <- function(
 
   n = nrow(xValsT)
   
+  z_crit <- qnorm(1 - (1 - ci_level) / 2)
+  
   # 4) see if there are any interactions:
   if (any(grepl(":", plotVars))) {
     # build two design matrices, one for urban=0 (“rural”) and one for urban=1
@@ -159,8 +162,8 @@ plotPolynomialResponse <- function(
     resp_urb <- as.matrix(X_urban) %*% b
 
     # 6) standard errors
-    se_rur <- 1.96 * sqrt(apply(X_rural, 1, calcVariance, vcov))
-    se_urb <- 1.96 * sqrt(apply(X_urban, 1, calcVariance, vcov))
+    se_rur <- z_crit * sqrt(apply(X_rural, 1, calcVariance, vcov))
+    se_urb <- z_crit * sqrt(apply(X_urban, 1, calcVariance, vcov))
 
     # 7) bounds
     lb_rur <- resp_rur - se_rur
@@ -221,7 +224,9 @@ plotPolynomialResponse <- function(
       )
   } else {
     response <- as.matrix(xValsT) %*% b
-    length <- 1.96 * sqrt(apply(xValsT, 1, calcVariance, vcov))
+
+    length <- z_crit * sqrt(apply(xValsT, 1, calcVariance, vcov))
+
     lb <- response - length
     ub <- response + length
 
@@ -246,7 +251,7 @@ plotPolynomialResponse <- function(
       ) +
       theme_classic() +
       labs(x = xLab, y = yLab) +
-      ggtitle(title)
+      ggtitle(paste0(title, " ", ci_level, "% CI"))
   }
 
   # 10) optionally fix y-limits

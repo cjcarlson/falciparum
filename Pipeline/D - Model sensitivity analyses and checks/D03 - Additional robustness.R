@@ -50,7 +50,7 @@ Tmax = 40 # max T for x axis
 ############################################################
 
 print("Loading clean data")
-complete <- readr::read_rds(replication_fp) 
+complete <- readr::read_rds(analysis_ready_adm1_fp) 
 
 ########################################################################
 # Prevalence lag ----
@@ -232,7 +232,7 @@ for(m in 1:length(modellist)) {
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], nrow=1)
 p
 
-fe_fig_dir <- file.path(resdir, "Figures", "Diagnostics","Fixed_effects")
+fe_fig_dir <- file.path(results_dir, "Figures", "Diagnostics","Fixed_effects")
 dir.create(fe_fig_dir, showWarnings = FALSE)
 ggsave(
   filename = "diagnostic_method_sensitivity.pdf",
@@ -429,7 +429,7 @@ for(m in 1:length(modellist)) {
 # p
 # ggsave(
 #   filename = "split_GBOD_2nd_poly.pdf",
-#   # path = file.path(resdir, "Figures", "Diagnostics", "Subsamples"), 
+#   # path = file.path(results_dir, "Figures", "Diagnostics", "Subsamples"), 
 #   plot = p, 
 #   width = 12,
 #   height = 4

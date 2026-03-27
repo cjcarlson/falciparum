@@ -40,8 +40,8 @@ log_msg("Starting script B04 - Join prev and CRU data")
 
 log_msg("Loading spatial data")
 
-# Define Global Burden of Disease regions
-gbod <- world_regions_fp |>
+# Global Burden of Disease regions
+gbod <- gbd_fp |>
   sf::read_sf() |>
   as.data.frame() |>
   dplyr::select("ISO", "NAME_0", "Region", "SmllRgn") |>
@@ -58,7 +58,10 @@ gbod <- world_regions_fp |>
     country = as.character(country),
     country = str_replace(country, "Cote D'Ivoire", "Côte d'Ivoire")
   )
-log_msg(sprintf("  Loaded GBD regions: %d unique countries", length(unique(gbod$country))))
+log_msg(sprintf(
+  "  Loaded GBD regions: %d unique countries",
+  length(unique(gbod$country))
+))
 
 # Administrative units level 1
 cont <- ADM1_fp |>
@@ -67,6 +70,7 @@ cont <- ADM1_fp |>
     OBJECTID = as.numeric(OBJECTID)
   ) |>
   dplyr::select(OBJECTID, country = NAME_0)
+
 log_msg(sprintf("  Loaded ADM1 units: %d regions", nrow(cont)))
 
 ########################################################################
@@ -80,7 +84,10 @@ log_msg("Processing ADM1 level data")
 ########################################################################
 
 log_msg("  Loading intermediate climate data (ADM1)")
-climate_data <- readr::read_csv(intermediate_CRU_fp, show_col_types = FALSE)
+
+climate_data <- intermediate_CRU_adm1_fp |>
+  readr::read_csv(show_col_types = FALSE)
+
 log_msg(sprintf("  Climate data loaded: %d rows", nrow(climate_data)))
 
 ########################################################################
@@ -158,7 +165,10 @@ prev_mean_df <- prev_df |>
     by = join_by(OBJECTID, year, month)
   )
 
-log_msg(sprintf("  Prevalence summarized: %d ADM1/month/year combinations", nrow(prev_mean_df)))
+log_msg(sprintf(
+  "  Prevalence summarized: %d ADM1/month/year combinations",
+  nrow(prev_mean_df)
+))
 
 ########################################################################
 # Join clim and prev ----
@@ -171,7 +181,10 @@ clim_prev_full_df <- climate_data |>
   dplyr::left_join(sf::st_drop_geometry(cont), by = dplyr::join_by(OBJECTID)) |>
   dplyr::mutate(yearnum = year, year = factor(year))
 
-log_msg(sprintf("  Climate and prevalence joined: %d rows", nrow(clim_prev_full_df)))
+log_msg(sprintf(
+  "  Climate and prevalence joined: %d rows",
+  nrow(clim_prev_full_df)
+))
 
 ########################################################################
 # Subset to complete records ----
@@ -186,9 +199,11 @@ data.reset <- clim_prev_full_df |>
 
 complete <- data.reset[complete.cases(data.reset), ]
 
-log_msg(sprintf("  Complete cases: %d rows (%.1f%% of total)",
-                nrow(complete),
-                100 * nrow(complete) / nrow(data.reset)))
+log_msg(sprintf(
+  "  Complete cases: %d rows (%.1f%% of total)",
+  nrow(complete),
+  100 * nrow(complete) / nrow(data.reset)
+))
 
 ########################################################################
 # Drought and flood ----
@@ -212,7 +227,7 @@ log_msg("  Saving precipitation percentiles to file")
 complete |>
   dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) |>
   distinct() |>
-  write_csv(file = precip_fp)
+  write_csv(file = precip_adm1_fp)
 
 ########################################################################
 # Clean variables ----
@@ -242,7 +257,10 @@ complete <- complete |>
   dplyr::mutate(cntry_yrbin = dplyr::cur_group_id()) |>
   dplyr::ungroup()
 
-log_msg(sprintf("  Created %d country-year bin groups", max(complete$cntry_yrbin)))
+log_msg(sprintf(
+  "  Created %d country-year bin groups",
+  max(complete$cntry_yrbin)
+))
 
 ########################################################################
 # Replication file save ----
@@ -271,9 +289,12 @@ replication <- complete |>
     everything()
   )
 
-readr::write_rds(replication, file = replication_fp)
-log_msg(sprintf("  Saved replication dataset: %d rows, %d columns",
-                nrow(replication), ncol(replication)))
+readr::write_rds(replication, file = analysis_ready_adm1_fp)
+log_msg(sprintf(
+  "  Saved replication dataset: %d rows, %d columns",
+  nrow(replication),
+  ncol(replication)
+))
 
 ############################################################
 # Urban summary ----
@@ -281,7 +302,7 @@ log_msg(sprintf("  Saved replication dataset: %d rows, %d columns",
 
 log_msg("Computing urban summary")
 
-urban_areas <- urban_centers_fp |>
+urban_areas <- urban_fp |>
   sf::read_sf() |>
   dplyr::filter(GC_UCB_YOB_2025 <= 2015) |>
   sf::st_transform(4326) |>
@@ -313,7 +334,7 @@ urban_summary <- prev_df |>
 readr::write_csv(urban_summary, urban_summary_fp)
 log_msg(sprintf("  Urban summary saved: %d rows", nrow(urban_summary)))
 
-# complete <- readr::read_rds(replication_fp)
+# complete <- readr::read_rds(analysis_ready_adm1_fp)
 
 # cols_to_check <- c("PfPR2", "temp", "temp2", "ppt")
 
@@ -352,7 +373,10 @@ prev_df <- prev_df[,
   by = .(Lat, Long, month, year)
 ]
 
-log_msg(sprintf("  Grid prevalence data: %d unique location/time points", nrow(prev_df)))
+log_msg(sprintf(
+  "  Grid prevalence data: %d unique location/time points",
+  nrow(prev_df)
+))
 
 ############################################################
 # Intermediate climate grid ----
@@ -360,7 +384,7 @@ log_msg(sprintf("  Grid prevalence data: %d unique location/time points", nrow(p
 
 log_msg("  Loading grid-level climate data")
 
-climate_grid_data <- data.table::fread(prev_clim_data_grid_fp)
+climate_grid_data <- data.table::fread(intermediate_CRU_grid_fp)
 
 log_msg(sprintf("  Grid climate data: %d rows", nrow(climate_grid_data)))
 
@@ -463,7 +487,10 @@ result <- result |>
   dplyr::mutate(cntry_yrbin = dplyr::cur_group_id()) |>
   dplyr::ungroup()
 
-log_msg(sprintf("  Created %d country-year bin groups for grid data", max(result$cntry_yrbin)))
+log_msg(sprintf(
+  "  Created %d country-year bin groups for grid data",
+  max(result$cntry_yrbin)
+))
 
 ########################################################################
 # Replication file save ----
@@ -492,8 +519,11 @@ replication_grid <- result |>
     everything()
   )
 
-readr::write_rds(replication_grid, file = replication_grid_fp)
-log_msg(sprintf("  Saved grid replication dataset: %d rows, %d columns",
-                nrow(replication_grid), ncol(replication_grid)))
+readr::write_rds(replication_grid, file = analysis_ready_grid_fp)
+log_msg(sprintf(
+  "  Saved grid replication dataset: %d rows, %d columns",
+  nrow(replication_grid),
+  ncol(replication_grid)
+))
 
-log_msg("Script B04 completed successfully")
+log_msg("Script `B04 - Join prev and CRU data.R` completed successfully")

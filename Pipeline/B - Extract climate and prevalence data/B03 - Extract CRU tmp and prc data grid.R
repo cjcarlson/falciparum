@@ -112,7 +112,7 @@ gc()
 log_msg("Loading and cropping CRU precipitation raster")
 
 # Read and process precipitation raster data
-pre <- cru_prc_fp |>
+pre <- cru_pre_fp |>
   terra::rast() |>
   terra::crop(cont) %>%
   terra::subset(grep("pre_", names(.)))
@@ -173,7 +173,7 @@ log_msg(sprintf("  Combined data: %d rows, %d columns", nrow(complete_df), ncol(
 # Save data ----
 ############################################################
 
-log_msg(sprintf("Saving grid climate data to: %s", prev_clim_data_grid_fp))
-readr::write_csv(complete_df, prev_clim_data_grid_fp)
+log_msg(sprintf("Saving grid climate data to: %s", intermediate_CRU_grid_fp))
+readr::write_csv(complete_df, intermediate_CRU_grid_fp)
 
-log_msg("Script B03 completed successfully")
+log_msg("Script `B03 - Extract CRU tmp and prc data grid.R` completed successfully")
