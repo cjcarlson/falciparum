@@ -78,7 +78,7 @@ gboddf <- gbd_fp |>
 # Precipitation thresholds ----
 ############################################################
 
-precip.key <- precip_adm1_fp |>
+precip.key <- precip_CRU_adm1_fp |>
   readr::read_csv(show_col_types = FALSE)
 
 ############################################################

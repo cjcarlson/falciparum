@@ -39,6 +39,8 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
+sf::sf_use_s2(FALSE)
+
 ############################################################
 # Plotting toggles ----
 # Choose reference temperature for response function, as well
@@ -51,13 +53,13 @@ Tmax = 40 # max T for x axis
 
 ############################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence 
-# and CRU temperature and precipitation data aggregated to 
+# Read in the analysis ready data file with malaria prevalence
+# and CRU temperature and precipitation data aggregated to
 # the first level of Administrative division.
 ############################################################
 
 print("Loading clean data")
-complete <- readr::read_rds(analysis_ready_adm1_fp) 
+complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 ########################################################################
 # Estimate main model, store residuals ----
@@ -97,16 +99,7 @@ df = data.frame(
   stat = c("F stat", "p value"),
   value = c(summary(resCntry)$P.fstat[5], summary(resCntry)$P.fstat[1])
 )
-write.csv(
-  df,
-  file.path(
-    results_dir,
-    "Tables",
-    "Diagnostics",
-    "Residuals",
-    "residuals_country_Fstat.csv"
-  )
-)
+write.csv(df, file.path(table_diag_res_dir, "residuals_country_Fstat.csv"))
 
 ########################################################################
 # B: Correlation across ADM1s within a GBOD region (same year-month) ----
@@ -174,28 +167,14 @@ df = data.frame(
   stat = c("F stat", "p value"),
   value = c(summary(resMonth)$P.fstat[5], summary(resMonth)$P.fstat[1])
 )
-write.csv(
-  df,
-  file.path(
-    results_dir,
-    "Tables",
-    "Diagnostics",
-    "Residuals",
-    "residuals_Month_Fstat.csv"
-  )
-)
+write.csv(df, file.path(table_diag_res_dir, "residuals_Month_Fstat.csv"))
 
 # combine all boxplots
 box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels = "auto")
 box
 ggsave(
-  file.path(
-    results_dir,
-    "Figures",
-    "Diagnostics",
-    "Residuals",
-    "residuals_ALL_boxplot.png"
-  ),
+  filename = "residuals_ALL_boxplot.png",
+  path = figure_diag_res_dir,
   plot = box,
   width = 5,
   height = 5
@@ -205,13 +184,8 @@ ggsave(
 hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels = "auto")
 hists
 ggsave(
-  file.path(
-    results_dir,
-    "Figures",
-    "Diagnostics",
-    "Residuals",
-    "pvals_ALL_correlations.png"
-  ),
+  filename = "pvals_ALL_correlations.png",
+  path = table_diag_res_dir,
   plot = hists,
   width = 5,
   height = 5
@@ -295,10 +269,22 @@ location_simple <- complete |>
     ),
     location = paste(short_region, ISO, OBJECTID, sep = ".")
   )
-centroid_fp <- file.path(data_dir, "Data", "ADM1-centroids.csv")
-centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE) |>
-  dplyr::filter(OBJECTID %in% unique(complete$OBJECTID)) |>
-  dplyr::left_join(location_simple, by = join_by(OBJECTID))
+
+
+# centroid_fp <- file.path(data_dir, "Data", "ADM1-centroids.csv")
+
+centroids <- ADM1_fp |>
+  sf::read_sf() |>
+  dplyr::mutate(
+    lon = sf::st_coordinates(sf::st_centroid(geometry))[, 1],
+    lat = sf::st_coordinates(sf::st_centroid(geometry))[, 2],
+    OBJECTID = as.numeric(OBJECTID)
+  ) |>
+  sf::st_drop_geometry() |>
+  dplyr::select(OBJECTID, lon, lat)
+
+location_simple <- location_simple |>
+  dplyr::left_join(centroids, by = join_by(OBJECTID))
 
 centers <- sf::st_as_sf(centroids, coords = c("lon", "lat"), crs = 4326)
 distMat <- s2::s2_distance_matrix(centers, centers)
@@ -458,10 +444,10 @@ complete = complete %>%
 # |>
 #   dplyr::select(-lat, -lon)
 
-# bring in lat-lon of ADM1 centroids
-centroid_fp <- file.path(data_data_dir, "ADM1-centroids.csv")
+# # bring in lat-lon of ADM1 centroids
+# centroid_fp <- file.path(data_data_dir, "ADM1-centroids.csv")
 
-centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE)
+# centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE)
 
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
@@ -489,13 +475,8 @@ vvPplot = plot(
 vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
 vars
 ggsave(
-  file.path(
-    results_dir,
-    "Figures",
-    "Diagnostics",
-    "Residuals",
-    "variogram_2panel.png"
-  ),
+  filename = "variogram_2panel.png",
+  path = table_diag_res_dir,
   plot = vars,
   width = 9,
   height = 5,
@@ -521,7 +502,8 @@ quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE)
 # By country
 range = data.frame(country = NA, n = NA, range = NA)
 
-for (c in unique(spdf$country)) { # c <- "Sierra Leone"
+for (c in unique(spdf$country)) {
+  # c <- "Sierra Leone"
   test = subset(spdf, country == c)
   if (dim(test)[1] > 115) {
     vv = variogram(res ~ 1, data = test, projection(FALSE))
@@ -806,7 +788,6 @@ conleyform = as.formula(
 # Estimation
 conley_dist_1 <- 200
 conley_dist_2 <- 500
-# conley_dist_3 <- 1000
 
 conleymod1 = feols(
   conleyform,
@@ -821,28 +802,6 @@ conleymod2 = feols(
   conley(conley_dist_2, distance = "spherical")
 )
 linearHypothesis(conleymod2, "temp + temp2 = 0")['Pr(>Chisq)']
-
-# conleymod3 = feols(conleyform, data=spdf, conley(conley_dist_3, distance = "spherical"))
-# linearHypothesis(conleymod3, "temp + temp2 = 0")['Pr(>Chisq)']
-
-# Accounting for both spatial and serial correlation
-
-# Spatial_HAC <- function(x, ...) {
-#   # Taken and modified from https://github.com/lrberge/fixest/issues/177
-#   vcov_conley(x, lat = ~lat, lon = ~lon, cutoff = conley_dist_3) +
-#     vcov_NW(x, time = ~monthyr, unit = ~OBJECTID, lag = 1) -
-#     vcov(x, "hc1")
-# }
-
-# conleymod3 = feols(conleyform, data=spdf, vcov=Spatial_HAC)
-# etable(
-#   conleymod3,
-#   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
-#   tex     = TRUE,
-#   digits  = 2
-#   # title   = mynote,
-#   # label   = "tab:conley"   # optional: LaTeX label
-#   )
 
 # Plot
 coefs = summary(conleymod1)$coefficients[1:2]
@@ -876,11 +835,6 @@ conleyfig2 = plotPolynomialResponse(
   yLim = c(-30, 5),
   showYTitle = T
 )
-
-# coefs = summary(conleymod3)$coefficients[1:2]
-# myrefT = max(round(-1*coefs[1]/(2*coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
-# conleyfig3 =  plotPolynomialResponse(conleymod3, "temp", plotXtemp, polyOrder = 2, cluster = T, xRef = myrefT, xLab = expression(paste("Mean temperature (",degree,"C)")),
-#                                      yLab = "Prevalence (%)", title = paste0("Conley (", conley_dist_3, "km)"), yLim=c(-30,5), showYTitle = T)
 
 # figure output
 uncert = plot_grid(
@@ -931,13 +885,7 @@ stargazer(
   align = TRUE,
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
-  out = file.path(
-    results_dir,
-    "Tables",
-    "Diagnostics",
-    "Residuals",
-    "uncertainty.tex"
-  ),
+  out = file.path(table_diag_res_dir, "uncertainty.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",

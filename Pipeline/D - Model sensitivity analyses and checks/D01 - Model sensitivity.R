@@ -49,16 +49,15 @@ Tmax = 40 # max T for x axis
 # the first level of Administrative division.
 ############################################################
 
-print("Loading clean data")
-complete <- readr::read_rds(analysis_ready_adm1_fp)
+print("Loading analysis ready data")
+
+complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 ########################################################################
-# Estimation
+# FE sensitivity formulas ----
+# Formulas: all fixed effects 
+# main spec = cXt2intrXm (sourced from `A01 - Configuration.R`)
 ########################################################################
-
-# Formulas: all fixed effects (main spec = cXt2intrXm)
-
-# Formula (see other files for robustness/sensitivity checks)
 
 cym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | OBJECTID"))
 cXt2m = as.formula(paste0(
@@ -122,6 +121,10 @@ mycollabs = c(
   "rgn-yr+rgn-mo FEs., cnty trd"
 )
 
+########################################################################
+# FE sensitivity estimation ----
+########################################################################
+
 # Run all models
 modellist = list()
 i = 0
@@ -129,6 +132,10 @@ for (m in myforms) {
   i = i + 1
   modellist[[i]] = felm(data = complete, formula = m)
 }
+
+########################################################################
+# FE sensitivity table ----
+########################################################################
 
 # Combine into a single stargazer plot
 mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
@@ -151,6 +158,7 @@ stargazer(
 )
 
 ########################################################################
+# FE sensitivity plot ----
 # Plot temperature response functions for all fixed effects specifications
 ########################################################################
 
@@ -180,7 +188,6 @@ for (m in 1:length(modellist)) {
       plot.title = element_text(size = 8)
     )
 }
-
 
 # point estimate and CIs for main spec
 xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
@@ -301,7 +308,9 @@ ggsave(
 
 
 ########################################################################
-# Assessing temporal controls: At what spatial scale do we need to address long-run trends?
+# Time controls ----
+# Assessing temporal controls: At what spatial scale do we need to
+# address long-run trends?
 ########################################################################
 
 complete$datestr = paste0(
@@ -315,8 +324,12 @@ complete$datevar = ymd(complete$datestr)
 clist = unique(complete$country)
 complete$yhat = NA
 
-# 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease region, suggesting at least
-# some spatially varying temporal controls are merited
+########################################################################
+# Time controls - Regional 1 ----
+# 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease
+# region, suggesting at least some spatially varying temporal controls
+# are merited
+########################################################################
 
 rlist = unique(complete$smllrgn)
 complete$yhat = NA
@@ -343,8 +356,13 @@ ggsave(
   width = 8,
 )
 
-# 2. Show that trends appear a) nonlinear; and b) heterogeneous by country within GBOD regions,
-# suggesting country specific quadratic trends are preferred
+########################################################################
+# Time controls - Regional 2 ----
+# 2. Show that trends appear a) nonlinear; and b) heterogeneous by
+# country within GBOD regions, suggesting country specific quadratic
+# trends are preferred
+########################################################################
+
 clist = unique(complete$country)
 complete$yhat = NA
 
@@ -392,10 +410,15 @@ ggsave(
   width = 10,
 )
 
+########################################################################
+# Time controls - Regional 3 ----
 # 3. Ensure we have sufficient data to identify GBOD region X year FEs,
-# region X month FEs, country X month FEs, but not country X year FEs (too little coverage here).
-# This implies country trends are likely more reliable to capture within region heterogeneity
-# in trends, since we are underpowered to estimate country-month FEs.
+# region X month FEs, country X month FEs, but not country X year FEs
+# (too little coverage here). This implies country trends are likely
+# more reliable to capture within region heterogeneity in trends, since
+# we are underpowered to estimate country-month FEs.
+########################################################################
+
 regcounts = complete %>% group_by(smllrgn) %>% tally()
 summary(regcounts$n) # on average, we've got >2400 observations per GBOD region over the whole sample
 regyrcounts = complete %>% group_by(smllrgn, year) %>% tally()
@@ -408,7 +431,9 @@ isoyrcounts = complete %>% group_by(country, year) %>% tally()
 summary(isoyrcounts$n) # on average, we've got just 6 observations per country per year to identify countryXyear FEs (highly insufficient)
 
 ########################################################################
-# Assessing temporal controls: At what spatial scale do we need to address seasonality?
+# Time controls - Seasonality ----
+# Assessing temporal controls: At what spatial scale do we need to
+# address seasonality?
 ########################################################################
 
 # Show that seasonality looks different by region
@@ -430,7 +455,7 @@ g = ggplot(data = toplot, aes(x = monthnum, y = ymn)) +
 g
 
 ggsave(
-  filename = fn,
+  filename = 'region_seasonality.png',
   path = figure_diag_fe_dir,
   plot = g,
   height = 6,
@@ -438,6 +463,7 @@ ggsave(
 )
 
 ########################################################################
+# Time controls - Residuals ----
 # Ensure residuals are normally distributed and uncorrelated over time
 ########################################################################
 
@@ -482,12 +508,22 @@ ggsave(
 )
 
 ########################################################################
+# Temp lags/leads - data prep ----
 # Lags and leads of temperature: Dynamic effects
 ########################################################################
 
-# Temp lags and leads (leave drought/flood as in main specification)
-data.reset = data.reset %>% arrange(OBJECTID, monthyr)
-templags = data.reset %>%
+climate_data <- intermediate_CRU_adm1_fp |>
+  readr::read_csv(show_col_types = FALSE) |>
+  tidyr::unite("monthyr", month:year, sep = ' ', remove = FALSE) |>
+  dplyr::mutate(
+    monthyr = as.Date(as.yearmon(monthyr)),
+    monthyr = as.numeric(ymd(monthyr) - ymd("1900-01-01")),
+    yearnum = as.numeric(year),
+    year = as.factor(year)
+  ) |>
+  dplyr::arrange(OBJECTID, monthyr)
+
+templags = climate_data %>%
   group_by(OBJECTID) %>%
   mutate(
     temp.lag = lag(temp, order_by = monthyr),
@@ -506,7 +542,9 @@ templags = data.reset %>%
 
 # merge back into main dataset
 tokeep = c("OBJECTID", "monthyr", "month", "year")
-templags = templags %>% dplyr::select(tokeep, contains("lag"), contains("lead"))
+templags = templags |>
+  dplyr::select(tokeep, contains("lag"), contains("lead"))
+
 complete <- left_join(
   complete,
   templags,
@@ -514,77 +552,22 @@ complete <- left_join(
 )
 complete$month = as.factor(complete$month)
 
+########################################################################
+# Temp lags/leads - formulas ----
+########################################################################
+
 # Formulas
-cont = as.formula(paste0(
-  common,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-lg1 = as.formula(paste0(
-  "PfPR2 ~ temp + temp2 + temp.lag + temp2.lag +",
-  floodvars,
-  " + ",
-  droughtvars,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-lg2 = as.formula(paste0(
-  "PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lag2 + temp2.lag2 +",
-  floodvars,
-  " + ",
-  droughtvars,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-lg3 = as.formula(paste0(
-  "PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lag2 + temp2.lag2 + temp.lag3 + temp2.lag3 +",
-  floodvars,
-  " + ",
-  droughtvars,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-ld1lg1 = as.formula(paste0(
-  "PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +",
-  floodvars,
-  " + ",
-  droughtvars,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-ld2lg2 = as.formula(paste0(
-  "PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +  temp.lag2 + temp2.lag2 + temp.lead2 + temp2.lead2 + ",
-  floodvars,
-  " + ",
-  droughtvars,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-ld3lg3 = as.formula(paste0(
-  "PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +  temp.lag2 + temp2.lag2 + temp.lead2 + temp2.lead2 + temp.lag3 + temp2.lag3 + temp.lead3 + temp2.lead3 +",
-  floodvars,
-  " + ",
-  droughtvars,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-ld1lg3 = as.formula(paste0(
-  "PfPR2 ~ temp + temp2 + temp.lag + temp2.lag + temp.lead + temp2.lead +  temp.lag2 + temp2.lag2 + temp.lag3 + temp2.lag3 +",
-  floodvars,
-  " + ",
-  droughtvars,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
-))
-myforms = c(cont, lg1, lg2, lg3, ld1lg1, ld2lg2, ld3lg3, ld1lg3)
+myforms2 <- list(
+  cont = make_lag_form(n_lags = 0, n_leads = 0),
+  lg1 = make_lag_form(n_lags = 1, n_leads = 0),
+  lg2 = make_lag_form(n_lags = 2, n_leads = 0),
+  lg3 = make_lag_form(n_lags = 3, n_leads = 0),
+  ld1lg1 = make_lag_form(n_lags = 1, n_leads = 1),
+  ld2lg2 = make_lag_form(n_lags = 2, n_leads = 2),
+  ld3lg3 = make_lag_form(n_lags = 3, n_leads = 3),
+  ld1lg3 = make_lag_form(n_lags = 3, n_leads = 1)
+)
+
 mycollabs = c(
   "cont",
   "lg1",
@@ -596,6 +579,10 @@ mycollabs = c(
   "ld1lg3"
 )
 
+########################################################################
+# Temp lags/leads - estimation ----
+########################################################################
+
 # Run all models
 modellist = list()
 i = 0
@@ -603,6 +590,10 @@ for (m in myforms) {
   i = i + 1
   modellist[[i]] = felm(data = complete, formula = m)
 }
+
+########################################################################
+# Temp lags/leads - table ----
+########################################################################
 
 # Combine into a single stargazer plot
 stargazer(
@@ -617,6 +608,10 @@ stargazer(
   type = "latex",
   float = F
 )
+
+########################################################################
+# Temp lags/leads - plot ----
+########################################################################
 
 # Plot main model with SEs
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
@@ -734,6 +729,7 @@ cowplot::save_plot(
 )
 
 ########################################################################
+# Drought/flood  ----
 # Sensitivity to definitions of drought and flood
 ########################################################################
 
@@ -755,7 +751,7 @@ for (dd in dlist) {
       value = TRUE
     )
     newdf = computePrcpExtremes(
-      dfclimate = data.reset,
+      dfclimate = climate_data,
       dfoutcome = complete[, !(names(complete) %in% dropcols)],
       pctdrought = dd,
       pctflood = ff,
@@ -797,7 +793,11 @@ for (dd in dlist) {
   }
 }
 
-######## For each model, plot temperature response ########
+########################################################################
+# Drought/flood - temp response  ----
+# For each model, plot temperature response 
+########################################################################
+
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 figList = list()
 for (m in 1:length(modellist)) {
@@ -848,7 +848,10 @@ ggsave(
   height = 10
 )
 
-######## For each model, plot drought and flood coeffs ########
+########################################################################
+# Drought/flood - coeffs ----
+# For each model, plot drought and flood coeffs 
+########################################################################
 
 # All drought figures
 figList = list()
@@ -937,7 +940,7 @@ ggsave(
 )
 
 ########################################################################
-# Temperature functional form
+# Temperature functional form ----
 ########################################################################
 
 # estimate polynomial orders up to 5
@@ -1036,7 +1039,7 @@ ggsave(
 )
 
 ########################################################################
-# Cumulative precipitation
+# Cumulative precipitation ----
 ########################################################################
 
 # estimate polynomial orders up to 5
@@ -1118,3 +1121,7 @@ ggsave(
   width = 10,
   height = 10
 )
+
+########################################################################
+# End of file ----
+########################################################################

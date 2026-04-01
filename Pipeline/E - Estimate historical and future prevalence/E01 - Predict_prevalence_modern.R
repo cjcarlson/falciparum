@@ -89,7 +89,7 @@ country_dt <- country_dt[
 # Precipitation thresholds ----
 ############################################################
 
-precip_key <- precip_adm1_fp |>
+precip_key <- precip_CRU_adm1_fp |>
   data.table::fread()
 
 setnames(precip_key, c("ppt_pctile0.9", "ppt_pctile0.1"), c("ppt.90", "ppt.10"))

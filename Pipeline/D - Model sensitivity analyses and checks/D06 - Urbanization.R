@@ -168,7 +168,7 @@ aggregated_data <- mean_data %>%
 ############################################################
 
 print("Loading clean data")
-complete <- readr::read_rds(analysis_ready_adm1_fp) 
+complete <- readr::read_rds(analysis_ready_CRU_adm1_fp) 
 
 complete <- complete |> 
   drop_na(n_urban) |>

@@ -14,7 +14,7 @@ if (!require("pacman")) {
   install.packages("pacman")
 }
 
-pacman::p_load(sf, here, terra, tidyverse)
+pacman::p_load(sf, here, terra, tidyverse, arrow)
 
 # Source configuration and utility functions
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
@@ -28,7 +28,7 @@ sf::sf_use_s2(FALSE)
 
 log_msg <- create_logger(file.path(logs_dir, "B03_extract_CRU_grid.log"))
 
-log_msg("Starting script B03 - Extract CRU tmp and prc data grid")
+log_msg("Starting script `B03 - Extract CRU tmp and prc data grid.R`")
 
 # Read continent shapefile for cropping rasters
 log_msg("Loading admin regions for raster cropping")
@@ -174,6 +174,11 @@ log_msg(sprintf("  Combined data: %d rows, %d columns", nrow(complete_df), ncol(
 ############################################################
 
 log_msg(sprintf("Saving grid climate data to: %s", intermediate_CRU_grid_fp))
-readr::write_csv(complete_df, intermediate_CRU_grid_fp)
+# readr::write_csv(complete_df, intermediate_CRU_grid_fp)
+arrow::write_feather(x = complete_df, intermediate_CRU_grid_fp)
 
 log_msg("Script `B03 - Extract CRU tmp and prc data grid.R` completed successfully")
+
+############################################################
+# End of file ----
+############################################################

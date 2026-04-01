@@ -1,3 +1,255 @@
+############################################################
+# This script estimates the main empirical specification linking
+# PfPR2 to drought, flood, and temperature using ERA5 data
+# instead of CRU. 
+############################################################
+
+############################################################
+# Set up ----
+############################################################
+
+rm(list = ls())
+
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+# packages
+pacman::p_load(lfe, here, tidyverse, stargazer, fixest, parallel, doSNOW)
+
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
+
+############################################################
+# Plotting toggles ----
+# Choose reference temperature for response function, as well
+# as minimum and maximum for range of temperature
+############################################################
+
+Tmin = 10 # min T for x axis
+Tmax = 40 # max T for x axis
+
+############################################################
+# Set up logging ----
+############################################################
+
+log_file_path <- file.path(logs_dir, "D07_ERA5_analysis.log")
+
+log_msg <- create_logger(log_file_path)
+
+log_msg("Starting script `D07 - ERA5 analyhsis.R`")
+
+############################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence
+# and CRU temperature and precipitation data aggregated to
+# the first level of Administrative division.
+############################################################
+
+log_msg("Loading analysis ready data")
+
+complete <- readr::read_rds(analysis_ready_ERA5_adm1_fp)
+
+########################################################################
+# Estimation ----
+# Formula cXt2intrXm is loaded from configuration file
+########################################################################
+
+log_msg("Begin modeling")
+
+mainmod = lfe::felm(data = complete, formula = cXt2intrXm)
+
+coeffs = as.data.frame(mainmod$coefficients)
+vcov = as.data.frame(mainmod$clustervcv)
+
+log_msg("Save model coefficients and vcov")
+
+# Save results
+saveRDS(coeffs, file = ERA5_mod_beta_fn)
+saveRDS(vcov, file = ERA5_mod_vcov_fn)
+
+########################################################################
+# Table ----
+########################################################################
+
+log_msg("Save table results")
+
+# Stargazer output
+mynote = paste0(
+  "Country-specific quad. trends with intervention FE and country by month FE. ",
+  "Standard errors clustered at ",
+  gsub("_", " ", clust_label),
+  " level."
+)
+
+stargazer(
+  mainmod,
+  title = "PfPR2 response to daily avg. temperature",
+  align = TRUE,
+  keep = c("temp", "flood", "drought", "inter"),
+  out = file.path(table_diag_dir, "ERA5_cXt2intrXm.tex"),
+  omit.stat = c("f", "ser"),
+  out.header = FALSE,
+  type = "latex",
+  float = F,
+  notes.append = TRUE,
+  notes.align = "l",
+  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
+  digits = 2,
+  star.cutoffs = c(0.05, 0.01, 0.001)
+)
+
+########################################################################
+# Plot ----
+# Note: analogous to Fig 2A but with analytically derived confidence
+# intervals in place of bootstrap runs.
+########################################################################
+
+log_msg("Plot temperature response")
+
+# Temperature support
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+
+# plot relative to max of quadratic function
+coefs = summary(mainmod)$coefficients[1:2]
+
+#reference temperature - curve gets recentered to 0 here
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+
+fig = plotPolynomialResponse(
+  mainmod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = paste0("Main spec: ", clust_label),
+  yLim = c(-30, 5),
+  showYTitle = T,
+  ci_level = 0.95
+)
+
+log_msg("Save temperature response plot")
+
+ggplot2::ggsave(
+  filename = "temp_response_ERA5_cXt2intrXm.pdf",
+  path = figure_diag_dir,
+  plot = fig,
+  width = 7,
+  height = 7,
+  create.dir = TRUE
+)
+
+log_msg("Script `D07 - ERA5 analyhsis.R` completed successfully")
+
+############################################################
+# End of file ----
+############################################################
+
+########################################################################
+# Cluster setup ----
+########################################################################
+
+# Set number of bootstrap simulations.
+S = 1000
+
+log_msg("Preparing the compute cluster")
+
+n_cores = min(15, parallel::detectCores())
+
+# Set seed for reproducible output
+set.seed(11235)
+
+# Make compute cluster
+clus <- parallel::makeCluster(n_cores)
+doSNOW::registerDoSNOW(clus)
+
+# Make progress bar
+pb <- txtProgressBar(max = S, style = 3)
+progress <- function(n) setTxtProgressBar(pb, n)
+opts <- list(progress = progress)
+
+########################################################################
+# Bootstrap estimation ----
+# Sampling by country × N-year cluster
+########################################################################
+
+# Block bootstrap by country × N-year clusters:
+clusters <- unique(complete$cntry_yrbin)
+
+# Pre-build a lookup: for each cluster ID, store the row indices
+cluster_rows <- split(seq_len(nrow(complete)), complete$cntry_yrbin)
+
+# Define important column names to save
+column_names <- c(
+  "temp",
+  "temp2",
+  colnames(complete)[grep("flood", colnames(complete))],
+  colnames(complete)[grep("drought", colnames(complete))],
+  "I(intervention)1",
+  "I(intervention)2"
+)
+
+log_msg("Begin the bootstrap models")
+
+result <- foreach(
+  i = 1:(S + 1),
+  .packages = c("lfe"),
+  .options.snow = opts
+) %dopar%
+  {
+    if (i == 1) {
+      complete.boot <- complete
+      model <- "main"
+    } else {
+      cl <- sample(clusters, size = length(clusters), replace = TRUE)
+      boot_idx <- unlist(cluster_rows[cl], use.names = FALSE)
+      complete.boot <- complete[boot_idx, ]
+      model <- as.character(i)
+    }
+    mod <- lfe::felm(formula = cXt2intrXm, data = complete.boot)
+
+    out <- t(mod$coefficients[1:12])
+    colnames(out) <- column_names
+
+    list(coefs = out, model = model, n = nrow(complete.boot))
+  }
+close(pb)
+stopCluster(clus)
+
+log_msg("Finish the bootstrap models")
+
+########################################################################
+# Save  ----
+# Pull in all bootstrap runs and full spec to save in one file
+########################################################################
+
+log_msg("Consolidating bootstrap coefficients and saving file")
+
+# Unpack into a data.frame
+boots <- do.call(
+  rbind,
+  lapply(result, function(x) {
+    df <- as.data.frame(x$coefs)
+    df$model <- x$model
+    df$n <- x$n
+    df
+  })
+)
+
+# saveRDS(boots, file = boot_mod_full_fn)
+
+readr::write_csv(boots, file = boot_mod_full_ERA5_fn)
+
+# log_msg("Script `C02 - Bootstrap.R` completed successfully")
+
+
+
+
 ########################################################################
 # This script plots the main prevalence-temperature dose-response function
 # as well as its uncertainty over 1,000 bootstrap samples
@@ -40,14 +292,14 @@ source(A_utils_plot_fp)
 
 print("Loading clean data")
 
-complete <- analysis_ready_CRU_adm1_fp |> 
+complete <- analysis_ready_ERA5_adm1_fp |> 
   readr::read_rds() 
 
 ########################################################################
 # Model coefficients ----
 ########################################################################
 
-all_mods <- boot_mod_full_fn |>
+all_mods <- boot_mod_full_ERA5_fn |>
   readr::read_csv(show_col_types = FALSE)
 
 main <- all_mods |>
@@ -68,35 +320,6 @@ Tmax = 40
 int = 0.1
 plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
 xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
-
-# # point estimate
-# b = as.matrix(c(main$temp, main$temp2))
-# response = as.matrix(xValsT) %*% b #Prediction
-
-# plotData = data.frame(x = xValsT[, 1] + Tref, main = response)
-
-# # loop over all bootstraps, add to dataframe
-# for (mod in 1:dim(bootstraps)[1]) {
-#   sub = bootstraps[mod, ]
-#   b = as.matrix(c(sub$temp, sub$temp2))
-#   boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
-#   colnames(boot) = sub$model # paste0("boot", mod)
-#   plotData = cbind(plotData, boot)
-
-#   # progress
-#   if (mod / 100 == round(mod / 100)) {
-#     print(paste0('--------- DONE WITH ITERATION ', mod, ' of 1000 --------'))
-#   }
-# }
-
-# plotData <- plotData |>
-#   tidyr::pivot_longer(
-#     cols = -x,
-#     names_to = "model",
-#     values_to = "response"
-#   )
-
-
 
 # point estimate
 b <- as.matrix(c(main$temp, main$temp2))
@@ -130,29 +353,6 @@ for (mod in seq_len(nrow(bootstraps))) {
 }
 
 plotData <- rbind(plotData, do.call(rbind, boot_list))
-
-# plotData |> 
-#   as_tibble() |> 
-#   dplyr::filter(x == 15, response > 0) |> 
-#   dplyr::summarise(mean = mean(n))
-
-# plotData |> 
-#   as_tibble() |> 
-#   dplyr::filter(x == 15, response < 0) |> 
-#   dplyr::summarise(mean = mean(n))
-
-# plotData |> 
-#   as_tibble() |> 
-#   dplyr::filter(x == 15, response > 0) |> 
-#   dplyr::arrange(response) |> 
-#   print(n = 65) |> 
-#   ggplot() +
-#   geom_point(aes(x = n, y = response), alpha = 0.5)
-
-# ggsave(
-#   filename = "test12.jpg",
-#   path = here("Figures")
-# )
 
 percentile_data <- plotData |>
   dplyr::filter(model != "main") |>
@@ -632,7 +832,7 @@ top_row <- (g_with_hist + f + d + intervention_fig) +
 f2 <- top_row / s +  plot_annotation(tag_levels = 'A')
 
 ggsave(
-  filename = "Figure2.pdf",
+  filename = "Figure2_ERA5.pdf",
   plot = f2,
   path = here::here("Figures"),
   width = 10.32,
@@ -643,7 +843,7 @@ ggsave(
 )
 
 ggsave(
-  filename = "Figure2.jpg",
+  filename = "Figure2_ERA5.jpg",
   plot = f2,
   path = here::here("Figures"),
   width = 10.32,

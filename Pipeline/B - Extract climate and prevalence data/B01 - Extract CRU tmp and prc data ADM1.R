@@ -3,11 +3,18 @@
 # from CRU-TS4.03 NetCDFs at ADM1 level.
 #
 # Note: This script will not work in modern versions of R (> 4.2.3).
-# The packages rgdal and velox are no longer supported. To replicate 
-# this script exactly, it is recomended to use docker to create a 
+# The packages rgdal and velox are no longer supported. To replicate
+# this script exactly, it is recomended to use docker to create a
 # stable environment that supports these packages.
 # See https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general
 # for a working container that can run this script.
+#
+# Example useage with apptainer:
+# apptainer pull docker://cmolitor/r-malaria-cru:4.2.3
+# cd "Pipeline/B - Extract climate and prevalence data"
+# apptainer exec \
+#     /path/to/apptainer/r-malaria-cru_4.2.3.siff \
+#     Rscript "B05 - Extract ERA5 tmp and prc data ADM1.R"
 ############################################################
 
 ############################################################
@@ -30,7 +37,8 @@ pacman::p_load(
   tidyverse,
   future,
   future.apply,
-  arrow
+  arrow,
+  vroom
 )
 
 # Source configuration and utility functions
@@ -49,11 +57,11 @@ future::plan(future::multicore, workers = N_CORES)
 
 log_msg <- create_logger(file.path(logs_dir, "B01_extract_CRU_ADM1.log"))
 
-log_msg("Starting script B01 - Extract CRU tmp and prc data ADM1")
+log_msg("Starting script `B01 - Extract CRU tmp and prc data ADM1.R`")
 log_msg(sprintf("  Using %d cores for parallel processing", N_CORES))
 
 ############################################################
-# Load admin ----
+# ADM1 data ----
 ############################################################
 
 log_msg("Loading admin regions")
@@ -110,6 +118,8 @@ climate_df <- admin_regions@data
 # keeping OBJECTID (col 1) plus all extracted climate columns
 climate_df <- climate_df[, -c(2:15)]
 
+log_msg("Pivot longer")
+
 # Wide -> long
 climate_long <- tidyr::pivot_longer(
   climate_df,
@@ -118,6 +128,8 @@ climate_long <- tidyr::pivot_longer(
   values_to = "value"
 )
 
+log_msg("Create time")
+
 # Parse "Mon.YYYY.var" naming convention
 climate_long <- tidyr::separate(
   climate_long,
@@ -125,6 +137,8 @@ climate_long <- tidyr::separate(
   into = c("month", "year", "var"),
   sep = "\\."
 )
+
+log_msg("Pivot wider")
 
 # Long -> wide by variable type
 climate_wide <- tidyr::pivot_wider(
@@ -135,17 +149,26 @@ climate_wide <- tidyr::pivot_wider(
 
 climate_wide$year <- as.numeric(climate_wide$year)
 
-log_msg(sprintf(
-  "  Reshaped data: %d rows, %d columns",
-  nrow(climate_wide),
-  ncol(climate_wide)
-))
+log_msg(
+  sprintf(
+    "  Reshaped data: %d rows, %d columns",
+    nrow(climate_wide),
+    ncol(climate_wide)
+  )
+)
 
 ############################################################
-# Write results ----
+# Save intermediate climate data ----
 ############################################################
 
 log_msg(sprintf("Saving climate data to: %s", intermediate_CRU_adm1_fp))
+
 readr::write_csv(climate_wide, intermediate_CRU_adm1_fp)
 
-log_msg("Script `B01 - Extract CRU tmp and prc data ADM1.R` completed successfully")
+log_msg(
+  "Script `B01 - Extract CRU tmp and prc data ADM1.R` completed successfully"
+)
+
+############################################################
+# End of file ----
+############################################################

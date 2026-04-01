@@ -3,7 +3,7 @@
 # PfPR2 to drought, flood, and temperature via block bootstrap.
 #
 # CLUSTERING / BOOTSTRAP BLOCK: Resampling is done at the
-# country × N-year level (set yr_bin_size below), matching
+# country × N-year level (set yr_bin_size in config), matching
 # the clustering used for analytical standard errors.
 ############################################################
 
@@ -32,7 +32,9 @@ pacman::p_load(
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
-# source(A_utils_plot_fp)
+
+# Set number of bootstrap simulations.
+S = 1000
 
 ############################################################
 # Set up logging ----
@@ -50,7 +52,7 @@ log_msg("Starting script `C02 - Bootstrap.R`")
 
 log_msg("Loading analysis ready data")
 
-complete <- readr::read_rds(analysis_ready_adm1_fp)
+complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 ########################################################################
 # Cluster setup ----
@@ -76,9 +78,6 @@ opts <- list(progress = progress)
 # Bootstrap estimation ----
 # Sampling by country × N-year cluster
 ########################################################################
-
-# Set number of bootstrap simulations.
-S = 1000
 
 # Block bootstrap by country × N-year clusters:
 clusters <- unique(complete$cntry_yrbin)
@@ -106,23 +105,17 @@ result <- foreach(
   {
     if (i == 1) {
       complete.boot <- complete
-      # fn <- 'full_sample_cXt2intrXm.rds'
       model <- "main"
     } else {
       cl <- sample(clusters, size = length(clusters), replace = TRUE)
       boot_idx <- unlist(cluster_rows[cl], use.names = FALSE)
       complete.boot <- complete[boot_idx, ]
-      # fn <- paste0('block_bootstrap_', i, '_cXt2intrXm.rds')
       model <- as.character(i)
     }
     mod <- lfe::felm(formula = cXt2intrXm, data = complete.boot)
 
     out <- t(mod$coefficients[1:12])
     colnames(out) <- column_names
-
-    # saveRDS(out, file = file.path(model_boot_dir, fn))
-
-    # list(coefs = out, model = model)
 
     list(coefs = out, model = model, n = nrow(complete.boot))
   }
@@ -132,7 +125,7 @@ stopCluster(clus)
 log_msg("Finish the bootstrap models")
 
 ########################################################################
-# Save  ----
+# Save coeffs ----
 # Pull in all bootstrap runs and full spec to save in one file
 ########################################################################
 
@@ -141,12 +134,15 @@ log_msg("Consolidating bootstrap coefficients and saving file")
 # Unpack into a data.frame
 boots <- do.call(
   rbind,
-  lapply(result, function(x) {
-    df <- as.data.frame(x$coefs)
-    df$model <- x$model
-    df$n <- x$n
-    df
-  })
+  lapply(
+    result,
+    function(x) {
+      df <- as.data.frame(x$coefs)
+      df$model <- x$model
+      df$n <- x$n
+      df
+    }
+  )
 )
 
 # saveRDS(boots, file = boot_mod_full_fn)
@@ -154,3 +150,7 @@ boots <- do.call(
 readr::write_csv(boots, file = boot_mod_full_fn)
 
 log_msg("Script `C02 - Bootstrap.R` completed successfully")
+
+############################################################
+# End of file ----
+############################################################

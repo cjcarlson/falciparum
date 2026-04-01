@@ -50,93 +50,33 @@ Tmax = 40 # max T for x axis
 ############################################################
 
 print("Loading data")
-complete <- readr::read_rds(replication_grid_fp)
 
-# need this for country specific quadratic trends
-complete$monthyr2 = complete$monthyr^2
-
-# define key intervention periods
-complete$intervention = ifelse(
-  complete$yearnum >= 1955 & complete$yearnum <= 1969,
-  1,
-  0
-)
-complete$intervention[complete$yearnum >= 2000 & complete$yearnum <= 2015] = 2
-complete$intervention = as.factor(complete$intervention)
-
-# classes: important for ensuring felm is treating these correctly
-complete$month = as.factor(complete$month)
-complete$year = as.factor(complete$year)
-
-complete <- dplyr::rename(complete, country = COUNTRY)
-
-gbod <- sf::read_sf(
-  file.path(
-    data_dir,
-    "Data",
-    "OriginalGBD",
-    "WorldRegions.shp"
-  )
-)
-# head(gbod@data)
-
-gboddf = as.data.frame(gbod)
-gboddf = gboddf %>% dplyr::select("ISO", "NAME_0", "Region", "SmllRgn")
-gboddf = gboddf %>%
-  group_by(ISO, NAME_0) %>%
-  summarize(Region = first(Region), SmllRgn = first(SmllRgn)) # note that the small regions are homogenous within country
-colnames(gboddf) = c("ISO", "country", "region", "smllrgn")
-gboddf$country = as.character(gboddf$country)
-
-# clean to merge
-gboddf$country = ifelse(
-  gboddf$country == "Cote D'Ivoire",
-  "Côte d'Ivoire",
-  gboddf$country
-)
-
-complete$country = as.character(complete$country)
-complete = left_join(complete, gboddf, by = "country")
-complete$country = as.factor(complete$country)
+complete <- readr::read_rds(analysis_ready_grid_fp)
 
 ########################################################################
-# Estimation
+# Estimation ----
 ########################################################################
 
-# Estimation & save model results
 highresmod = felm(data = complete, formula = cXt2intrXm)
 coeffs = as.data.frame(highresmod$coefficients)
 vcov = as.data.frame(highresmod$clustervcv)
-dir.create(file.path(results_dir, "Models", "reproducibility"), showWarnings = FALSE)
-bfn = file.path(
-  results_dir,
-  "Models",
-  "reproducibility",
-  "coefficients_cXt2intrXm_highres.rds"
-)
-vfn = file.path(
-  results_dir,
-  "Models",
-  "reproducibility",
-  "vcv_cXt2intrXm-highres.rds"
-)
-saveRDS(coeffs, file = bfn)
-saveRDS(vcov, file = vfn)
 
-# Stargazer output
+saveRDS(coeffs, file = grid_mod_beta_fn)
+saveRDS(vcov, file = grid_mod_vcov_fn)
+
+#######################################################################
+# Table ----
+# Stargazer output#
+########################################################################
+
 mynote = "High Resolution Model: Country-specific quad. trends with intervention FE and country by month FE."
-dir.create(file.path(results_dir, "Tables", "main"), showWarnings = FALSE)
+
 stargazer(
   highresmod,
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "intervention"),
-  out = file.path(
-    results_dir,
-    "Tables",
-    "main",
-    "main_specification_cXt2intrXm-highres.tex"
-  ),
+  out = file.path(table_main_dir, "main_specification_cXt2intrXm-highres.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -147,7 +87,23 @@ stargazer(
 )
 
 ########################################################################
-# Plot (Note: analogous to Fig 2A but with analytically derived confidence intervals
+# Main specification model (ADM1) ----
+# Load the main model for comparison and plotting
+########################################################################
+
+mainmod = readRDS(main_mod_obj_fn)
+
+# Temperature support
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+
+coefs = summary(mainmod)$coefficients[1:2]
+
+# plot relative to max of quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+
+########################################################################
+# Plots ----
+# (Note: analogous to Fig 2A but with analytically derived confidence intervals
 # in place of bootstrap runs shown in Fig 2A)
 ########################################################################
 
@@ -162,110 +118,9 @@ vars <- rownames(beta)
 patternForPlotVars <- "temp"
 plotVars <- vars[grepl(patternForPlotVars, vars)]
 
-# t <- plotPolynomialResponse(
-#   mod = highresmod,
-#   patternForPlotVars = "temp",
-#   xVals = plotXtemp,
-#   polyOrder = 2,
-#   cluster = TRUE,
-#   xRef = myrefT,
-#   xLab = expression(paste("Mean temperature (", degree, "C)")),
-#   yLab = "Prevalence (%)",
-#   title = NULL,
-#   yLim = c(-30, 10),
-#   showYTitle = TRUE
-# )
-
-# ylims <- c(-3, 3)
-
-# d <- plotLinearLags(
-#   mod = highresmod,
-#   patternForPlotVars = "drought",
-#   cluster = TRUE,
-#   laglength = 3,
-#   xLab = "Drought Lag",
-#   yLab = "Coefficient",
-#   title = NULL,
-#   yLim = ylims
-# )
-
-# f <- plotLinearLags(
-#   mod = highresmod,
-#   patternForPlotVars = "flood",
-#   cluster = TRUE,
-#   laglength = 3,
-#   xLab = "Flood Lag",
-#   yLab = "Coefficient",
-#   title = NULL,
-#   yLim = ylims
-# )
-
-# combined_plot <- t +
-#   d +
-#   f +
-#   plot_layout(ncol = 3, guides = "collect") &
-#   theme(
-#     axis.text = element_text(size = 8),
-#     axis.title = element_text(size = 8),
-#     # legend.position = "bottom",
-#     # legend.margin = margin(0, 0, 0, 0)
-#   )
-
-# combined_plot
-
-# dir.create(
-#   file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
-#   showWarnings = FALSE
-# )
-# ggsave(
-#   filename = "temp_response_cXt2intrXm-highres.pdf",
-#   path = file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
-#   plot = combined_plot,
-#   width = 7,
-#   height = 2.5,
-# )
-
 ########################################################################
+# Temperature plot ----
 ########################################################################
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-
-############################################################
-# Load data ----
-# Read in the analysis ready data file with malaria prevalence 
-# and CRU temperature and precipitation data aggregated to 
-# the first level of Administrative division.
-############################################################
-
-print("Loading clean data")
-complete <- readr::read_rds(analysis_ready_adm1_fp) 
-
-########################################################################
-# Estimation
-########################################################################
-
-# Estimation & save model results
-mainmod = felm(data = complete, formula = cXt2intrXm)
-coeffs = as.data.frame(mainmod$coefficients)
-vcov = as.data.frame(mainmod$clustervcv)
-dir.create(file.path(results_dir, "Models", "reproducibility"), showWarnings = FALSE)
-bfn = file.path(
-  results_dir,
-  "Models",
-  "reproducibility",
-  "coefficients_cXt2intrXm.rds"
-)
-vfn = file.path(results_dir, "Models", "reproducibility", "vcv_cXt2intrXm.rds")
-saveRDS(coeffs, file = bfn)
-saveRDS(vcov, file = vfn)
-
-# Temperature support
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
-
-coefs = summary(mainmod)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
 
 t1 = plotPolynomialResponse_2_mod(
   mainmod,
@@ -286,6 +141,10 @@ t1 = plotPolynomialResponse_2_mod(
 )
 t1
 
+########################################################################
+# Drought plot ----
+########################################################################
+
 d1 <- plotLinearLags_2_mod(
   mod = mainmod,
   model1_name = "Main",
@@ -300,6 +159,10 @@ d1 <- plotLinearLags_2_mod(
   model2_name = "Grid level"
 )
 d1
+
+########################################################################
+# Flood plot ----
+########################################################################
 
 f1 <- plotLinearLags_2_mod(
   mod = mainmod,
@@ -316,6 +179,10 @@ f1 <- plotLinearLags_2_mod(
 )
 f1
 
+########################################################################
+# Combine plots ----
+########################################################################
+
 combined_plot1 <- t1 +
   d1 +
   f1 +
@@ -330,15 +197,20 @@ combined_plot1 <- t1 +
 
 combined_plot1
 
-dir.create(
-  file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
-  showWarnings = FALSE
-)
+########################################################################
+# Save plot ----
+########################################################################
+
 ggsave(
   filename = "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.pdf",
-  path = file.path(results_dir, "Figures", "Diagnostics", "Main_model"),
+  # path = figure_diag_grid_dir,
+  path = here::here("Figures"),
   plot = combined_plot1,
   width = 7,
   height = 2.5,
   dpi = 300
 )
+
+########################################################################
+# End of file ----
+########################################################################

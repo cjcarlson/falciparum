@@ -28,11 +28,11 @@ sf::sf_use_s2(FALSE)
 # Set up logging ----
 ############################################################
 
-log_file_path <- file.path(logs_dir, "B04_join_prev_cru.log")
+log_file_path <- file.path(logs_dir, "B06_join_prev_era5.log")
 
 log_msg <- create_logger(log_file_path)
 
-log_msg("Starting script `B04 - Join prev and CRU data.R`")
+log_msg("Starting script `B06 - Join prev and ERA5 data.R`")
 
 ########################################################################
 # Spatial data ----
@@ -74,12 +74,18 @@ cont <- ADM1_fp |>
 log_msg(sprintf("  Loaded ADM1 units: %d regions", nrow(cont)))
 
 ########################################################################
+# ADM1 level data ----
+########################################################################
+
+log_msg("Processing ADM1 level data")
+
+########################################################################
 # Intermediate climate ADM1 ----
 ########################################################################
 
 log_msg("  Loading intermediate climate data (ADM1)")
 
-climate_data <- intermediate_CRU_adm1_fp |>
+climate_data <- intermediate_ERA_adm1_fp |>
   readr::read_csv(show_col_types = FALSE)
 
 log_msg(sprintf("  Climate data loaded: %d rows", nrow(climate_data)))
@@ -221,7 +227,7 @@ log_msg("  Saving precipitation percentiles to file")
 complete |>
   dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) |>
   distinct() |>
-  write_csv(file = precip_CRU_adm1_fp)
+  write_csv(file = precip_ERA5_adm1_fp)
 
 ########################################################################
 # Clean variables ----
@@ -265,8 +271,8 @@ log_msg("  Preparing and saving replication dataset (ADM1)")
 location_cols <- c("region", "smllrgn", "country", "ISO", "OBJECTID")
 time_cols <- c("monthyr", "monthyr2", "month", "year", "yearnum")
 prev_cols <- c("PfPR2", "Pf")
-temp_cols <- c("temp", "temp2", "temp3", "temp4", "temp5")
-prec_cols <- c("ppt", "ppt2", "ppt3", "ppt4", "ppt5")
+temp_cols <- c("temp", "temp2" ) # , "temp3", "temp4", "temp5"
+prec_cols <- c("ppt") # , "ppt2", "ppt3", "ppt4", "ppt5"
 flood_cols <- c("flood", "flood.lag", "flood.lag2", "flood.lag3")
 drought_cols <- c("drought", "drought.lag", "drought.lag2", "drought.lag3")
 
@@ -283,247 +289,12 @@ replication <- complete |>
     everything()
   )
 
-readr::write_rds(replication, file = analysis_ready_CRU_adm1_fp)
+readr::write_rds(replication, file = analysis_ready_ERA5_adm1_fp)
+
 log_msg(sprintf(
   "  Saved replication dataset: %d rows, %d columns",
   nrow(replication),
   ncol(replication)
 ))
 
-############################################################
-# Urban summary ----
-############################################################
-
-log_msg("Computing urban summary")
-
-urban_areas <- urban_fp |>
-  sf::read_sf() |>
-  dplyr::filter(GC_UCB_YOB_2025 <= 2015) |>
-  sf::st_transform(4326) |>
-  dplyr::select(GC_UCB_YOB_2025)
-
-log_msg(sprintf("  Loaded %d urban centers", nrow(urban_areas)))
-
-## Compute urban dummy
-urban_summary <- prev_df |>
-  sf::st_as_sf(coords = c("Long", "Lat"), crs = 4326) |>
-  sf::st_join(urban_areas, join = st_within, left = TRUE) |>
-  dplyr::mutate(
-    urban = dplyr::case_when(
-      !is.na(GC_UCB_YOB_2025) & YY >= GC_UCB_YOB_2025 ~ 1,
-      is.na(GC_UCB_YOB_2025) & YY >= 1975 ~ 0,
-      TRUE ~ NA_integer_
-    ),
-    month = factor(MM, levels = 1:12, labels = month.abb)
-  ) |>
-  dplyr::as_tibble() |>
-  dplyr::group_by(OBJECTID, month, year = YY) |>
-  dplyr::summarise(n_urban = sum(urban, na.rm = TRUE), .groups = 'drop') |>
-  dplyr::mutate(
-    n_urban = ifelse(year < 1975, NA_integer_, n_urban),
-    urban_dummy = ifelse(n_urban > 0, 1, 0)
-  ) |>
-  dplyr::select(OBJECTID, year, month, urban_dummy)
-
-readr::write_csv(urban_summary, urban_summary_fp)
-log_msg(sprintf("  Urban summary saved: %d rows", nrow(urban_summary)))
-
-# complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
-
-# cols_to_check <- c("PfPR2", "temp", "temp2", "ppt")
-
-# for (col in cols_to_check) {
-#   result <- all.equal(complete[[col]], replication[[col]], tolerance = 1e-8)
-#   cat(col, ":", if (isTRUE(result)) "MATCH" else result, "\n")
-# }
-
-############################################################
-# Grid level data ----
-############################################################
-
-log_msg("Processing grid level data")
-
-############################################################
-# Prevalence data ----
-############################################################
-
-log_msg("  Loading grid-level prevalence data")
-
-prev_df <- data.table::fread(
-  prev_DB_fp,
-  select = list(
-    double = c("Long", "Lat", "Pf", "PfPR2-10"),
-    integer = c("MM", "YY")
-  )
-)
-
-prev_df[, `:=`(
-  month = factor(MM, levels = 1:12, labels = month.abb),
-  year = as.character(YY)
-)]
-
-prev_df <- prev_df[,
-  .(Pf = mean(Pf, na.rm = TRUE), PfPR2 = mean(`PfPR2-10`, na.rm = TRUE)),
-  by = .(Lat, Long, month, year)
-]
-
-log_msg(sprintf(
-  "  Grid prevalence data: %d unique location/time points",
-  nrow(prev_df)
-))
-
-############################################################
-# Intermediate climate grid ----
-############################################################
-
-log_msg("  Loading grid-level climate data")
-
-# climate_grid_data <- data.table::fread(intermediate_CRU_grid_fp)
-climate_grid_data <- arrow::read_feather(intermediate_CRU_grid_fp) |>
-  data.table::as.data.table()
-
-log_msg(sprintf("  Grid climate data: %d rows", nrow(climate_grid_data)))
-
-############################################################
-# Percentiles by point ----
-############################################################
-
-log_msg("  Computing precipitation percentiles by grid point")
-
-pctiles_dt <- climate_grid_data[
-  if (!is.na(year_cutoff)) as.integer(year) <= year_cutoff else TRUE,
-  .(
-    ppt_pctile0.9 = quantile(ppt, pct_flood, na.rm = TRUE),
-    ppt_pctile0.1 = quantile(ppt, pct_drought, na.rm = TRUE)
-  ),
-  by = point_id
-]
-
-data.table::fwrite(pctiles_dt, precip_CRU_grid_fp)
-log_msg(sprintf("  Percentiles computed for %d grid points", nrow(pctiles_dt)))
-
-############################################################
-# Flood and drought lag ----
-############################################################
-
-log_msg("  Computing flood/drought indicators and lags for grid data")
-
-# Update-join percentiles onto the full climate data
-climate_grid_data[
-  pctiles_dt,
-  on = "point_id",
-  `:=`(ppt_pctile0.9 = i.ppt_pctile0.9, ppt_pctile0.1 = i.ppt_pctile0.1)
-]
-
-# Flood/drought indicators and time ordering
-climate_grid_data[, `:=`(
-  flood = as.integer(ppt >= ppt_pctile0.9),
-  drought = as.integer(ppt <= ppt_pctile0.1),
-  yearnum = as.integer(year),
-  monthnum = match(month, month.abb),
-  monthyr = as.integer(year) * 12L + match(month, month.abb)
-)]
-
-data.table::setorder(climate_grid_data, point_id, monthyr)
-
-# Lags on the full continuous series
-climate_grid_data[,
-  `:=`(
-    flood.lag = shift(flood, 1L, type = "lag"),
-    flood.lag2 = shift(flood, 2L, type = "lag"),
-    flood.lag3 = shift(flood, 3L, type = "lag"),
-    drought.lag = shift(drought, 1L, type = "lag"),
-    drought.lag2 = shift(drought, 2L, type = "lag"),
-    drought.lag3 = shift(drought, 3L, type = "lag")
-  ),
-  by = point_id
-]
-
-log_msg("  Flood and drought lags computed")
-
-############################################################
-# join to prevalence ----
-############################################################
-
-log_msg("  Joining grid climate to grid prevalence data")
-
-prev_df[, year := as.character(year)]
-climate_grid_data[, year := as.character(year)]
-
-result <- climate_grid_data[
-  prev_df,
-  on = .(Lat, Long, month, year),
-  nomatch = NULL
-]
-
-log_msg(sprintf("  Grid join complete: %d matched records", nrow(result)))
-log_msg("  Adding spatial joins and creating factors")
-
-result <- result |>
-  sf::st_as_sf(coords = c("Long", "Lat"), crs = 4326, remove = FALSE) |>
-  sf::st_join(cont) |>
-  dplyr::left_join(gbod, by = "country") |>
-  sf::st_drop_geometry() |>
-  dplyr::as_tibble() |>
-  dplyr::mutate(
-    monthyr2 = monthyr^2,
-    intervention = dplyr::case_when(
-      dplyr::between(yearnum, 1955, 1969) ~ 1,
-      dplyr::between(yearnum, 2000, 2015) ~ 2,
-      TRUE ~ 0
-    ),
-    intervention = as.factor(intervention),
-    month = as.factor(month),
-    year = as.factor(year),
-    country = as.factor(country),
-    yr_bin = floor(yearnum / yr_bin_size) * yr_bin_size
-  ) |>
-  dplyr::group_by(country, yr_bin) |>
-  dplyr::arrange(OBJECTID, monthyr) |>
-  dplyr::mutate(cntry_yrbin = dplyr::cur_group_id()) |>
-  dplyr::ungroup()
-
-log_msg(sprintf(
-  "  Created %d country-year bin groups for grid data",
-  max(result$cntry_yrbin)
-))
-
-########################################################################
-# Replication file save ----
-########################################################################
-
-log_msg("  Preparing and saving replication dataset (grid)")
-
-location_cols <- c("region", "smllrgn", "country", "ISO", "OBJECTID")
-time_cols <- c("monthyr", "monthyr2", "month", "year", "yearnum")
-prev_cols <- c("PfPR2", "Pf")
-temp_cols <- c("temp", "temp2", "temp3", "temp4", "temp5")
-prec_cols <- c("ppt", "ppt2", "ppt3", "ppt4", "ppt5")
-flood_cols <- c("flood", "flood.lag", "flood.lag2", "flood.lag3")
-drought_cols <- c("drought", "drought.lag", "drought.lag2", "drought.lag3")
-
-replication_grid <- result |>
-  dplyr::select(
-    all_of(location_cols),
-    all_of(time_cols),
-    all_of(prev_cols),
-    all_of(temp_cols),
-    all_of(prec_cols),
-    all_of(flood_cols),
-    all_of(drought_cols),
-    intervention,
-    everything()
-  )
-
-readr::write_rds(replication_grid, file = analysis_ready_grid_fp)
-log_msg(sprintf(
-  "  Saved grid replication dataset: %d rows, %d columns",
-  nrow(replication_grid),
-  ncol(replication_grid)
-))
-
-log_msg("Script `B04 - Join prev and CRU data.R` completed successfully")
-
-############################################################
-# End of file ----
-############################################################
+log_msg("Script `B06 - Join prev and ERA5 data.R` completed successfully")

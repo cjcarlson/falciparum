@@ -42,7 +42,7 @@ overwrite <- TRUE
 
 log_msg <- create_logger(file.path(logs_dir, "B02_extract_GCM_ADM1.log"))
 
-log_msg("Starting script B02 - Extract GCM tmp and prc data ADM1")
+log_msg("Starting script `B02 - Extract GCM tmp and prc data ADM1.R`")
 
 #############################################################################
 # Make cluster ----
@@ -97,7 +97,7 @@ for (scenario in scenarios) {
         tmp_fn <- make_filename("tas", model, scenario, grid, date_range)
 
         output_path <- file.path(
-          inter_cmip6_ex_dir,
+          inter_cmip6_ext_dir,
           scenario,
           paste0(model, ".csv")
         )

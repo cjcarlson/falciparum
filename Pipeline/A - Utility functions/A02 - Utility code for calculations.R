@@ -1,10 +1,15 @@
 ############################################################
+# Utility functions for calculations including climate data
+# extraction, precipitation extremes, correlation analysis,
+# and R0 computations. Core helper functions used throughout
+# the analysis pipeline. Should be sourced after A01.
+############################################################
+
+############################################################
 # Start ----
 ############################################################
 
 print("Begin loading A01 - Utility code for calculations.R")
-
-## Functions needed throughout falciparum/ repo
 
 ############################################################
 # swirl ----
@@ -573,7 +578,7 @@ process_clim_powers_points <- function(
 print("Finished loading A01 - Utility code for calculations.R")
 
 ############################################################
-# Logging utility ----
+# create_logger ----
 ############################################################
 
 create_logger <- function(log_file = NULL) {
@@ -594,6 +599,39 @@ create_logger <- function(log_file = NULL) {
     }
   }
 }
+
+############################################################
+# make_temp_terms ----
+############################################################
+
+make_temp_terms <- function(n_lags = 0, n_leads = 0) {
+  # Always include contemporaneous
+  terms <- c("temp", "temp2")
+  for (i in seq_len(n_lags)) {
+    suffix <- ifelse(i == 1, "", i)
+    terms <- c(terms, paste0("temp.lag", suffix), paste0("temp2.lag", suffix))
+  }
+  for (i in seq_len(n_leads)) {
+    suffix <- ifelse(i == 1, "", i)
+    terms <- c(terms, paste0("temp.lead", suffix), paste0("temp2.lead", suffix))
+  }
+  paste(terms, collapse = " + ")
+}
+
+############################################################
+# make_lag_form ----
+############################################################
+
+make_lag_form <- function(n_lags = 0, n_leads = 0) {
+  temp_terms <- make_temp_terms(n_lags, n_leads)
+  as.formula(paste0(
+    "PfPR2 ~ ", temp_terms, " + ",
+    floodvars, " + ", droughtvars,
+    " + I(intervention) + ", country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  ))
+}
+
 
 ############################################################
 # End of file ----

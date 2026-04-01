@@ -1,5 +1,12 @@
 ############################################################
-# Start ----
+# Utility functions for plotting polynomial response curves,
+# linear lag effects, and visualization of regression results.
+# Contains helper functions for variance calculations and
+# recentering. Should be sourced after A01 - Configuration.R.
+############################################################
+
+############################################################
+# Setup ----
 ############################################################
 
 print("Begin loading A03 - Utility code for plotting.R")

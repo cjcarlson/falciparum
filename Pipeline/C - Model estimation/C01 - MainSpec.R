@@ -51,7 +51,7 @@ log_msg("Starting script C01 - MainSpec")
 ############################################################
 
 log_msg("Loading analysis ready data")
-complete <- readr::read_rds(analysis_ready_adm1_fp)
+complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 ########################################################################
 # Estimation ----
@@ -68,6 +68,7 @@ vcov = as.data.frame(mainmod$clustervcv)
 log_msg("Save model coefficients and vcov")
 
 # Save results
+saveRDS(mainmod, file = main_mod_obj_fn)
 saveRDS(coeffs, file = main_mod_beta_fn)
 saveRDS(vcov, file = main_mod_vcov_fn)
 
@@ -146,3 +147,7 @@ ggplot2::ggsave(
 )
 
 log_msg("Script `C01 - MainSpec.R` completed successfully")
+
+############################################################
+# End of file ----
+############################################################
