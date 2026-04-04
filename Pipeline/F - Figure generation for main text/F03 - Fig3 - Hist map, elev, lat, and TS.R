@@ -1,19 +1,14 @@
-########################################################################
-# This script plots the 
-########################################################################
-
-############################################################
+################################################################################
+# This script plots the
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
 if (!require("pacman")) {
   install.packages("pacman")
 }
-
-# install.packages("colorspace", repos = "http://R-Forge.R-project.org")
-# devtools::install_github("clauswilke/multiscales")
 
 # packages
 pacman::p_load(
@@ -23,13 +18,18 @@ pacman::p_load(
   tidyverse,
   lubridate,
   patchwork,
-  multiscales
+  colorspace
 )
+
+pacman::p_load_gh("clauswilke/multiscales")
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
+################################################################################
+# Load data ----
+################################################################################
 
 iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
   arrow::read_feather() |>
@@ -37,19 +37,19 @@ iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
   )
 
-iter.df |>
-  dplyr::filter(year == 2014) -> slices
+slices <- iter.df |>
+  dplyr::filter(year == 2014) 
 
-slices |>
+slices.runs <- slices |>
   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
   dplyr::mutate(diff = (historical - `hist-nat`)) |>
-  dplyr::select(-c(historical, `hist-nat`, year)) -> slices.runs
+  dplyr::select(-c(historical, `hist-nat`, year)) 
 
-slices.runs |>
+slice.map1 <- slices.runs |>
   dplyr::ungroup() |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(mean.diff = mean(diff), runs.diff = sum(diff > 0)) |>
-  dplyr::mutate(OBJECTID = factor(OBJECTID)) -> slice.map1
+  dplyr::mutate(OBJECTID = factor(OBJECTID)) 
 
 ### ADD THE MAP
 sfcont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |>
@@ -63,7 +63,11 @@ colors <- scales::colour_ramp(
 
 colors <- rev(colors)
 
-ggplot(sfcont) +
+################################################################################
+# Plot the map ----
+################################################################################
+
+map.diff <- ggplot(sfcont) +
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
   scale_x_continuous(limits = c(-17, 52), expand = c(0, 0)) +
   scale_y_continuous(limits = c(-36, 38), expand = c(0, 0)) +
@@ -97,82 +101,86 @@ ggplot(sfcont) +
     legend.key.size = grid::unit(0.8, "cm"),
     # legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
-  ) -> map.diff
+  )
 
+################################################################################
+# Temperature clines ----
+################################################################################
 
-############################################################
-# XXXXXXXXX ----
-############################################################
-
-iter.df <- here::here("TempFiles", "Fig3Big.feather") |> 
+iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
   arrow::read_feather() |>
-  dplyr::mutate(model = stringr::str_replace_all(model,'BCC-CSM2-MR','BCC-CSM2')) 
+  dplyr::mutate(
+    model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
+  )
 
-iter.df |> 
-  filter(year == 2014) ->
-  slices
+slices <- iter.df |>
+  filter(year == 2014) 
 
-slices |> 
-  pivot_wider(names_from = scenario, values_from = Pred) |> 
+slices.runs <- slices |>
+  pivot_wider(names_from = scenario, values_from = Pred) |>
   mutate(diff = (historical - `hist-nat`)) |>
-  select(-c(historical, `hist-nat`, year)) -> 
-  slices.runs
+  select(-c(historical, `hist-nat`, year))
 
-slices.runs |> 
+slice.map1 <- slices.runs |>
   group_by(OBJECTID) |>
   summarize(
-    mean.diff = mean(diff, na.rm = TRUE), 
-    lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE), 
+    mean.diff = mean(diff, na.rm = TRUE),
+    lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
-    lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE), 
+    lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
-  ) ->
-  slice.map1
+  ) 
 
+################################################################################
+# Elevation clines ----
+################################################################################
 
-# Get the stuff 
-elev <- file.path(data_dir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
-  readr::read_csv(show_col_types = FALSE) |> 
+# Get the stuff
+elev <- file.path(
+  data_dir,
+  "Data",
+  "elevation",
+  "elevation_extracted_all_ADM1.csv"
+) |>
+  readr::read_csv(show_col_types = FALSE) |>
   dplyr::select(OBJECTID, elevmn)
 
-cont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |> 
+cont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |>
   sf::read_sf()
 
-latlon <- cont |> 
-  mutate(lon = map_dbl(geometry, ~st_point_on_surface(.x)[[1]]),
-         lat = map_dbl(geometry, ~st_point_on_surface(.x)[[2]]))
-latlon |>
+latlon <- cont |>
+  mutate(
+    lon = map_dbl(geometry, ~ st_point_on_surface(.x)[[1]]),
+    lat = map_dbl(geometry, ~ st_point_on_surface(.x)[[2]])
+  )
+lat <- latlon |>
   as.data.frame() |>
   select(OBJECTID, lat) |>
-  mutate(OBJECTID = as.numeric(OBJECTID)) -> lat
+  mutate(OBJECTID = as.numeric(OBJECTID)) 
 
-temp <- file.path(data_dir, "Data", "CRU-Reextraction-Aug2022.csv") |> 
-  readr::read_csv(show_col_types = FALSE) 
-temp |> 
+temp <- file.path(data_dir, "Data", "CRU-Reextraction-Aug2022.csv") |>
+  readr::read_csv(show_col_types = FALSE)
+
+tmean <- temp |>
   filter(year %in% c(1901:1930)) |>
-  group_by(OBJECTID) |> 
-  summarize(t = mean(temp, na.rm = TRUE)) -> 
-  tmean
+  group_by(OBJECTID) |>
+  summarize(t = mean(temp, na.rm = TRUE)) 
 
-
-############################################################
+################################################################################
 # XXXXXXXXX ----
-############################################################
+################################################################################
 
-
-slice.map1 |>
+df <- slice.map1 |>
   left_join(elev) |>
   left_join(lat) |>
-  left_join(tmean) -> 
-  df
+  left_join(tmean) 
 
 # Generate a nice little significance color scheme
-df |>
+df <- df |>
   mutate(
-    sign = as.numeric(lower.diff.90 > 0) + -1*as.numeric(upper.diff.90 < 0),
+    sign = as.numeric(lower.diff.90 > 0) + -1 * as.numeric(upper.diff.90 < 0),
     sign = factor(sign)
-  ) ->
-  df
+  ) 
 
 # After creating your df dataframe, split it into two based on significance
 df_non_sig <- df %>% filter(sign == 0)
@@ -183,115 +191,210 @@ df_sig <- df %>% filter(sign != 0)
 
 g1 <- ggplot() +
   geom_errorbar(
-    data = df_non_sig, aes(x = mean.diff, y = elevmn, xmin = lower.diff.95, xmax = upper.diff.95), 
-    color = "grey80", alpha = 0.3, size = 0.5) +
+    data = df_non_sig,
+    aes(x = mean.diff, y = elevmn, xmin = lower.diff.95, xmax = upper.diff.95),
+    color = "grey80",
+    alpha = 0.3,
+    size = 0.5
+  ) +
   geom_errorbar(
-    data = df_non_sig, aes(x = mean.diff, y = elevmn, xmin = lower.diff.90, xmax = upper.diff.90), 
-    color = "grey80", alpha = 0.5, size = 0.7) +
+    data = df_non_sig,
+    aes(x = mean.diff, y = elevmn, xmin = lower.diff.90, xmax = upper.diff.90),
+    color = "grey80",
+    alpha = 0.5,
+    size = 0.7
+  ) +
   geom_point(
-    data = df_non_sig, aes(x = mean.diff, y = elevmn), 
-    color = "grey80") +
+    data = df_non_sig,
+    aes(x = mean.diff, y = elevmn),
+    color = "grey80"
+  ) +
   geom_errorbar(
-    data = df_sig, aes(x = mean.diff, y = elevmn, xmin = lower.diff.95, xmax = upper.diff.95, color = sign), 
-    alpha = 0.3, size = 0.5) +
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = elevmn,
+      xmin = lower.diff.95,
+      xmax = upper.diff.95,
+      color = sign
+    ),
+    alpha = 0.3,
+    size = 0.5
+  ) +
   geom_errorbar(
-    data = df_sig, aes(x = mean.diff, y = elevmn, xmin = lower.diff.90, xmax = upper.diff.90, color = sign), 
-    alpha = 0.5, size = 0.7) +
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = elevmn,
+      xmin = lower.diff.90,
+      xmax = upper.diff.90,
+      color = sign
+    ),
+    alpha = 0.5,
+    size = 0.7
+  ) +
   geom_point(data = df_sig, aes(x = mean.diff, y = elevmn, color = sign)) +
-  geom_vline(xintercept = 0, linetype = 'dashed') + 
-  theme_classic() + 
-  xlab("Prevalence (%)") + 
-  ylab("Elevation (m)") + 
-  theme(axis.title.x = element_text(margin = margin(t = 20, b = 10)),
-        axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
-        legend.position = 'n',
-        plot.margin = margin(0,0,10,0)) +
+  geom_vline(xintercept = 0, linetype = 'dashed') +
+  theme_classic() +
+  xlab("Prevalence (%)") +
+  ylab("Elevation (m)") +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 20, b = 10)),
+    axis.title.y = element_text(margin = margin(r = 20, l = 10)),
+    legend.position = 'n',
+    plot.margin = margin(0, 0, 10, 0)
+  ) +
   scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
-
 
 
 g2 <- ggplot() +
   geom_errorbar(
-    data = df_non_sig, aes(x = mean.diff, y = lat, xmin = lower.diff.95, xmax = upper.diff.95), 
-    color = "grey80", alpha = 0.3, size = 0.5) +
+    data = df_non_sig,
+    aes(x = mean.diff, y = lat, xmin = lower.diff.95, xmax = upper.diff.95),
+    color = "grey80",
+    alpha = 0.3,
+    size = 0.5
+  ) +
   geom_errorbar(
-    data = df_non_sig, aes(x = mean.diff, y = lat,  xmin = lower.diff.90, xmax = upper.diff.90), 
-    color = "grey80", alpha = 0.5, size = 0.7) +
+    data = df_non_sig,
+    aes(x = mean.diff, y = lat, xmin = lower.diff.90, xmax = upper.diff.90),
+    color = "grey80",
+    alpha = 0.5,
+    size = 0.7
+  ) +
   geom_point(
-    data = df_non_sig, aes(x = mean.diff, y = lat), 
-    color = "grey80") +
+    data = df_non_sig,
+    aes(x = mean.diff, y = lat),
+    color = "grey80"
+  ) +
   geom_errorbar(
-    data = df_sig, aes(x = mean.diff, y = lat, xmin = lower.diff.95, xmax = upper.diff.95, color = sign), 
-    alpha = 0.3, size = 0.5) +
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = lat,
+      xmin = lower.diff.95,
+      xmax = upper.diff.95,
+      color = sign
+    ),
+    alpha = 0.3,
+    size = 0.5
+  ) +
   geom_errorbar(
-    data = df_sig, aes(x = mean.diff, y = lat, xmin = lower.diff.90, xmax = upper.diff.90, color = sign), 
-    alpha = 0.5, size = 0.7) +
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = lat,
+      xmin = lower.diff.90,
+      xmax = upper.diff.90,
+      color = sign
+    ),
+    alpha = 0.5,
+    size = 0.7
+  ) +
   geom_point(data = df_sig, aes(x = mean.diff, y = lat, color = sign)) +
-  geom_vline(xintercept = 0, linetype = 'dashed') + 
-  theme_classic() + 
-  xlab("Prevalence (%)") + 
-  ylab("Latitude") + 
-  theme(axis.title.x = element_text(margin = margin(t = 20, b = 10)),
-        axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
-        legend.position = 'n',
-        plot.margin = margin(0,0,0,0)) +
+  geom_vline(xintercept = 0, linetype = 'dashed') +
+  theme_classic() +
+  xlab("Prevalence (%)") +
+  ylab("Latitude") +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 20, b = 10)),
+    axis.title.y = element_text(margin = margin(r = 20, l = 10)),
+    legend.position = 'n',
+    plot.margin = margin(0, 0, 0, 0)
+  ) +
   scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
 
 
 g3 <- ggplot() +
   geom_errorbar(
-    data = df_non_sig, aes(x = mean.diff, y = t, xmin = lower.diff.95, xmax = upper.diff.95), 
-    color = "grey80", alpha = 0.3, size = 0.5) +
+    data = df_non_sig,
+    aes(x = mean.diff, y = t, xmin = lower.diff.95, xmax = upper.diff.95),
+    color = "grey80",
+    alpha = 0.3,
+    size = 0.5
+  ) +
   geom_errorbar(
-    data = df_non_sig, aes(x = mean.diff, y = t,  xmin = lower.diff.90, xmax = upper.diff.90), 
-    color = "grey80", alpha = 0.5, size = 0.7) +
+    data = df_non_sig,
+    aes(x = mean.diff, y = t, xmin = lower.diff.90, xmax = upper.diff.90),
+    color = "grey80",
+    alpha = 0.5,
+    size = 0.7
+  ) +
   geom_point(
-    data = df_non_sig, aes(x = mean.diff, y = t), 
-    color = "grey80") +
+    data = df_non_sig,
+    aes(x = mean.diff, y = t),
+    color = "grey80"
+  ) +
   geom_errorbar(
-    data = df_sig, aes(x = mean.diff, y = t,  xmin = lower.diff.95, xmax = upper.diff.95, color = sign), 
-    alpha = 0.3, size = 0.5) +
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = t,
+      xmin = lower.diff.95,
+      xmax = upper.diff.95,
+      color = sign
+    ),
+    alpha = 0.3,
+    size = 0.5
+  ) +
   geom_errorbar(
-    data = df_sig, aes(x = mean.diff, y = t, xmin = lower.diff.90, xmax = upper.diff.90, color = sign), 
-    alpha = 0.5, size = 0.7) +
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = t,
+      xmin = lower.diff.90,
+      xmax = upper.diff.90,
+      color = sign
+    ),
+    alpha = 0.5,
+    size = 0.7
+  ) +
   geom_point(data = df_sig, aes(x = mean.diff, y = t, color = sign)) +
-  geom_vline(xintercept = 0, linetype = 'dashed') + 
-  theme_classic() + 
-  xlab("Prevalence (%)") + 
-  ylab("Mean temperature (1901-1930)") + 
-  theme(axis.title.x = element_text(margin = margin(t = 20, b = 10)),
-        axis.title.y = element_text(margin = margin(r = 20, l = 10)), 
-        legend.position = 'n',
-        plot.margin = margin(0,0,0,0)) +
+  geom_vline(xintercept = 0, linetype = 'dashed') +
+  theme_classic() +
+  xlab("Prevalence (%)") +
+  ylab("Mean temperature (1901-1930)") +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 20, b = 10)),
+    axis.title.y = element_text(margin = margin(r = 20, l = 10)),
+    legend.position = 'n',
+    plot.margin = margin(0, 0, 0, 0)
+  ) +
   scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
 
 
-############################################################
+################################################################################
 # XXXXXXXXX ----
-############################################################
+################################################################################
 
-
-data.to.graph <- here::here("TempFiles", "Fig3Regionals.csv") |> 
-  readr::read_csv(show_col_types = FALSE) 
-
-data.to.graph |> 
+data.to.graph <- here::here("TempFiles", "Fig3Regionals.csv") |>
+  readr::read_csv(show_col_types = FALSE) |>
   mutate(scenario = factor(scenario, levels = c('hist-nat', 'historical'))) |>
   mutate(
     region = recode(
-      region, !!!c(
+      region,
+      !!!c(
         'Sub-Saharan Africa (Central)' = 'Central Africa',
         'Sub-Saharan Africa (East)' = 'East Africa',
         'Sub-Saharan Africa (Southern)' = 'Southern Africa',
-        'Sub-Saharan Africa (West)' = 'West Africa'))) |>
+        'Sub-Saharan Africa (West)' = 'West Africa'
+      )
+    )
+  ) |>
   ### Start plotting in 1902 because it's the first full year with lags incorporated right.
-  filter(year > 1901) |> 
+  filter(year > 1901) |>
   ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
   ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
   ############ this is for plotting purposes ONLY and text stats give full CI's
-  mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0)) |>
-    ggplot(aes(x = year, group = scenario, color = scenario, fill = scenario)) + 
-  geom_line(aes(y=median), lwd = 1.25) + 
-  # geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) + 
+  mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0))
+
+
+bottom <- ggplot(
+  data = data.to.graph,
+  aes(x = year, group = scenario, color = scenario, fill = scenario)
+) +
+  geom_line(aes(y = median), lwd = 1.25) +
+  # geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) +
   geom_ribbon(
     aes(ymin = lower, ymax = upper, colour = scenario),
     fill = NA,
@@ -303,28 +406,29 @@ data.to.graph |>
     color = NA,
     alpha = 0.1
   ) +
-  theme_classic() + 
-  geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) + 
-  facet_wrap(region ~ ., nrow = 1) + 
-  xlab(NULL) + 
-  ylab("Prevalence (%)") + 
+  theme_classic() +
+  geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) +
+  facet_wrap(region ~ ., nrow = 1) +
+  xlab(NULL) +
+  ylab("Prevalence (%)") +
   ylim(-0.6, 1) +
   scale_color_manual(
-    values = c("grey50", "#287DAB"), 
+    values = c("grey50", "#287DAB"),
     labels = c('Historical counterfactual', 'Historical climate'),
-    name = '') + 
+    name = ''
+  ) +
   scale_fill_manual(
-    values = c("grey50", "#287DAB"), 
+    values = c("grey50", "#287DAB"),
     labels = c('Historical counterfactual', 'Historical climate'),
-    name = '') + 
-  theme(legend.position = 'bottom') + 
-  theme(plot.title = element_text(size = 20)) -> 
-  bottom
+    name = ''
+  ) +
+  theme(legend.position = 'bottom') +
+  theme(plot.title = element_text(size = 20))
 
 
-############################################################
-# XXXXXXXXX ----
-############################################################
+################################################################################
+# Compile and save plot ----
+################################################################################
 
 map.diff +
   g3 +
@@ -354,3 +458,6 @@ ggsave(
   units = "in",
 )
 
+################################################################################
+# End of file ----
+################################################################################

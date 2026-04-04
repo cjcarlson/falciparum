@@ -1,14 +1,12 @@
-############################################################
-# This script estimates the main empirical specification linking
-# PfPR2 to drought, flood, and temperature.
+################################################################################
+# This script estimates the main empirical specification linking PfPR2 to 
+# drought, flood, and temperature.
 #
 # CLUSTERING: Standard errors are clustered at the
 # country × N-year level (set yr_bin_size in config).
-############################################################
-
-############################################################
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -17,25 +15,16 @@ if (!require("pacman")) {
 }
 
 # packages
-pacman::p_load(lfe, here, tidyverse, stargazer, fixest)
+pacman::p_load(lfe, here, tidyverse, stargazer)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
-############################################################
-# Plotting toggles ----
-# Choose reference temperature for response function, as well
-# as minimum and maximum for range of temperature
-############################################################
-
-Tmin = 10 # min T for x axis
-Tmax = 40 # max T for x axis
-
-############################################################
+################################################################################
 # Set up logging ----
-############################################################
+################################################################################
 
 log_file_path <- file.path(logs_dir, "C01_main_spec.log")
 
@@ -43,20 +32,21 @@ log_msg <- create_logger(log_file_path)
 
 log_msg("Starting script C01 - MainSpec")
 
-############################################################
+################################################################################
 # Load data ----
 # Read in the analysis ready data file with malaria prevalence
 # and CRU temperature and precipitation data aggregated to
 # the first level of Administrative division.
-############################################################
+################################################################################
 
 log_msg("Loading analysis ready data")
+
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
-########################################################################
+################################################################################
 # Estimation ----
 # Formula cXt2intrXm is loaded from configuration file
-########################################################################
+################################################################################
 
 log_msg("Begin modeling")
 
@@ -72,9 +62,9 @@ saveRDS(mainmod, file = main_mod_obj_fn)
 saveRDS(coeffs, file = main_mod_beta_fn)
 saveRDS(vcov, file = main_mod_vcov_fn)
 
-########################################################################
+################################################################################
 # Table ----
-########################################################################
+################################################################################
 
 log_msg("Save table results")
 
@@ -86,7 +76,7 @@ mynote = paste0(
   " level."
 )
 
-stargazer(
+stargazer::stargazer(
   mainmod,
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
@@ -100,14 +90,14 @@ stargazer(
   notes.align = "l",
   notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
   digits = 2,
-  star.cutoffs = c(0.05, 0.01, 0.001)
+  star.cutoffs = table_star_cutoffs
 )
 
-########################################################################
+################################################################################
 # Plot ----
 # Note: analogous to Fig 2A but with analytically derived confidence
 # intervals in place of bootstrap runs.
-########################################################################
+################################################################################
 
 log_msg("Plot temperature response")
 
@@ -148,6 +138,6 @@ ggplot2::ggsave(
 
 log_msg("Script `C01 - MainSpec.R` completed successfully")
 
-############################################################
+################################################################################
 # End of file ----
-############################################################
+################################################################################

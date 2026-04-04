@@ -1,12 +1,10 @@
-############################################################
-# This script investigates correlation in the model
-# residuals and assesses alternative methods of clustering
-# or accounting for spatiotemporal correlations in errors.
-############################################################
-
-############################################################
+################################################################################
+# This script investigates correlation in the model residuals and assesses 
+# alternative methods of clustering or accounting for spatiotemporal 
+# correlations in errors.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -41,37 +39,27 @@ source(A_utils_plot_fp)
 
 sf::sf_use_s2(FALSE)
 
-############################################################
-# Plotting toggles ----
-# Choose reference temperature for response function, as well
-# as minimum and maximum for range of temperature
-############################################################
-
-Tref = 25 # reference temperature - curve gets recentered to 0 here
-Tmin = 10 # min T for x axis
-Tmax = 40 # max T for x axis
-
-############################################################
+################################################################################
 # Load data ----
 # Read in the analysis ready data file with malaria prevalence
 # and CRU temperature and precipitation data aggregated to
 # the first level of Administrative division.
-############################################################
+################################################################################
 
 print("Loading clean data")
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
-########################################################################
+################################################################################
 # Estimate main model, store residuals ----
-########################################################################
+################################################################################
 
 # Estimation & residuals
 mainmod = lfe::felm(data = complete, formula = cXt2intrXm)
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 
-########################################################################
+################################################################################
 # A: Correlation across ADM1s within a country (same year-month) ----
-########################################################################
+################################################################################
 
 # Regress residuals on country dummies, control for month and year
 resCntry = felm(res ~ I(country) | month + year | 0 | 0, data = complete)
@@ -101,9 +89,9 @@ df = data.frame(
 )
 write.csv(df, file.path(table_diag_res_dir, "residuals_country_Fstat.csv"))
 
-########################################################################
+################################################################################
 # B: Correlation across ADM1s within a GBOD region (same year-month) ----
-########################################################################
+################################################################################
 
 # Regress residuals on country dummies, control for month and year
 resGBOD = felm(res ~ I(smllrgn) | month + year | 0 | 0, data = complete)
@@ -134,9 +122,9 @@ df = data.frame(
 )
 write.csv(df, file.path(table_diag_res_dir, "residuals_GBOD_Fstat.csv"))
 
-########################################################################
+################################################################################
 # C: Correlation across months (same location) ----
-########################################################################
+################################################################################
 
 # Regress residuals on country dummies, control for OBJECTID
 resMonth = felm(res ~ I(month) | OBJECTID | 0 | 0, data = complete)
@@ -191,9 +179,9 @@ ggsave(
   height = 5
 )
 
-########################################################################
+################################################################################
 # D: General correlation over space -- distributions of correlations ----
-########################################################################
+################################################################################
 
 ##### Temporal Correlation Matrix ----
 residual_wide_yr_mn <-
@@ -269,9 +257,6 @@ location_simple <- complete |>
     ),
     location = paste(short_region, ISO, OBJECTID, sep = ".")
   )
-
-
-# centroid_fp <- file.path(data_dir, "Data", "ADM1-centroids.csv")
 
 centroids <- ADM1_fp |>
   sf::read_sf() |>
@@ -434,20 +419,13 @@ corrData <- bind_rows(
 
 df_to_latex(dplyr::select(corrData, kind, group, mean, q25, q75, n))
 
-########################################################################
+################################################################################
 # E: General correlation over space -- VARIOGRAMS ----
-########################################################################
+################################################################################
 
 # create year groupings for variogram
 complete = complete %>%
   mutate(yeargp = (yearnum - min(yearnum)) %/% 5 * 5 + min(yearnum))
-# |>
-#   dplyr::select(-lat, -lon)
-
-# # bring in lat-lon of ADM1 centroids
-# centroid_fp <- file.path(data_data_dir, "ADM1-centroids.csv")
-
-# centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE)
 
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
@@ -517,9 +495,9 @@ range = range %>% arrange(country) %>% mutate(range = as.numeric(range))
 hist(range$range, breaks = 30)
 quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE)
 
-########################################################################
+################################################################################
 # F: General correlation over time ----
-########################################################################
+################################################################################
 
 # As detailed in D03 - Additional robustness.R, the panel is sufficiently unbalanced
 # that estimating a distributed lag at monthly scale is likely not feasible. Instead, look across years.
@@ -602,7 +580,7 @@ stargazer(
   lag4,
   lag5,
   title = "Model diagnostics: Residual lags",
-  # align           = TRUE,
+  # align = TRUE,
   column.labels = c(
     "1 Mn",
     "2 Mn",
@@ -622,7 +600,7 @@ stargazer(
   ),
   omit.stat = c("f", "ser"),
   digits = 2,
-  # float           = FALSE,
+  # float = FALSE,
   type = "latex",
   notes.append = TRUE,
   notes.align = "l",
@@ -631,19 +609,21 @@ stargazer(
     table_diag_res_dir,
     "serial_correlation_in_model_residuals.tex"
   ),
-  star.cutoffs = c(0.05, 0.01, 0.001)
+  star.cutoffs = table_star_cutoffs
 )
 
-########################################################################
-# G. Robustness to various clustering approaches, informed by diagnostics above ----
-########################################################################
+################################################################################
+# G. Robustness to various clustering approaches ----
+# informed by diagnostics above
+################################################################################
 
 ###### Main spec (ADM1 clustering) ----
 
 # plot
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 coefs = summary(mainmod)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+# plot relative to max of quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) 
 mainfig = plotPolynomialResponse(
   mainmod,
   "temp",
@@ -849,7 +829,7 @@ uncert = plot_grid(
 )
 
 ggsave(
-  filename = "temp_response_difft_SEs.pdf",
+  filename = "temp_response_conley_difft_SEs.pdf",
   path = figure_diag_res_dir,
   plot = uncert,
   width = 10,
@@ -894,7 +874,7 @@ stargazer(
   digits = 2,
   notes.align = "l",
   notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
-  star.cutoffs = c(0.05, 0.01, 0.001)
+  star.cutoffs = table_star_cutoffs
 )
 
 conley_tab <- etable(
@@ -915,9 +895,9 @@ conley_tab <- etable(
 )
 conley_tab
 
-########################################################################
+################################################################################
 # H. Overdispersion? ----
-########################################################################
+################################################################################
 
 # Plot model residuals
 complete <- complete |> mutate(res = c(residuals(mainmod)))
@@ -934,6 +914,11 @@ ggsave(
   width = 7,
   height = 7
 )
+
+
+################################################################################
+# I. Country 5yr vs country 10yr ----
+################################################################################
 
 
 ###### Country x 5-year clustering ----
@@ -1014,7 +999,6 @@ cntryyr10fig = plotPolynomialResponse(
   showYTitle = T
 )
 
-
 # 4-panel figure
 uncert = plot_grid(
   mainfig,
@@ -1026,9 +1010,13 @@ uncert = plot_grid(
 )
 
 ggsave(
-  filename = "temp_response_difft_SEs.pdf",
+  filename = "temp_response_countryyr_difft_SEs.pdf",
   path = figure_diag_res_dir,
   plot = uncert,
   width = 10,
   height = 10
 )
+
+################################################################################
+# End of file ----
+################################################################################

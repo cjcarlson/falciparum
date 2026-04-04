@@ -99,10 +99,6 @@ ggplot(sfcont) +
   ) ->
   map.rcp45.2100
 
-
-
-
-
 elev <- file.path(data_dir, "Data", "elevation", "elevation_extracted_all_ADM1.csv") |> 
   readr::read_csv(show_col_types = FALSE)
 
@@ -364,3 +360,7 @@ ggsave(
   units = "in"
 )
 
+
+################################################################################
+# End of file ----
+################################################################################

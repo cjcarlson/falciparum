@@ -1,12 +1,9 @@
-############################################################
-# This script conducts a variety of robustness checks on the
-# main empirical specification linking PfPR2 to drought,
-# flood, and temperature.
-############################################################
-
-############################################################
+################################################################################
+# This script conducts a variety of robustness checks on the main empirical 
+# specification linking PfPR2 to drought, flood, and temperature.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -32,32 +29,30 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
-############################################################
+################################################################################
 # Plotting toggles ----
 # Choose reference temperature for response function, as well
 # as minimum and maximum for range of temperature
-############################################################
+################################################################################
 
 Tref = 25 # reference temperature - curve gets recentered to 0 here
-Tmin = 10 # min T for x axis
-Tmax = 40 # max T for x axis
 
-############################################################
+################################################################################
 # Load data ----
 # Read in the analysis ready data file with malaria prevalence
 # and CRU temperature and precipitation data aggregated to
 # the first level of Administrative division.
-############################################################
+################################################################################
 
 print("Loading analysis ready data")
 
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
-########################################################################
+################################################################################
 # FE sensitivity formulas ----
-# Formulas: all fixed effects 
+# Formulas: all fixed effects
 # main spec = cXt2intrXm (sourced from `A01 - Configuration.R`)
-########################################################################
+################################################################################
 
 cym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | OBJECTID"))
 cXt2m = as.formula(paste0(
@@ -121,9 +116,9 @@ mycollabs = c(
   "rgn-yr+rgn-mo FEs., cnty trd"
 )
 
-########################################################################
+################################################################################
 # FE sensitivity estimation ----
-########################################################################
+################################################################################
 
 # Run all models
 modellist = list()
@@ -133,9 +128,9 @@ for (m in myforms) {
   modellist[[i]] = felm(data = complete, formula = m)
 }
 
-########################################################################
+################################################################################
 # FE sensitivity table ----
-########################################################################
+################################################################################
 
 # Combine into a single stargazer plot
 mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
@@ -154,13 +149,14 @@ stargazer(
   notes.append = TRUE,
   digits = 2,
   notes.align = "l",
-  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}")
+  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
+  star.cutoffs = table_star_cutoffs
 )
 
-########################################################################
+################################################################################
 # FE sensitivity plot ----
 # Plot temperature response functions for all fixed effects specifications
-########################################################################
+################################################################################
 
 # Plot temperature response for each model
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
@@ -202,7 +198,7 @@ length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
 lb = response - length
 ub = response + length
 
-#Plotgin dataframe -- add back in the reference temperature so it's centered at xRef
+# Ploting dataframe -- add back in the reference temperature so it's centered at xRef
 plotData = data.frame(
   x = xValsT[, 1] + Tref,
   response = response,
@@ -307,11 +303,11 @@ ggsave(
 )
 
 
-########################################################################
+################################################################################
 # Time controls ----
 # Assessing temporal controls: At what spatial scale do we need to
 # address long-run trends?
-########################################################################
+################################################################################
 
 complete$datestr = paste0(
   as.character(complete$year),
@@ -324,12 +320,12 @@ complete$datevar = ymd(complete$datestr)
 clist = unique(complete$country)
 complete$yhat = NA
 
-########################################################################
+################################################################################
 # Time controls - Regional 1 ----
 # 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease
 # region, suggesting at least some spatially varying temporal controls
 # are merited
-########################################################################
+################################################################################
 
 rlist = unique(complete$smllrgn)
 complete$yhat = NA
@@ -356,12 +352,12 @@ ggsave(
   width = 8,
 )
 
-########################################################################
+################################################################################
 # Time controls - Regional 2 ----
 # 2. Show that trends appear a) nonlinear; and b) heterogeneous by
 # country within GBOD regions, suggesting country specific quadratic
 # trends are preferred
-########################################################################
+################################################################################
 
 clist = unique(complete$country)
 complete$yhat = NA
@@ -410,31 +406,40 @@ ggsave(
   width = 10,
 )
 
-########################################################################
+################################################################################
 # Time controls - Regional 3 ----
 # 3. Ensure we have sufficient data to identify GBOD region X year FEs,
 # region X month FEs, country X month FEs, but not country X year FEs
 # (too little coverage here). This implies country trends are likely
 # more reliable to capture within region heterogeneity in trends, since
 # we are underpowered to estimate country-month FEs.
-########################################################################
+################################################################################
 
-regcounts = complete %>% group_by(smllrgn) %>% tally()
-summary(regcounts$n) # on average, we've got >2400 observations per GBOD region over the whole sample
-regyrcounts = complete %>% group_by(smllrgn, year) %>% tally()
-summary(regyrcounts$n) # on average, we've got 27 observations per GBOD region per year to identify regionXyear FEs
-regmocounts = complete %>% group_by(smllrgn, month) %>% tally()
-summary(regmocounts$n) # on average, we've got 206 observations per GBOD region per month to identify regionXmonth FEs
-isomocounts = complete %>% group_by(country, month) %>% tally()
-summary(isomocounts$n) # on average, we've got 20 observations per country per month to identify countryXmonth FEs (not great...)
-isoyrcounts = complete %>% group_by(country, year) %>% tally()
-summary(isoyrcounts$n) # on average, we've got just 6 observations per country per year to identify countryXyear FEs (highly insufficient)
+# on average, we've got >2400 observations per GBOD region over the whole sample
+regcounts <- complete %>% group_by(smllrgn) %>% tally()
+summary(regcounts$n)
 
-########################################################################
+# on average, we've got 27 observations per GBOD region per year to identify regionXyear FEs
+regyrcounts <- complete %>% group_by(smllrgn, year) %>% tally()
+summary(regyrcounts$n)
+
+# on average, we've got 206 observations per GBOD region per month to identify regionXmonth FEs
+regmocounts <- complete %>% group_by(smllrgn, month) %>% tally()
+summary(regmocounts$n)
+
+# on average, we've got 20 observations per country per month to identify countryXmonth FEs (not great...)
+isomocounts <- complete %>% group_by(country, month) %>% tally()
+summary(isomocounts$n)
+
+# on average, we've got just 6 observations per country per year to identify countryXyear FEs (highly insufficient)
+isoyrcounts <- complete %>% group_by(country, year) %>% tally()
+summary(isoyrcounts$n)
+
+################################################################################
 # Time controls - Seasonality ----
 # Assessing temporal controls: At what spatial scale do we need to
 # address seasonality?
-########################################################################
+################################################################################
 
 # Show that seasonality looks different by region
 rlist = unique(complete$smllrgn)
@@ -462,10 +467,10 @@ ggsave(
   width = 8
 )
 
-########################################################################
+################################################################################
 # Time controls - Residuals ----
 # Ensure residuals are normally distributed and uncorrelated over time
-########################################################################
+################################################################################
 
 # plot residuals from main specifications (over time and histogram)
 main = felm(data = complete, formula = cXt2intrXm)
@@ -507,10 +512,10 @@ ggsave(
   plot = g
 )
 
-########################################################################
+################################################################################
 # Temp lags/leads - data prep ----
 # Lags and leads of temperature: Dynamic effects
-########################################################################
+################################################################################
 
 climate_data <- intermediate_CRU_adm1_fp |>
   readr::read_csv(show_col_types = FALSE) |>
@@ -552,9 +557,9 @@ complete <- left_join(
 )
 complete$month = as.factor(complete$month)
 
-########################################################################
+################################################################################
 # Temp lags/leads - formulas ----
-########################################################################
+################################################################################
 
 # Formulas
 myforms2 <- list(
@@ -579,9 +584,9 @@ mycollabs = c(
   "ld1lg3"
 )
 
-########################################################################
+################################################################################
 # Temp lags/leads - estimation ----
-########################################################################
+################################################################################
 
 # Run all models
 modellist = list()
@@ -591,9 +596,9 @@ for (m in myforms) {
   modellist[[i]] = felm(data = complete, formula = m)
 }
 
-########################################################################
+################################################################################
 # Temp lags/leads - table ----
-########################################################################
+################################################################################
 
 # Combine into a single stargazer plot
 stargazer(
@@ -606,12 +611,13 @@ stargazer(
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
-  float = F
+  float = F,
+  star.cutoffs = table_star_cutoffs
 )
 
-########################################################################
+################################################################################
 # Temp lags/leads - plot ----
-########################################################################
+################################################################################
 
 # Plot main model with SEs
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
@@ -728,10 +734,10 @@ cowplot::save_plot(
   base_asp = 4
 )
 
-########################################################################
+################################################################################
 # Drought/flood  ----
 # Sensitivity to definitions of drought and flood
-########################################################################
+################################################################################
 
 # Loop over drought/flood function
 dlist = c(0.01, 0.05, 0.1, 0.15, 0.2)
@@ -793,10 +799,10 @@ for (dd in dlist) {
   }
 }
 
-########################################################################
+################################################################################
 # Drought/flood - temp response  ----
-# For each model, plot temperature response 
-########################################################################
+# For each model, plot temperature response
+################################################################################
 
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 figList = list()
@@ -848,10 +854,10 @@ ggsave(
   height = 10
 )
 
-########################################################################
+################################################################################
 # Drought/flood - coeffs ----
-# For each model, plot drought and flood coeffs 
-########################################################################
+# For each model, plot drought and flood coeffs
+################################################################################
 
 # All drought figures
 figList = list()
@@ -939,9 +945,9 @@ ggsave(
   height = 10
 )
 
-########################################################################
+################################################################################
 # Temperature functional form ----
-########################################################################
+################################################################################
 
 # estimate polynomial orders up to 5
 modellist = list()
@@ -1038,9 +1044,9 @@ ggsave(
   height = 10
 )
 
-########################################################################
+################################################################################
 # Cumulative precipitation ----
-########################################################################
+################################################################################
 
 # estimate polynomial orders up to 5
 modellist = list()
@@ -1122,6 +1128,6 @@ ggsave(
   height = 10
 )
 
-########################################################################
+################################################################################
 # End of file ----
-########################################################################
+################################################################################

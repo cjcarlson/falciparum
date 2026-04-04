@@ -1,6 +1,10 @@
-###########################################################
-# Extract CRU climate data (temperature and precipitation)
-# from CRU-TS4.03 NetCDFs at ADM1 level.
+################################################################################
+# Extract CRU climate data (temperature and precipitation) from CRU-TS4.03 
+# NetCDFs at ADM1 level. Climate model data is bias corrected to CRU 4.03, so it
+# is recommended only use this version, unless redoing the bias correction. 
+# CRU data can be downloaded from:
+# https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.03/cruts.1905011326.v4.03/tmp/cru_ts4.03.1901.2018.tmp.dat.nc.gz
+# https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.03/cruts.1905011326.v4.03/pre/cru_ts4.03.1901.2018.pre.dat.nc.gz
 #
 # Note: This script will not work in modern versions of R (> 4.2.3).
 # The packages rgdal and velox are no longer supported. To replicate
@@ -15,11 +19,9 @@
 # apptainer exec \
 #     /path/to/apptainer/r-malaria-cru_4.2.3.siff \
 #     Rscript "B05 - Extract ERA5 tmp and prc data ADM1.R"
-############################################################
-
-############################################################
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -51,18 +53,18 @@ N_CORES <- 12L
 
 future::plan(future::multicore, workers = N_CORES)
 
-############################################################
+################################################################################
 # Set up logging ----
-############################################################
+################################################################################
 
 log_msg <- create_logger(file.path(logs_dir, "B01_extract_CRU_ADM1.log"))
 
 log_msg("Starting script `B01 - Extract CRU tmp and prc data ADM1.R`")
 log_msg(sprintf("  Using %d cores for parallel processing", N_CORES))
 
-############################################################
+################################################################################
 # ADM1 data ----
-############################################################
+################################################################################
 
 log_msg("Loading admin regions")
 
@@ -70,9 +72,9 @@ admin_regions <- rgdal::readOGR(ADM1_fp)
 
 log_msg(sprintf("  Loaded %d admin regions", length(admin_regions)))
 
-############################################################
+################################################################################
 # Extract temperature ----
-############################################################
+################################################################################
 
 log_msg("Extracting CRU temperature data at ADM1 level")
 
@@ -87,9 +89,9 @@ admin_regions <- extract_cru_variable(
 
 log_msg("  Temperature extraction complete")
 
-############################################################
+################################################################################
 # Extract precipitation ----
-############################################################
+################################################################################
 
 log_msg("Extracting CRU precipitation data at ADM1 level")
 
@@ -106,9 +108,9 @@ log_msg("  Precipitation extraction complete")
 
 future::plan(future::sequential)
 
-############################################################
+################################################################################
 # Save intermediate climate data ----
-############################################################
+################################################################################
 
 log_msg("Reshaping extracted data to long format")
 
@@ -157,9 +159,9 @@ log_msg(
   )
 )
 
-############################################################
+################################################################################
 # Save intermediate climate data ----
-############################################################
+################################################################################
 
 log_msg(sprintf("Saving climate data to: %s", intermediate_CRU_adm1_fp))
 
@@ -169,6 +171,6 @@ log_msg(
   "Script `B01 - Extract CRU tmp and prc data ADM1.R` completed successfully"
 )
 
-############################################################
+################################################################################
 # End of file ----
-############################################################
+################################################################################

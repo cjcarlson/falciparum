@@ -1,19 +1,17 @@
-############################################################
-# Utility functions for plotting polynomial response curves,
-# linear lag effects, and visualization of regression results.
-# Contains helper functions for variance calculations and
-# recentering. Should be sourced after A01 - Configuration.R.
-############################################################
-
-############################################################
+################################################################################
+# Utility functions for plotting polynomial response curves, linear lag effects, 
+# and visualization of regression results. Contains helper functions for 
+# variance calculations and recentering. Should be sourced after 
+# A01 - Configuration.R.
+################################################################################
 # Setup ----
-############################################################
+################################################################################
 
 print("Begin loading A03 - Utility code for plotting.R")
 
-############################################################
+################################################################################
 # calcVariance ----
-############################################################
+################################################################################
 
 ############## plot a polynomial response curve ##############
 ##### CalcVariance and getVcov are helper functions to plotPolynomialResponse
@@ -24,18 +22,18 @@ calcVariance = function(cvec, vcovMat) {
   return(t(cvec) %*% vcovMat %*% cvec)
 }
 
-############################################################
+################################################################################
 # getVcov ----
-############################################################
+################################################################################
 
 getVcov = function(vcv, vars) {
   #from the entire variance covariance matrix, select the portion corresponding to the variable you're interested in.
   return(vcv[vars, vars])
 }
 
-############################################################
+################################################################################
 # genRecenteredXVals_polynomial ----
-############################################################
+################################################################################
 
 genRecenteredXVals_polynomial = function(xVals, xRef, polyOrder, lag = NA) {
   ### This function generates X values that are recentered around value xRef. 
@@ -72,9 +70,9 @@ genRecenteredXVals_polynomial = function(xVals, xRef, polyOrder, lag = NA) {
   }
 }
 
-############################################################
+################################################################################
 # plotPolynomialResponse ----
-############################################################
+################################################################################
 
 plotPolynomialResponse <- function(
   mod,
@@ -187,7 +185,7 @@ plotPolynomialResponse <- function(
       group = rep(c("Rural", "Urban"), each = n)
     )
     g <- ggplot() +
-      geom_hline(yintercept = 0, colour = "grey88", linewidth = .4) +
+      geom_hline(yintercept = 0, color = "grey88", linewidth = .4) +
       geom_ribbon(
         data = filter(plotData, group == "Urban"),
         aes(x, ymin = lb, ymax = ub),
@@ -203,14 +201,14 @@ plotPolynomialResponse <- function(
       geom_line(
         data = filter(plotData, group == "Urban"),
         aes(x = x, y = response),
-        colour = "black",
+        color = "black",
         alpha = .6,
         linewidth = .5
       ) +
       geom_line(
         data = filter(plotData, group == "Rural"),
         aes(x = x, y = response),
-        colour = "black",
+        color = "black",
         alpha = 1,
         linewidth = .5
       ) +
@@ -218,7 +216,7 @@ plotPolynomialResponse <- function(
         x = expression(paste("Mean temperature (", degree, "C)")),
         y = "Prevalence (%)",
         title = NULL,
-        colour = "",
+        color = "",
         linetype = "",
         fill = ""
       ) +
@@ -296,7 +294,7 @@ plotPolynomialResponse <- function(
     }
 
     g <- g +
-      geom_vline(xintercept = maxX, colour = "grey39") +
+      geom_vline(xintercept = maxX, color = "grey39") +
       annotate(
         geom = "text",
         x = maxX + 3.5,
@@ -310,9 +308,9 @@ plotPolynomialResponse <- function(
   return(g)
 }
 
-############################################################
+################################################################################
 # plotPolynomialResponseSimple ----
-############################################################
+################################################################################
 
 plotPolynomialResponseSimple = function(
   coefs,
@@ -370,7 +368,7 @@ plotPolynomialResponseSimple = function(
       geom_vline(
         mapping = aes(xintercept = maxX),
         linetype = "solid",
-        colour = "grey39"
+        color = "grey39"
       ) +
       annotate(
         geom = "text",
@@ -383,9 +381,9 @@ plotPolynomialResponseSimple = function(
   return(g)
 }
 
-############################################################
+################################################################################
 # plotLinearLags ----
-############################################################
+################################################################################
 
 # Plot linear responses that are lagged
 plotLinearLags = function(
@@ -442,9 +440,9 @@ plotLinearLags = function(
   return(g)
 }
 
-############################################################
+################################################################################
 # plotLinearLags_urban ----
-############################################################
+################################################################################
 
 plotLinearLags_urban = function(
   mod,
@@ -516,9 +514,9 @@ plotLinearLags_urban = function(
   return(g)
 }
 
-############################################################
+################################################################################
 # plotPolynomialResponse_2_mod ----
-############################################################
+################################################################################
 
 # For D05
 plotPolynomialResponse_2_mod = function(
@@ -647,7 +645,7 @@ plotPolynomialResponse_2_mod = function(
     }
     
     if (plotmax == T) {
-      g = g + geom_vline(mapping = aes(xintercept = maxX1), linetype = "solid", colour = "grey39") +
+      g = g + geom_vline(mapping = aes(xintercept = maxX1), linetype = "solid", color = "grey39") +
         annotate(geom = "text", x = maxX1 + 3, y = 5, label = paste0(maxX1, " C"), color = "grey39")
     }
     
@@ -683,8 +681,8 @@ plotPolynomialResponse_2_mod = function(
     
     if (plotmax == T) {
       g = g + 
-        geom_vline(xintercept = maxX1, linetype = "solid", colour = "black") +
-        geom_vline(xintercept = maxX2, linetype = "dashed", colour = "black") +
+        geom_vline(xintercept = maxX1, linetype = "solid", color = "black") +
+        geom_vline(xintercept = maxX2, linetype = "dashed", color = "black") +
         annotate(geom = "text", x = maxX1 - 4, y = 4, 
                 label = paste0(maxX1, " C"), color = "grey39", size = 3) +
         annotate(geom = "text", x = maxX2 + 4, y = 4,
@@ -699,9 +697,9 @@ plotPolynomialResponse_2_mod = function(
   return(g)
 }
 
-############################################################
+################################################################################
 # plotLinearLags_2_mod ----
-############################################################
+################################################################################
 
 plotLinearLags_2_mod = function(
   mod,
@@ -800,6 +798,6 @@ plotLinearLags_2_mod = function(
 
 print("Done loading A03 - Utility code for plotting.R")
 
-############################################################
+################################################################################
 # End of file ----
-############################################################
+################################################################################

@@ -1,11 +1,9 @@
-########################################################################
+################################################################################
 # This script plots the main prevalence-temperature dose-response function
 # as well as its uncertainty over 1,000 bootstrap samples
-########################################################################
-
-############################################################
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -32,20 +30,20 @@ source(A_utils_plot_fp)
 
 ############################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence 
-# and CRU temperature and precipitation data aggregated to 
+# Read in the analysis ready data file with malaria prevalence
+# and CRU temperature and precipitation data aggregated to
 # the first level of Administrative division.
 # Builds the country × N-year clustering variable
 ############################################################
 
 print("Loading clean data")
 
-complete <- analysis_ready_CRU_adm1_fp |> 
-  readr::read_rds() 
+complete <- analysis_ready_CRU_adm1_fp |>
+  readr::read_rds()
 
-########################################################################
+################################################################################
 # Model coefficients ----
-########################################################################
+################################################################################
 
 all_mods <- boot_mod_full_fn |>
   readr::read_csv(show_col_types = FALSE)
@@ -56,9 +54,9 @@ main <- all_mods |>
 bootstraps <- all_mods |>
   dplyr::filter(model != "main")
 
-########################################################################
+################################################################################
 # Spaghetti plot of estimated T response functions ----
-########################################################################
+################################################################################
 
 conf_level <- 0.90
 
@@ -96,8 +94,6 @@ xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
 #     values_to = "response"
 #   )
 
-
-
 # point estimate
 b <- as.matrix(c(main$temp, main$temp2))
 response <- as.matrix(xValsT) %*% b
@@ -131,21 +127,21 @@ for (mod in seq_len(nrow(bootstraps))) {
 
 plotData <- rbind(plotData, do.call(rbind, boot_list))
 
-# plotData |> 
-#   as_tibble() |> 
-#   dplyr::filter(x == 15, response > 0) |> 
+# plotData |>
+#   as_tibble() |>
+#   dplyr::filter(x == 15, response > 0) |>
 #   dplyr::summarise(mean = mean(n))
 
-# plotData |> 
-#   as_tibble() |> 
-#   dplyr::filter(x == 15, response < 0) |> 
+# plotData |>
+#   as_tibble() |>
+#   dplyr::filter(x == 15, response < 0) |>
 #   dplyr::summarise(mean = mean(n))
 
-# plotData |> 
-#   as_tibble() |> 
-#   dplyr::filter(x == 15, response > 0) |> 
-#   dplyr::arrange(response) |> 
-#   print(n = 65) |> 
+# plotData |>
+#   as_tibble() |>
+#   dplyr::filter(x == 15, response > 0) |>
+#   dplyr::arrange(response) |>
+#   print(n = 65) |>
 #   ggplot() +
 #   geom_point(aes(x = n, y = response), alpha = 0.5)
 
@@ -162,9 +158,9 @@ percentile_data <- plotData |>
     upper_bound = quantile(response, 1 - ((1 - conf_level) / 2))
   )
 
-########################################################################
+################################################################################
 # Temperature response ----
-########################################################################
+################################################################################
 
 median_temps <- complete |>
   dplyr::group_by(smllrgn) |>
@@ -245,9 +241,9 @@ g <- ggplot() +
     plot.margin = unit(c(0.3, 0.3, 0, 1), units = "cm")
   )
 
-########################################################################
+################################################################################
 # Temperature histogram inset ----
-########################################################################
+################################################################################
 
 # Create the histogram as a separate plot
 h_inset <- ggplot() +
@@ -294,9 +290,9 @@ g_with_hist <- g +
 
 g_with_hist
 
-########################################################################
+################################################################################
 # Lagged drought and flood responses ----
-########################################################################
+################################################################################
 
 # reformat: want a dataset of lag x var x model for flood and drought
 # subset to flood and drought
@@ -357,9 +353,9 @@ custom_stats <- rain |>
     .groups = "drop"
   )
 
-########################################################################
+################################################################################
 # Flood plot ----
-########################################################################
+################################################################################
 
 f = ggplot() +
   theme_bw() +
@@ -407,9 +403,9 @@ f = ggplot() +
   ylim(min_max)
 f
 
-########################################################################
+################################################################################
 # Drought plot ----
-########################################################################
+################################################################################
 
 d = ggplot() +
   theme_bw() +
@@ -463,9 +459,9 @@ d = ggplot() +
   )
 d
 
-########################################################################
+################################################################################
 # Intervention plot ----
-########################################################################
+################################################################################
 
 mycols <- c(colnames(bootstraps)[grep("intervention", colnames(bootstraps))])
 
@@ -541,23 +537,92 @@ intervention_fig <- ggplot() +
 
 intervention_fig
 
-########################################################################
+################################################################################
 # Global time series ----
-########################################################################
+################################################################################
 
-hist.to.graph <- here::here("TempFiles", "Fig2Hist.csv") |>
-  vroom::vroom(show_col_types = FALSE)
+baseline_adjust_summarize <- function(
+  df,
+  variable,
+  baseline_years,
+  confidence_level = 0.90
+) {
+  lower_prob <- (1 - confidence_level) / 2
+  upper_prob <- 1 - lower_prob
 
-future.to.graph <- here::here("TempFiles", "Fig2Future.csv") |>
-  vroom::vroom(show_col_types = FALSE)
+  var_sym <- rlang::sym(variable)
 
-hist.to.graph |>
+  baseline_means <- df |>
+    dplyr::filter(year %in% baseline_years) |>
+    dplyr::group_by(model, scenario, run) |>
+    dplyr::summarize(
+      baseline_mean = mean(!!var_sym, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  adjusted <- df |>
+    dplyr::left_join(baseline_means, by = c("model", "scenario", "run")) |>
+    dplyr::mutate(!!var_sym := (!!var_sym) - baseline_mean) |>
+    dplyr::select(-baseline_mean)
+
+  adjusted |>
+    dplyr::group_by(scenario, year) |>
+    dplyr::summarize(
+      median = median(!!var_sym, na.rm = TRUE),
+      upper = quantile(!!var_sym, upper_prob, na.rm = TRUE),
+      lower = quantile(!!var_sym, lower_prob, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+hist.to.graph <- file.path(
+  hist_sum_dir,
+  "historical_pred_sum_scen_mod_yr.feather"
+) |>
+  arrow::read_feather() |>
+  baseline_adjust_summarize(
+    variable = "Pred",
+    baseline_years = 1900:1930,
+    confidence_level = 0.90
+  )  |>
+    dplyr::mutate(
+      scenario = factor(scenario, levels = c('hist-nat', 'historical'))
+    ) |>
+    dplyr::filter(year > 1901)
+
+future.to.graph <- file.path(
+  fut_sum_dir,
+  "future_pred_sum_scen_mod_yr.feather"
+) |>
+  arrow::read_feather() |>
+  baseline_adjust_summarize(
+    variable = "Pred",
+    baseline_years = 2015:2020,
+    confidence_level = 0.90
+  ) |>
+  dplyr::mutate(
+    scenario = factor(scenario, levels = c('ssp126', 'ssp245', 'ssp585'))
+  ) |>
+  dplyr::filter(year > 2016)
+
+
+# hist.to.graph <- here::here("TempFiles", "Fig2Hist.csv") |>
+#   vroom::vroom(show_col_types = FALSE)
+
+# future.to.graph <- here::here("TempFiles", "Fig2Future.csv") |>
+#   vroom::vroom(show_col_types = FALSE)
+
+base <- hist.to.graph |>
   filter(scenario == 'historical', year %in% c(2010:2014)) |>
   pull(median) |>
-  mean() -> base
+  mean()
 
 future.to.graph <- future.to.graph |>
-  mutate(median = median + base, upper = upper + base, lower = lower + base)
+  mutate(
+    median = median + base,
+    upper = upper + base,
+    lower = lower + base
+  )
 
 graph.data <- bind_rows(hist.to.graph, future.to.graph) #|> dplyr::rename(scenario = RCP))
 
@@ -574,9 +639,9 @@ graph.data <- graph.data |>
   ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
   ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
   ############ this is for plotting purposes ONLY and text stats give full CI's
-  mutate(lower = pmax(lower, -1.75)) 
+  mutate(lower = pmax(lower, -2.2))
 
- s <- graph.data |>
+s <- graph.data |>
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) +
   theme_bw() +
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) +
@@ -617,30 +682,30 @@ graph.data <- graph.data |>
     legend.position.inside = c(0.13, 0.29),
     legend.margin = margin(0, 0, 0, 0),
     legend.text = element_text(size = rel(0.8)),
-    legend.title = element_blank(),  
+    legend.title = element_blank(),
     # plot.margin = unit(c(0, 0, 0, 0), units = "cm")
   )
 s
 
-########################################################################
+################################################################################
 # Plot assembly ----
-########################################################################
+################################################################################
 
 top_row <- (g_with_hist + f + d + intervention_fig) +
   plot_layout(ncol = 4, widths = c(5, 5, 5, 2))
 
-f2 <- top_row / s +  plot_annotation(tag_levels = 'A')
+f2 <- top_row / s + plot_annotation(tag_levels = 'A')
 
-ggsave(
-  filename = "Figure2.pdf",
-  plot = f2,
-  path = here::here("Figures"),
-  width = 10.32,
-  height = 7.69,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
+# ggsave(
+#   filename = "Figure2.pdf",
+#   plot = f2,
+#   path = here::here("Figures"),
+#   width = 10.32,
+#   height = 7.69,
+#   units = "in",
+#   device = cairo_pdf,
+#   dpi = 1200
+# )
 
 ggsave(
   filename = "Figure2.jpg",
@@ -651,3 +716,6 @@ ggsave(
   units = "in"
 )
 
+################################################################################
+# End of file ----
+################################################################################

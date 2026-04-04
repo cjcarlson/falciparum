@@ -1,12 +1,10 @@
-#############################################################################-
-#### Extract temperature and precipitation data from CRU-TS4.XX at point locations
-#### This modified version extracts climate data at specific survey lat/lon points
-#### rather than averaging across administrative units
-#############################################################################-
-
-############################################################
+################################################################################
+# Extract temperature and precipitation data from CRU-TS4.XX at point locations
+# This modified version extracts climate data at specific survey lat/lon points
+# rather than averaging across administrative units
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -22,9 +20,9 @@ source(A_utils_calc_fp)
 
 sf::sf_use_s2(FALSE)
 
-############################################################
+################################################################################
 # Set up logging ----
-############################################################
+################################################################################
 
 log_msg <- create_logger(file.path(logs_dir, "B03_extract_CRU_grid.log"))
 
@@ -37,9 +35,9 @@ cont <- ADM1_fp |>
   dplyr::select(OBJECTID, geometry)
 log_msg(sprintf("  Loaded %d admin regions", nrow(cont)))
 
-############################################################
+################################################################################
 # Prevalence data ----
-############################################################
+################################################################################
 
 log_msg("Loading prevalence point locations")
 
@@ -62,9 +60,9 @@ prev_df <- prev_DB_fp |>
 
 log_msg(sprintf("  %d unique survey points loaded", nrow(prev_df)))
 
-############################################################
+################################################################################
 # Extract temperature data ----
-############################################################
+################################################################################
 
 log_msg("Loading and cropping CRU temperature raster")
 
@@ -105,9 +103,9 @@ log_msg(sprintf("  Temperature extraction complete: %d rows", nrow(temp_df)))
 rm(tmp, temp_extract_list)
 gc()
 
-############################################################
+################################################################################
 # Extract precipitation data ----
-############################################################
+################################################################################
 
 log_msg("Loading and cropping CRU precipitation raster")
 
@@ -145,9 +143,9 @@ log_msg(sprintf("  Precipitation extraction complete: %d rows", nrow(pre_df)))
 rm(pre, pre_extract_list)
 gc()
 
-############################################################
+################################################################################
 # Combine tmp and prc data ----
-############################################################
+################################################################################
 
 log_msg("Joining temperature and precipitation data")
 
@@ -169,9 +167,9 @@ complete_df <- dplyr::left_join(
 
 log_msg(sprintf("  Combined data: %d rows, %d columns", nrow(complete_df), ncol(complete_df)))
 
-############################################################
+################################################################################
 # Save data ----
-############################################################
+################################################################################
 
 log_msg(sprintf("Saving grid climate data to: %s", intermediate_CRU_grid_fp))
 # readr::write_csv(complete_df, intermediate_CRU_grid_fp)
@@ -179,6 +177,6 @@ arrow::write_feather(x = complete_df, intermediate_CRU_grid_fp)
 
 log_msg("Script `B03 - Extract CRU tmp and prc data grid.R` completed successfully")
 
-############################################################
+################################################################################
 # End of file ----
-############################################################
+################################################################################

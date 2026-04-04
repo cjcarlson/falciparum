@@ -1,20 +1,14 @@
-#############################################################################-
-#### Use the following code to predict prevalence based on temperature and
-#### precipitation data with coefficients estimated from 1,000 bootstrap models.
-#### This code makes historical and future predictions based on 5 climate
-#### scenarios and 10 climate models. The code uses N cores to parallelize,
-#### which is chosen by the user. The code saves the predictions in feather
-#### format for fast reading and writing and reduces the size of the data.
-#### Additionally, metadata is saved in a separate file to reduce file size.
-#### -----------------------------------------------------------------------.
-#### Written by: Cullen Molitor
-#### Date: 2024-06-29
-#### Email: cullen_molitor@ucsb.edu
-#############################################################################-
-
-############################################################
+################################################################################
+# Use the following code to predict prevalence based on temperature and
+# precipitation data with coefficients estimated from 1,000 bootstrap models.
+# This code makes historical and future predictions based on 5 climate
+# scenarios and 10 climate models. The code uses N cores to parallelize, which
+# is chosen by the user. The code saves the predictions in feather format for
+# fast reading and writing and reduces the size of the data. Additionally,
+# metadata is saved in a separate file to reduce file size.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -27,7 +21,7 @@ pacman::p_load(
   zoo,
   here,
   terra,
-  tictoc,
+  future,
   progressr,
   tidyverse,
   lubridate,
@@ -35,217 +29,231 @@ pacman::p_load(
   future.apply
 )
 
-overwrite <- FALSE
-numCores <- 10
-options(future.globals.maxSize = 6 * 1024^3) # 4 GiB
+overwrite <- TRUE
+numCores <- min(10, future::availableCores())
+options(future.globals.maxSize = 6 * 1024^3)
 
-handlers(handler_progress(
-  format = ":spin :current/:total (:percent) [:bar] ETA: :eta",
-  width = 60
-))
-
-tictoc::tic("Total execution time")
+progressr::handlers(
+  progressr::handler_progress(
+    format = ":spin :current/:total (:percent) [:bar] ETA: :eta",
+    width = 60
+  )
+)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
-############################################################
-# Country data ----
-############################################################
+################################################################################
+# Set up logging ----
+################################################################################
 
-countrydf <- ADM1_fp |>
+log_file_path <- file.path(logs_dir, "E01_predict_prev.log")
+
+log_msg <- create_logger(log_file_path)
+
+log_msg("Starting script `E01 - Predict prevalence.R`")
+
+################################################################################
+# Precipitation thresholds ----
+################################################################################
+
+log_msg("Loading the precipitation")
+
+precip_dt <- precip_CRU_adm1_fp |>
+  data.table::fread()
+
+data.table::setnames(
+  precip_dt,
+  c("ppt_pctile0.9", "ppt_pctile0.1"),
+  c("ppt.90", "ppt.10")
+)
+
+valid_ids <- unique(precip_dt$OBJECTID)
+
+################################################################################
+# Country data ----
+################################################################################
+
+log_msg("Loading ADM1 data")
+
+country_dt <- ADM1_fp |>
   sf::read_sf() |>
   tibble::as_tibble() |>
   dplyr::select(OBJECTID, NAME_0) |>
   dplyr::distinct() |>
   dplyr::rename(country = NAME_0) |>
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID)) |>
+  dplyr::filter(OBJECTID %in% valid_ids) |>
+  data.table::as.data.table()
 
-############################################################
+################################################################################
 # Region data ----
-############################################################
+################################################################################
 
-gboddf <- gbd_fp |>
+log_msg("Loading GBD region data")
+
+gbod_dt <- gbd_fp |>
   sf::read_sf() |>
   tibble::as_tibble() |>
   dplyr::select("ISO", "NAME_0", "SmllRgn") |>
   dplyr::group_by(ISO, NAME_0) |>
   dplyr::summarize(SmllRgn = first(SmllRgn)) |>
   dplyr::rename(country = "NAME_0", region = "SmllRgn") |>
-  dplyr::mutate(country = gsub('Cote D\'Ivoire', 'Côte d\'Ivoire', country))
+  dplyr::mutate(country = gsub('Cote D\'Ivoire', 'Côte d\'Ivoire', country)) |>
+  dplyr::filter(region %in% names(region_names)) |>
+  data.table::as.data.table()
 
-############################################################
-# Precipitation thresholds ----
-############################################################
+spatial_dt <- gbod_dt[country_dt, on = "country", nomatch = NULL]
 
-precip.key <- precip_CRU_adm1_fp |>
-  readr::read_csv(show_col_types = FALSE)
-
-############################################################
+################################################################################
 # Bootstrap coefficients ----
-############################################################
+################################################################################
+
+log_msg("Loading bootstrap coeffs")
 
 bootstrap <- boot_mod_full_fn |>
-  readr::read_csv(show_col_types = FALSE)
-# readRDS() |>s
-# tibble::as_tibble()
+  readr::read_csv(show_col_types = FALSE) |>
+  dplyr::filter(model != "main") |>
+  dplyr::mutate(model = as.numeric(model))
 
-############################################################
+################################################################################
 # Loop over modes ----
-############################################################
+################################################################################
 
-# for (mode in c("future")) {
+future::plan(multisession, workers = numCores)
+
 for (mode in c("historical", "future")) {
   # mode <- "historical"
 
-  print(paste0("Starting: ", mode))
-  tictoc::tic(paste0("Finished: ", mode))
+  log_msg(paste0("Starting: ", mode))
 
+  ##############################################################################
   ## Directories and files ----
   if (mode == "historical") {
-    idx <- c(1, 2)
     start_date <- lubridate::ymd("1900-01-01")
-    scen_subset <- scenarios[1:2]
+    scen_subset <- names(historical_scenario_names)
+    prediction_dir <- hist_pred_dir
+    summary_dir <- hist_sum_dir
     row_years <- c(yr_bins[["1901"]], yr_bins[["2014"]])
   } else {
-    idx <- c(3, 4, 5)
     start_date <- lubridate::ymd("2015-01-01")
-    scen_subset <- scenarios[3:5]
+    scen_subset <- names(future_scenario_names)
+    prediction_dir <- fut_pred_dir
+    summary_dir <- fut_sum_dir
     row_years <- c(yr_bins[["2015"]], yr_bins[["2050"]], yr_bins[["2100"]])
   }
-  temp_dir <- file.path(inter_cmip6_pre_dir, mode)
-  summary_dir <- file.path(inter_cmip6_sum_dir, mode)
-  dir.create(temp_dir, showWarnings = FALSE, recursive = TRUE)
+
+  log_msg(paste0("Predictions will be saved to: ", prediction_dir))
 
   files <- vector("character")
 
-  for (dir in scenarios[idx]) {
+  for (dir in scen_subset) {
     files <- c(
       files,
       list.files(file.path(inter_cmip6_ext_dir, dir), full.names = TRUE)
     )
   }
 
-  plan(multisession, workers = numCores)
+  log_msg("Loading climate model data")
 
-  ## Climate Scenario data ----
-
-  # Pre-convert join tables
-  countrydt <- as.data.table(countrydf)
-  gboddt <- as.data.table(gboddf)
-  valid_ids <- unique(precip.key$OBJECTID)
-  exclude_regions <- c("Asia (Southeast)", "North Africa & Middle East")
-
-  data <- rbindlist(
-    with_progress({
-      p <- progressor(along = files)
-      future_lapply(
+  ##############################################################################
+  ## Climate model data ----
+  data <- data.table::rbindlist(
+    progressr::with_progress({
+      p <- progressr::progressor(along = files)
+      future.apply::future_lapply(
         files,
         function(f) {
-          dt <- fread(f)
+          dt <- data.table::fread(f, showProgress = FALSE)
+          dt <- dt[OBJECTID %in% valid_ids]
+          dt <- dt[complete.cases(dt)]
+
           dt[, `:=`(
             scenario = basename(dirname(f)),
             model = tools::file_path_sans_ext(basename(f))
           )]
 
-          # Drop NAs early to reduce size before join
-          dt <- dt[complete.cases(dt)]
-
-          # Filter to valid IDs early
-          dt <- dt[OBJECTID %in% valid_ids]
-
-          # Joins
-          dt <- countrydt[dt, on = "OBJECTID", nomatch = NULL]
-          dt <- gboddt[dt, on = "country", nomatch = NULL]
-
-          # Filter regions
-          dt <- dt[!region %in% exclude_regions]
-
-          # Date computation
-          dt[,
-            monthyr := as.Date(zoo::as.yearmon(paste(month, year, sep = " ")))
-          ]
-          dt[, monthyr := as.numeric(monthyr - start_date)]
-
-          p(sprintf("Read %s", basename(f)))
-
-          # Select columns to minimize memory for rbindlist
-          dt[, .(
-            scenario,
-            model,
-            region,
-            ISO,
-            country,
-            OBJECTID,
-            month,
-            year,
-            monthyr,
-            temp,
-            temp2,
-            ppt
-          )]
+          dt[, .(scenario, model, OBJECTID, year, month, temp, temp2, ppt)]
         },
         future.seed = NULL
       )
     })
   )
 
-  ## Prepare data for predictions ----
-  precipdt <- as.data.table(precip.key)
-  setnames(precipdt, c("ppt_pctile0.9", "ppt_pctile0.1"), c("ppt.90", "ppt.10"))
+  ##############################################################################
+  ## Join to spatial data ----
+  log_msg("Joining climate data to spatial data")
+  data <- spatial_dt[data, on = "OBJECTID", nomatch = NULL]
 
-  dt <- precipdt[data, on = "OBJECTID", nomatch = NULL]
-  setorder(dt, OBJECTID, scenario, model, monthyr)
+  ##############################################################################
+  ## Create monthyr var----
+  log_msg("Creating monthyr variable")
+  data[, monthyr := as.Date(zoo::as.yearmon(paste(month, year, sep = " ")))]
+  data[, monthyr := as.numeric(monthyr - start_date)]
 
-  # Compute lagged flood/drought indicators (shared across all iterations)
+  ##############################################################################
+  ## Join to precip key ----
+  log_msg("Joining climate data to precipitation key")
+  dt <- precip_dt[data, on = "OBJECTID", nomatch = NULL]
+  data.table::setorder(dt, OBJECTID, scenario, model, monthyr)
+
+  ##############################################################################
+  ## Compute flood/drought ----
+  log_msg("Computing flood and droughts")
   dt[, `:=`(
     flood = as.numeric(ppt >= ppt.90),
     drought = as.numeric(ppt <= ppt.10)
   )]
 
+  ##############################################################################
+  ## Compute flood/drought lags ----
+  log_msg("Computing flood and drought lags")
   dt[,
     `:=`(
-      flood.lag = shift(flood, n = 1, type = "lag"),
-      flood.lag2 = shift(flood, n = 2, type = "lag"),
-      flood.lag3 = shift(flood, n = 3, type = "lag"),
-      drought.lag = shift(drought, n = 1, type = "lag"),
-      drought.lag2 = shift(drought, n = 2, type = "lag"),
-      drought.lag3 = shift(drought, n = 3, type = "lag")
+      flood.lag = data.table::shift(flood, n = 1, type = "lag"),
+      flood.lag2 = data.table::shift(flood, n = 2, type = "lag"),
+      flood.lag3 = data.table::shift(flood, n = 3, type = "lag"),
+      drought.lag = data.table::shift(drought, n = 1, type = "lag"),
+      drought.lag2 = data.table::shift(drought, n = 2, type = "lag"),
+      drought.lag3 = data.table::shift(drought, n = 3, type = "lag")
     ),
     by = .(OBJECTID, scenario, model)
   ]
 
-  ### Save metadata ----
-  meta_path <- file.path(temp_dir, "RowMetadata.feather")
+  ##############################################################################
+  ## Save metadata ----
+  meta_path <- file.path(prediction_dir, "RowMetadata.feather")
   if (!file.exists(meta_path) | overwrite) {
+    log_msg("Saving metadata to save on prediction file size")
     meta <- dt[, .(
-      OBJECTID,
-      monthyr,
-      month,
-      year,
       scenario,
       model,
-      country,
+      region,
       ISO,
-      region
+      country,
+      OBJECTID,
+      year,
+      month,
+      monthyr
     )]
 
     meta |> arrow::write_feather(meta_path)
     meta <- meta[, .(OBJECTID, year, month, scenario, model, region)]
   }
 
+  ##############################################################################
   ## Apply model coefficients ----
-  results <- with_progress({
-    p <- progressor(steps = 1000)
-    future_lapply(
+  log_msg("Computing predictions")
+  results <- progressr::with_progress({
+    p <- progressr::progressor(steps = 1000)
+    future.apply::future_lapply(
       1:1000,
       function(i) {
         file_name <- paste0("iter_", i, ".feather")
-        file_path <- file.path(temp_dir, file_name)
+        file_path <- file.path(prediction_dir, file_name)
 
         if (!file.exists(file_path) | overwrite) {
-          tictoc::tic(i)
-          coef <- bootstrap[i, ]
+          coef <- dplyr::filter(bootstrap, model == i + 1)
 
           Pf.temp <- coef$temp * dt$temp + coef$temp2 * dt$temp2
 
@@ -264,7 +272,7 @@ for (mode in c("historical", "future")) {
           Pf.prec <- Pf.flood + Pf.drought
           Pred <- Pf.temp + Pf.prec
 
-          pred_data <- data.table(
+          pred_data <- data.table::data.table(
             Pred = Pred,
             Pf.temp = Pf.temp,
             Pf.flood = Pf.flood,
@@ -273,44 +281,7 @@ for (mode in c("historical", "future")) {
 
           pred_data |> arrow::write_feather(file_path)
 
-          pred_data[, names(meta) := meta]
-
-          ## Scen, mod, yr summary
-          scen_yr_mean <- pred_data[,
-            .(Pred = mean(Pred, na.rm = TRUE)),
-            by = .(scenario, model, year)
-          ]
-          scen_yr_mean[, run := i]
-
-          ## Scen, mod, yr, reg summary
-          scen_mod_yr_reg_mean <- pred_data[,
-            .(Pred = mean(Pred, na.rm = TRUE)),
-            by = .(scenario, model, year, region)
-          ]
-          scen_mod_yr_reg_mean[, run := i]
-
-          ## Scen, mod, yr, obj summary
-          map_row_idx <- which(
-            meta$scenario %in% scen_subset & meta$year %in% row_years
-          )
-          maps_dt <- pred_data[map_row_idx]
-          maps_dt[, year := yr_lookup[as.character(year)]]
-
-          scen_yr_adm_mean <- maps_dt[,
-            .(Pred = mean(Pred, na.rm = TRUE)),
-            by = .(scenario, model, year, OBJECTID)
-          ]
-          scen_yr_adm_mean[, run := i]
-
-          tictoc::toc()
-
           p(sprintf("iter_%d", i))
-
-          list(
-            scen_mod_yr = scen_yr_mean,
-            scen_mod_yr_reg = scen_mod_yr_reg_mean,
-            scen_mod_yr_obj = scen_yr_adm_mean
-          )
         } else {
           p(sprintf("iter_%d (skipped)", i))
           NULL
@@ -319,25 +290,61 @@ for (mode in c("historical", "future")) {
       future.seed = NULL
     )
   })
-
-  plan(sequential)
-
-  ## Compile and save summaries ----
-  # Drop NULLs (skipped iterations)
-  results <- results[!vapply(results, is.null, logical(1))]
-
-  for (stype in c("scen_mod_yr", "scen_mod_yr_reg", "scen_mod_yr_obj")) {
-    compiled <- rbindlist(lapply(results, `[[`, stype))
-    out_path <- file.path(summary_dir, paste0(stype, ".feather"))
-    dir.create(dirname(out_path), showWarnings = FALSE, recursive = TRUE)
-    arrow::write_feather(compiled, out_path)
-    cat(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
-  }
-
-  tictoc::toc()
 }
-tictoc::toc()
 
-############################################################
+future::plan(sequential)
+
+log_msg("Script `E01 - Predict prevalence.R` completed successfully")
+
+################################################################################
 # End of file ----
-############################################################
+################################################################################
+
+# pred_data[, names(meta) := meta]
+
+# ## Scen, mod, yr summary
+# scen_yr_mean <- pred_data[,
+#   .(Pred = mean(Pred, na.rm = TRUE)),
+#   by = .(scenario, model, year)
+# ]
+# scen_yr_mean[, run := i]
+
+# ## Scen, mod, yr, reg summary
+# scen_mod_yr_reg_mean <- pred_data[,
+#   .(Pred = mean(Pred, na.rm = TRUE)),
+#   by = .(scenario, model, year, region)
+# ]
+# scen_mod_yr_reg_mean[, run := i]
+
+# ## Scen, mod, yr, obj summary
+# map_row_idx <- which(
+#   meta$scenario %in% scen_subset & meta$year %in% row_years
+# )
+# maps_dt <- pred_data[map_row_idx]
+# maps_dt[, year := yr_lookup[as.character(year)]]
+
+# scen_yr_adm_mean <- maps_dt[,
+#   .(Pred = mean(Pred, na.rm = TRUE)),
+#   by = .(scenario, model, year, OBJECTID)
+# ]
+# scen_yr_adm_mean[, run := i]
+
+# p(sprintf("iter_%d", i))
+
+# list(
+#   scen_mod_yr = scen_yr_mean,
+#   scen_mod_yr_reg = scen_mod_yr_reg_mean,
+#   scen_mod_yr_obj = scen_yr_adm_mean
+# )
+
+## Compile and save summaries ----
+# Drop NULLs (skipped iterations)
+# results <- results[!vapply(results, is.null, logical(1))]
+
+# for (stype in c("scen_mod_yr", "scen_mod_yr_reg", "scen_mod_yr_obj")) {
+#   compiled <- rbindlist(lapply(results, `[[`, stype))
+#   out_path <- file.path(summary_dir, paste0("pred_summary_", stype, ".feather"))
+#   dir.create(dirname(out_path), showWarnings = FALSE, recursive = TRUE)
+#   arrow::write_feather(compiled, out_path)
+#   cat(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
+# }

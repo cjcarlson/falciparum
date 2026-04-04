@@ -54,3 +54,7 @@ final_df <- dplyr::bind_rows(result_list) |>
   tidyr::pivot_wider(
     names_from = year, values_from = mean_tas,
     names_glue = "{year}-{year+4}") 
+
+################################################################################
+# End of file ----
+################################################################################

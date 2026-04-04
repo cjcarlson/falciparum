@@ -1,16 +1,14 @@
-#############################################################################-
+################################################################################
 # Use the following code to extract GCM data for temperature and precipitation
-# from the CRU-TS4.03 dataset. The code extracts the data for 5 climate scenarios
-# and 10 climate models. The code extracts the data for each month from 1901 to
-# 2100. The code saves the data in CSV format for each month and each model. The
-# code also consolidates the data into a single CSV file for each scenario and
-# model. The code uses N cores to parallelize, which is chosen by the user.
-# Finally, the code saves the data in the 'Climate' directory.
-#############################################################################-
-
-############################################################
+# from the CRU-TS4.03 dataset. The code extracts the data for 5 climate 
+# scenarios and 10 climate models. The code extracts the data for each month 
+# from 1901 to 2100. The code saves the data in CSV format for each month and 
+# each model. The code also consolidates the data into a single CSV file for 
+# each scenario and model. The code uses N cores to parallelize, which is chosen 
+# by the user. Finally, the code saves the data in the 'Climate' directory.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -36,17 +34,17 @@ source(A_utils_calc_fp)
 
 overwrite <- TRUE
 
-############################################################
+################################################################################
 # Set up logging ----
-############################################################
+################################################################################
 
 log_msg <- create_logger(file.path(logs_dir, "B02_extract_GCM_ADM1.log"))
 
 log_msg("Starting script `B02 - Extract GCM tmp and prc data ADM1.R`")
 
-#############################################################################
+################################################################################
 # Make cluster ----
-#############################################################################
+################################################################################
 
 n_workers <- min(length(models), availableCores())
 future::plan(multicore, workers = n_workers)
@@ -55,9 +53,9 @@ handlers(handler_progress(
   format = ":spin :current/:total [:bar] :percent :message"
 ))
 
-############################################################
+################################################################################
 # Loop over scenarios ----
-############################################################
+################################################################################
 
 for (scenario in scenarios) {
   # scenario = "historical"
@@ -75,9 +73,9 @@ for (scenario in scenarios) {
     2015
   )
 
-  ############################################################
+  ##############################################################################
   # Loop over Models ----
-  ############################################################
+  ##############################################################################
 
   progressr::with_progress({
     p <- progressr::progressor(along = models)
@@ -159,6 +157,6 @@ future::plan(sequential)
 
 log_msg("Script `B02 - Extract GCM tmp and prc data ADM1.R` completed successfully")
 
-############################################################
+################################################################################
 # End of file ----
-############################################################
+################################################################################

@@ -1,16 +1,10 @@
-#############################################################################-
-# Use the following code to extract GCM data for temperature and precipitation
-# from the CRU-TS4.03 dataset. The code extracts the data for 5 climate scenarios
-# and 10 climate models. The code extracts the data for each month from 1901 to
-# 2100. The code saves the data in CSV format for each month and each model. The
-# code also consolidates the data into a single CSV file for each clim_var and
-# model. The code uses N cores to parallelize, which is chosen by the user.
-# Finally, the code saves the data in the 'Climate' directory.
-#############################################################################-
-
-############################################################
+################################################################################
+# Use the following code to extract ERA5 data for temperature and precipitation
+# from the dataset:
+# https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -36,23 +30,23 @@ source(A_utils_calc_fp)
 
 overwrite <- TRUE
 
-############################################################
+################################################################################
 # Logging ----
-############################################################
+################################################################################
 
 log_msg <- create_logger(file.path(logs_dir, "B05_extract_ERA5_ADM1.log"))
 
 log_msg("Starting script `B05 - Extract ERA5 tmp and prc data ADM1.R`")
 
-############################################################
+################################################################################
 # ADM1 data ----
-############################################################
+################################################################################
 
 cont <- sf::read_sf(ADM1_fp)
 
-############################################################
+################################################################################
 # Extract temperature ----
-############################################################
+################################################################################
 
 temp_rast <- temp_fp |>
   terra::rast() |>
@@ -80,9 +74,9 @@ temp2_dt <- extract_long(
 temp_dt[, temp2 := temp2_dt$temp2]
 rm(temp2_dt)
 
-############################################################
+################################################################################
 # Extract precipitation ----
-############################################################
+################################################################################
 
 precip_rast <- prec_fp |>
   terra::rast() |>
@@ -100,9 +94,9 @@ precip_dt <- extract_long(
 temp_dt[, ppt := precip_dt$ppt]
 rm(precip_dt)
 
-############################################################
+################################################################################
 # Save intermediate climate data ----
-############################################################
+################################################################################
 
 setcolorder(temp_dt, c("OBJECTID", "year", "month", "temp", "temp2", "ppt"))
 
@@ -112,27 +106,6 @@ log_msg(
   "Script `B05 - Extract ERA5 tmp and prc data ADM1.R` completed successfully"
 )
 
-############################################################
+################################################################################
 # End of file ----
-############################################################
-
-
-
-# cru <- intermediate_CRU_adm1_fp |> 
-#   data.table::fread()
-
-
-# # align types for the join
-# cru[, `:=`(OBJECTID = as.character(OBJECTID), year = as.character(year))]
-
-# # merge
-# merged <- cru[temp_dt, on = .(OBJECTID, year, month), nomatch = 0]
-
-# # scatter
-# library(ggplot2)
-# ggplot(merged, aes(x = temp, y = i.temp)) +
-#   geom_point(alpha = 0.05, size = 0.3) +
-#   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-#   labs(x = "CRU Temp (°C)", y = "ERA5 Temp (°C)") +
-#   theme_minimal()
-
+################################################################################
