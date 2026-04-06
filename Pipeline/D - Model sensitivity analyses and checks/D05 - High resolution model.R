@@ -14,15 +14,15 @@ if (!require("pacman")) {
 }
 
 pacman::p_load(
-  here,
   lfe,
-  reshape,
-  stargazer,
-  tidyverse,
   zoo,
-  lubridate,
+  here,
+  reshape,
   cowplot,
   multcomp,
+  stargazer,
+  tidyverse,
+  lubridate,
   patchwork
 )
 
@@ -33,9 +33,9 @@ source(A_utils_plot_fp)
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence
-# and CRU temperature and precipitation data aggregated to
-# the first level of Administrative division.
+# Read in the analysis ready data file with malaria prevalence and CRU 
+# temperature and precipitation data aggregated to the first level of 
+# Administrative division.
 ################################################################################
 
 print("Loading data")
@@ -82,25 +82,17 @@ stargazer(
 
 mainmod = readRDS(main_mod_obj_fn)
 
-# Temperature support
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
-
-coefs = summary(mainmod)$coefficients[1:2]
-
-# plot relative to max of quadratic function
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-
 ################################################################################
-# Plots ----
-# (Note: analogous to Fig 2A but with analytically derived confidence intervals
-# in place of bootstrap runs shown in Fig 2A)
+# Temperature plot data ----
 ################################################################################
 
 # Temperature support
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
 coefs = summary(highresmod)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+
+# plot relative to max of quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) 
 
 beta <- highresmod$coefficients
 vars <- rownames(beta)
@@ -109,6 +101,8 @@ plotVars <- vars[grepl(patternForPlotVars, vars)]
 
 ################################################################################
 # Temperature plot ----
+# (Note: analogous to Fig 2A but with analytically derived confidence intervals
+# in place of bootstrap runs shown in Fig 2A)
 ################################################################################
 
 t1 = plotPolynomialResponse_2_mod(
@@ -192,8 +186,8 @@ combined_plot1
 
 ggsave(
   filename = "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.pdf",
-  # path = figure_diag_grid_dir,
-  path = here::here("Figures"),
+  path = figure_diag_grid_dir,
+  # path = here::here("Figures"),
   plot = combined_plot1,
   width = 7,
   height = 2.5,

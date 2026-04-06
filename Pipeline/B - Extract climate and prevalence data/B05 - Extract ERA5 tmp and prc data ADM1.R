@@ -42,11 +42,15 @@ log_msg("Starting script `B05 - Extract ERA5 tmp and prc data ADM1.R`")
 # ADM1 data ----
 ################################################################################
 
+log_msg("Loading administrative data")
+
 cont <- sf::read_sf(ADM1_fp)
 
 ################################################################################
 # Extract temperature ----
 ################################################################################
+
+log_msg("Load temperature data")
 
 temp_rast <- temp_fp |>
   terra::rast() |>
@@ -58,12 +62,16 @@ rast_times = as.character(terra::time(temp_rast))
 
 names(temp_rast) <- rast_times
 
+log_msg("Extract temperature data")
+
 temp_dt <- extract_long(
   rast = temp_rast,
   polygons = cont,
   rast_times = rast_times,
   value_name = "temp"
 )
+
+log_msg("Extract temperature squared data")
 
 temp2_dt <- extract_long(
   rast = temp_rast * temp_rast,
@@ -78,12 +86,16 @@ rm(temp2_dt)
 # Extract precipitation ----
 ################################################################################
 
+log_msg("Load temperature data")
+
 precip_rast <- prec_fp |>
   terra::rast() |>
   terra::crop(terra::ext(cont))
 
 rast_times <- as.character(terra::time(precip_rast))
 names(precip_rast) <- rast_times
+
+log_msg("Extract precipitation data")
 
 precip_dt <- extract_long(
   rast = precip_rast,
@@ -98,7 +110,9 @@ rm(precip_dt)
 # Save intermediate climate data ----
 ################################################################################
 
-setcolorder(temp_dt, c("OBJECTID", "year", "month", "temp", "temp2", "ppt"))
+log_msg(paste0("Save data to: ", intermediate_ERA_adm1_fp))
+
+data.table::setcolorder(temp_dt, c("OBJECTID", "year", "month", "temp", "temp2", "ppt"))
 
 data.table::fwrite(temp_dt, intermediate_ERA_adm1_fp)
 

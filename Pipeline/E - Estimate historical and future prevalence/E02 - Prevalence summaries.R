@@ -30,9 +30,9 @@ pacman::p_load(
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
-numCores <- min(12, future::availableCores())
+n_cores <- min(30, future::availableCores())
 options(future.globals.maxSize = 6 * 1024^3)
-future::plan(future::multicore, workers = numCores)
+future::plan(future::multicore, workers = n_cores)
 
 progressr::handlers(
   progressr::handler_progress(
@@ -90,91 +90,97 @@ for (mode in c("historical", "future")) {
   # Data summaries ----
   ##############################################################################
 
-  log_msg(paste0("Computing data summaries using: ", numCores, " CPUs"))
+  log_msg(paste0("Computing data summaries using: ", n_cores, " CPUs"))
 
-  iter.list <- progressr::with_progress({
-    # i <- 1
-    p <- progressr::progressor(steps = 1000)
-    future_lapply(
-      1:1000,
-      function(i) {
-        pred_data <- file.path(
-          prediction_dir,
-          paste0("iter_", i, ".feather")
-        ) |>
-          arrow::read_feather() |>
-          data.table::as.data.table()
+  # iter.list <- progressr::with_progress({
+  # i <- 1
+  # p <- progressr::progressor(steps = 1000)
+  iter.list <- future_lapply(
+    1:1001,
+    function(i) {
+      pred_data <- file.path(
+        prediction_dir,
+        paste0("iter_", i, ".feather")
+      ) |>
+        arrow::read_feather() |>
+        data.table::as.data.table()
 
-        pred_data[, names(meta) := meta]
+      pred_data[, names(meta) := meta]
+      pred_data[, run := as.character(run)]
 
-        maps_iter <- pred_data[rows, ]
-        maps_iter$year[maps_iter$year %in% yr_1901] <- 1901
-        maps_iter$year[maps_iter$year %in% yr_2014] <- 2014
-        maps_iter$year[maps_iter$year %in% yr_2015] <- 2015
-        maps_iter$year[maps_iter$year %in% yr_2050] <- 2050
-        maps_iter$year[maps_iter$year %in% yr_2100] <- 2100
+      maps_iter <- pred_data[rows, ]
+      maps_iter$year[maps_iter$year %in% yr_1901] <- 1901
+      maps_iter$year[maps_iter$year %in% yr_2014] <- 2014
+      maps_iter$year[maps_iter$year %in% yr_2015] <- 2015
+      maps_iter$year[maps_iter$year %in% yr_2050] <- 2050
+      maps_iter$year[maps_iter$year %in% yr_2100] <- 2100
 
-        # Group meana - scenario, model, and year ----
-        scen_mod_yr <- pred_data[,
-          list(
-            Pred = mean(Pred, na.rm = TRUE),
-            Pf.temp = mean(Pf.temp, na.rm = TRUE),
-            Pf.flood = mean(Pf.flood, na.rm = TRUE),
-            Pf.drought = mean(Pf.drought, na.rm = TRUE)
-          ),
-          by = .(scenario, model, year)
-        ]
-        # Group meana - scenario, model, year, and region ----
-        scen_mod_yr_reg <- pred_data[,
-          list(
-            Pred = mean(Pred, na.rm = TRUE),
-            Pf.temp = mean(Pf.temp, na.rm = TRUE),
-            Pf.flood = mean(Pf.flood, na.rm = TRUE),
-            Pf.drought = mean(Pf.drought, na.rm = TRUE)
-          ),
-          by = .(scenario, model, year, region)
-        ]
-        # Group meana - scenario, model, year, month, and region ----
-        scen_mod_yr_mon_reg <- pred_data[,
-          list(
-            Pred = mean(Pred, na.rm = TRUE),
-            Pf.temp = mean(Pf.temp, na.rm = TRUE),
-            Pf.flood = mean(Pf.flood, na.rm = TRUE),
-            Pf.drought = mean(Pf.drought, na.rm = TRUE)
-          ),
-          by = .(scenario, model, year, month, region)
-        ]
-        # Group meana - scenario, model, year, and country ----
-        scen_mod_yr_obj <- maps_iter[,
-          list(
-            Pred = mean(Pred, na.rm = TRUE),
-            Pf.temp = mean(Pf.temp, na.rm = TRUE),
-            Pf.flood = mean(Pf.flood, na.rm = TRUE),
-            Pf.drought = mean(Pf.drought, na.rm = TRUE)
-          ),
-          by = .(scenario, model, year, OBJECTID)
-        ]
+      # Group meana - scenario, model, and year ----
+      scen_mod_yr <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, run)
+      ]
+      # Group meana - scenario, model, year, and region ----
+      scen_mod_yr_reg <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, region, run)
+      ]
+      # Group meana - scenario, model, year, month, and region ----
+      scen_mod_yr_mon_reg <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, month, region, run)
+      ]
+      # Group meana - scenario, model, year, and country ----
+      scen_mod_yr_obj <- maps_iter[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, OBJECTID, run)
+      ]
 
-        scen_mod_yr$run <- i
-        scen_mod_yr_reg$run <- i
-        scen_mod_yr_mon_reg$run <- i
-        scen_mod_yr_obj$run <- i
+      # scen_mod_yr$run <- i
+      # scen_mod_yr_reg$run <- i
+      # scen_mod_yr_mon_reg$run <- i
+      # scen_mod_yr_obj$run <- i
 
-        p(sprintf("iter %d", i))
+      # p(sprintf("iter %d", i))
 
-        return(list(
+      if (i %% 100 == 0) {
+        log_msg(paste0("Completed iteration: ", i))
+      }
+
+      return(
+        list(
           scen_mod_yr = scen_mod_yr,
           scen_mod_yr_reg = scen_mod_yr_reg,
           scen_mod_yr_mon_reg = scen_mod_yr_mon_reg,
           scen_mod_yr_obj = scen_mod_yr_obj
-        ))
-      },
-      future.seed = TRUE
-    )
-  })
+        )
+      )
+    },
+    future.seed = TRUE
+  )
+  # })
 
   ## Compile and save summaries ----
-
   log_msg("Compile results and save summary files")
 
   summaries <- c(
@@ -202,64 +208,3 @@ log_msg("Script `E02 - Prevalence summaries.R` completed successfully")
 ################################################################################
 # End of file ----
 ################################################################################
-
-# ##############################################################################
-# ## Overall medians ----
-# ##############################################################################
-
-# scen_yr_mean <- bind_rows(lapply(iter.list, function(x) x[[1]])) |>
-#   tibble::as_tibble()
-
-# scen_yr_mean |>
-#   dplyr::filter(year %in% overall_yr_filter) |>
-#   dplyr::group_by(model, run, scenario) |>
-#   dplyr::summarize(BetaMean = mean(Pred, na.rm = TRUE)) |>
-#   dplyr::right_join(scen_yr_mean) |>
-#   dplyr::mutate(Pred = (Pred - BetaMean)) |>
-#   dplyr::select(-BetaMean) -> df
-
-# df |>
-#   dplyr::group_by(scenario, year) |>
-#   dplyr::summarize(
-#     median = median(Pred, na.rm = TRUE),
-#     upper = quantile(Pred, 0.95, na.rm = TRUE),
-#     lower = quantile(Pred, 0.05, na.rm = TRUE)
-#   ) -> hist.to.graph
-
-# print(paste0("Saving: ", overall_fn))
-# readr::write_csv(hist.to.graph, here::here("TempFiles", overall_fn))
-
-# ##############################################################################
-# ## Regional medians ----
-# ##############################################################################
-
-# scen_yr_reg_mean <- bind_rows(lapply(iter.list, function(x) x[[2]])) |>
-#   tibble::as_tibble()
-
-# scen_yr_reg_mean |>
-#   dplyr::filter(year %in% region_yr_filter) |>
-#   dplyr::group_by(scenario, model, region, run) |>
-#   dplyr::summarize(BetaMean = mean(Pred, na.rm = TRUE)) |>
-#   dplyr::right_join(scen_yr_reg_mean) |>
-#   dplyr::mutate(Pred = (Pred - BetaMean)) |>
-#   dplyr::select(-BetaMean) -> df
-
-# df |>
-#   dplyr::group_by(scenario, region, year) |>
-#   dplyr::summarize(
-#     median = median(Pred, na.rm = TRUE),
-#     upper = quantile(Pred, 0.95, na.rm = TRUE),
-#     lower = quantile(Pred, 0.05, na.rm = TRUE)
-#   ) -> data.to.graph
-
-# print(paste0("Saving: ", region_fn))
-# readr::write_csv(data.to.graph, here::here("TempFiles", region_fn))
-
-# ##############################################################################
-# ## ADM1 means ----
-# ##############################################################################
-
-# print(paste0("Saving: ", map_fn))
-# scen_yr_adm_mean <- bind_rows(lapply(iter.list, function(x) x[[3]])) |>
-#   tibble::as_tibble() |>
-#   arrow::write_feather(here::here("TempFiles", map_fn))

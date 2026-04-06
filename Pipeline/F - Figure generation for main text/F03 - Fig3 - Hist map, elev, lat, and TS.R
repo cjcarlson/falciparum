@@ -17,8 +17,7 @@ pacman::p_load(
   reshape,
   tidyverse,
   lubridate,
-  patchwork,
-  colorspace
+  patchwork
 )
 
 pacman::p_load_gh("clauswilke/multiscales")
@@ -31,28 +30,39 @@ source(A_utils_plot_fp)
 # Load data ----
 ################################################################################
 
-iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
+iter.df <- file.path(
+  hist_sum_dir,
+  "historical_pred_sum_scen_mod_yr_obj.feather"
+) |>
   arrow::read_feather() |>
   dplyr::mutate(
     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
-  )
+  ) |>
+  dplyr::select(scenario, model, year, OBJECTID, Pred, run)
+
+
+# iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
+#   arrow::read_feather() |>
+#   dplyr::mutate(
+#     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
+#   )
 
 slices <- iter.df |>
-  dplyr::filter(year == 2014) 
+  dplyr::filter(year == 2014)
 
 slices.runs <- slices |>
   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
   dplyr::mutate(diff = (historical - `hist-nat`)) |>
-  dplyr::select(-c(historical, `hist-nat`, year)) 
+  dplyr::select(-c(historical, `hist-nat`, year))
 
 slice.map1 <- slices.runs |>
   dplyr::ungroup() |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(mean.diff = mean(diff), runs.diff = sum(diff > 0)) |>
-  dplyr::mutate(OBJECTID = factor(OBJECTID)) 
+  dplyr::mutate(OBJECTID = factor(OBJECTID))
 
 ### ADD THE MAP
-sfcont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |>
+sfcont <- ADM1_fp |>
   sf::read_sf() |>
   dplyr::left_join(slice.map1, by = join_by(OBJECTID)) |>
   dplyr::mutate(moe = 1 - abs(runs.diff - 5000) / 5000)
@@ -72,9 +82,9 @@ map.diff <- ggplot(sfcont) +
   scale_x_continuous(limits = c(-17, 52), expand = c(0, 0)) +
   scale_y_continuous(limits = c(-36, 38), expand = c(0, 0)) +
   coord_sf(datum = NA) +
-  bivariate_scale(
+  multiscales::bivariate_scale(
     "fill",
-    pal_vsup(
+    multiscales::pal_vsup(
       values = colors,
       max_desat = 0.8,
       pow_desat = 0.2,
@@ -93,11 +103,14 @@ map.diff <- ggplot(sfcont) +
   ) +
   theme_void() +
   theme(
+    # legend.key.width = unit(0.5, "cm"),
+    # legend.key.height = unit(0.5, "cm"),
     plot.title = element_text(hjust = 0.5, margin = margin(r = 10)),
     plot.subtitle = element_text(hjust = 0.5),
     legend.title = element_text(hjust = 0.5),
-    legend.position = "inside",
-    legend.position.inside = c(0.18, 0.3),
+    legend.position = c(0.18, 0.3),
+    # legend.position = "inside",
+    # legend.position.inside = c(0.18, 0.3),
     legend.key.size = grid::unit(0.8, "cm"),
     # legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
@@ -107,14 +120,24 @@ map.diff <- ggplot(sfcont) +
 # Temperature clines ----
 ################################################################################
 
-iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
-  arrow::read_feather() |>
-  dplyr::mutate(
-    model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
-  )
+# iter.df <- file.path(
+#   hist_sum_dir,
+#   "historical_pred_sum_scen_mod_yr_obj.feather"
+# ) |>
+#   arrow::read_feather() |>
+#   dplyr::mutate(
+#     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
+#   ) |>
+#   dplyr::select(scenario, model, year, OBJECTID, Pred, run)
+
+# iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
+#   arrow::read_feather() |>
+#   dplyr::mutate(
+#     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
+#   )
 
 slices <- iter.df |>
-  filter(year == 2014) 
+  filter(year == 2014)
 
 slices.runs <- slices |>
   pivot_wider(names_from = scenario, values_from = Pred) |>
@@ -129,23 +152,18 @@ slice.map1 <- slices.runs |>
     upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
     lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
-  ) 
+  )
 
 ################################################################################
 # Elevation clines ----
 ################################################################################
 
 # Get the stuff
-elev <- file.path(
-  data_dir,
-  "Data",
-  "elevation",
-  "elevation_extracted_all_ADM1.csv"
-) |>
+elev <- elevation_fp |>
   readr::read_csv(show_col_types = FALSE) |>
   dplyr::select(OBJECTID, elevmn)
 
-cont <- file.path(data_dir, 'Data', 'AfricaADM1.shp') |>
+cont <- ADM1_fp |>
   sf::read_sf()
 
 latlon <- cont |>
@@ -156,15 +174,15 @@ latlon <- cont |>
 lat <- latlon |>
   as.data.frame() |>
   select(OBJECTID, lat) |>
-  mutate(OBJECTID = as.numeric(OBJECTID)) 
+  mutate(OBJECTID = as.numeric(OBJECTID))
 
-temp <- file.path(data_dir, "Data", "CRU-Reextraction-Aug2022.csv") |>
+temp <- intermediate_CRU_adm1_fp |>
   readr::read_csv(show_col_types = FALSE)
 
 tmean <- temp |>
   filter(year %in% c(1901:1930)) |>
   group_by(OBJECTID) |>
-  summarize(t = mean(temp, na.rm = TRUE)) 
+  summarize(t = mean(temp, na.rm = TRUE))
 
 ################################################################################
 # XXXXXXXXX ----
@@ -173,14 +191,14 @@ tmean <- temp |>
 df <- slice.map1 |>
   left_join(elev) |>
   left_join(lat) |>
-  left_join(tmean) 
+  left_join(tmean)
 
 # Generate a nice little significance color scheme
 df <- df |>
   mutate(
     sign = as.numeric(lower.diff.90 > 0) + -1 * as.numeric(upper.diff.90 < 0),
     sign = factor(sign)
-  ) 
+  )
 
 # After creating your df dataframe, split it into two based on significance
 df_non_sig <- df %>% filter(sign == 0)
@@ -367,27 +385,28 @@ g3 <- ggplot() +
 # XXXXXXXXX ----
 ################################################################################
 
-data.to.graph <- here::here("TempFiles", "Fig3Regionals.csv") |>
-  readr::read_csv(show_col_types = FALSE) |>
-  mutate(scenario = factor(scenario, levels = c('hist-nat', 'historical'))) |>
-  mutate(
-    region = recode(
-      region,
-      !!!c(
-        'Sub-Saharan Africa (Central)' = 'Central Africa',
-        'Sub-Saharan Africa (East)' = 'East Africa',
-        'Sub-Saharan Africa (Southern)' = 'Southern Africa',
-        'Sub-Saharan Africa (West)' = 'West Africa'
-      )
-    )
+data.to.graph <- file.path(
+  hist_sum_dir,
+  "historical_pred_sum_scen_mod_yr_reg.feather"
+) |>
+  arrow::read_feather() |>
+  baseline_adjust_summarize(
+    variable = "Pred",
+    baseline_group = c("model", "scenario", "region", "run"),
+    adjusted_group = c("scenario", "region", "year"),
+    baseline_years = 1900:1930,
+    confidence_level = 0.90
   ) |>
-  ### Start plotting in 1902 because it's the first full year with lags incorporated right.
-  filter(year > 1901) |>
-  ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
-  ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
-  ############ this is for plotting purposes ONLY and text stats give full CI's
-  mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0))
-
+  dplyr::mutate(
+    region = dplyr::recode(region, !!!region_names),
+    scenario = factor(scenario, levels = names(historical_scenario_names))
+  ) |>
+  dplyr::filter(year > 1901) |>
+  # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
+  # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
+  # to how ggplot does CI's this is for plotting purposes ONLY and text stats
+  # give full CI's
+  dplyr::mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0))
 
 bottom <- ggplot(
   data = data.to.graph,
@@ -430,12 +449,9 @@ bottom <- ggplot(
 # Compile and save plot ----
 ################################################################################
 
-map.diff +
-  g3 +
-  g1 +
-  bottom +
-  plot_layout(design = fig_3_4_layout) +
-  plot_annotation(tag_levels = 'A') &
+fig3 <- (map.diff + g3 + g1 + bottom) +
+  patchwork::plot_layout(design = fig_3_4_layout) +
+  patchwork::plot_annotation(tag_levels = 'A') &
   theme(plot.tag = element_text(size = 23))
 
 ggsave(

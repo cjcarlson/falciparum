@@ -104,6 +104,21 @@ plotPolynomialResponse <- function(
   ### title is graph title
   ### yLim limits y-axis values
   ### showYTitle turns on and off the y-axis label
+
+  # mod = modellist[[2]]
+  # patternForPlotVars = "temp"
+  # xVals = plotXtemp
+  # polyOrder = 2
+  # lag = 1
+  # plotmax = F
+  # cluster = T
+  # xRef = Tref
+  # xLab = expression(paste("Mean temperature (", degree, "C)"))
+  # yLab = "Prevalence (%)"
+  # title = "cumulative (1 mo.)"
+  # yLim = c(-30, 5)
+  # showYTitle = T
+  # ci_level = 0.95
   
   # Handle different model types
   if (inherits(mod, "felm")) {
@@ -794,6 +809,30 @@ plotLinearLags_2_mod = function(
   }
   
   return(g)
+}
+
+################################################################################
+# add_r2 ----
+################################################################################
+
+# Compute R² and r² (Pearson cor squared), return annotation
+add_r2 <- function(x, y) {
+  complete <- complete.cases(x, y)
+  x <- x[complete]
+  y <- y[complete]
+  R2 <- summary(lm(y ~ x))$r.squared
+  r2 <- cor(x, y)^2
+  label <- sprintf("R² = %.2f\nr² = %.2f", R2, r2)
+  annotate(
+    "text",
+    x = -Inf,
+    y = Inf,
+    label = label,
+    hjust = -0.1,
+    vjust = 1.3,
+    size = 3.5,
+    fontface = "italic"
+  )
 }
 
 print("Done loading A03 - Utility code for plotting.R")

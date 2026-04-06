@@ -550,11 +550,11 @@ tokeep = c("OBJECTID", "monthyr", "month", "year")
 templags = templags |>
   dplyr::select(tokeep, contains("lag"), contains("lead"))
 
-complete <- left_join(
-  complete,
-  templags,
-  by = c("OBJECTID", "monthyr", "month", "year")
+complete <- complete |> 
+  left_join(templags
+  # by = c("OBJECTID", "monthyr", "month", "year")
 )
+
 complete$month = as.factor(complete$month)
 
 ################################################################################
@@ -562,7 +562,7 @@ complete$month = as.factor(complete$month)
 ################################################################################
 
 # Formulas
-myforms2 <- list(
+myforms <- list(
   cont = make_lag_form(n_lags = 0, n_leads = 0),
   lg1 = make_lag_form(n_lags = 1, n_leads = 0),
   lg2 = make_lag_form(n_lags = 2, n_leads = 0),
@@ -593,14 +593,13 @@ modellist = list()
 i = 0
 for (m in myforms) {
   i = i + 1
-  modellist[[i]] = felm(data = complete, formula = m)
+  modellist[[i]] = lfe::felm(data = complete, formula = m)
 }
 
 ################################################################################
 # Temp lags/leads - table ----
 ################################################################################
 
-# Combine into a single stargazer plot
 stargazer(
   modellist,
   title = "Quadratic temperature: Leads and lags",

@@ -46,8 +46,9 @@ log_msg("Starting script `B02 - Extract GCM tmp and prc data ADM1.R`")
 # Make cluster ----
 ################################################################################
 
-n_workers <- min(length(models), availableCores())
-future::plan(multicore, workers = n_workers)
+n_cores <- future::availableCores() 
+# n_cores <- min(length(models), availableCores())
+future::plan(multicore, workers = n_cores)
 
 handlers(handler_progress(
   format = ":spin :current/:total [:bar] :percent :message"

@@ -38,7 +38,8 @@ pattern <- c("temp", "flood", "drought")
 S <- 1000
 
 # Set number of cores to parallelize over:
-n_cores <- 10
+# n_cores <- 10
+n_cores <- future::availableCores()
 
 set.seed(7812)
 

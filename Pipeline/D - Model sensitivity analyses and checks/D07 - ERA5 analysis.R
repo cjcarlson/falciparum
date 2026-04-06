@@ -1,6 +1,6 @@
 ################################################################################
-# This script estimates the main empirical specification linking PfPR2 to 
-# drought, flood, and temperature using ERA5 data instead of CRU. 
+# This script estimates the main empirical specification linking PfPR2 to
+# drought, flood, and temperature using ERA5 data instead of CRU.
 ################################################################################
 
 ################################################################################
@@ -14,7 +14,16 @@ if (!require("pacman")) {
 }
 
 # packages
-pacman::p_load(lfe, here, tidyverse, stargazer, fixest, parallel, doSNOW)
+pacman::p_load(
+  lfe,
+  here,
+  fixest,
+  doSNOW,
+  parallel,
+  patchwork,
+  tidyverse,
+  stargazer
+)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
@@ -25,7 +34,8 @@ source(A_utils_plot_fp)
 S = 1000
 
 # Set number of CPUs to use in computations.
-n_cores = min(15, parallel::detectCores())
+# n_cores = min(15, future::detectCores())
+n_cores <- future::availableCores()
 
 # Set seed for reproducible output
 set.seed(11235)
@@ -42,26 +52,28 @@ log_msg("Starting script `D07 - ERA5 analyhsis.R`")
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence and CRU 
-# temperature and precipitation data aggregated to the first level of 
+# Read in the analysis ready data file with malaria prevalence and CRU
+# temperature and precipitation data aggregated to the first level of
 # Administrative division.
 ################################################################################
 
 log_msg("Loading analysis ready data")
 
-complete <- readr::read_rds(analysis_ready_ERA5_adm1_fp)
+era5_prev_data <- analysis_ready_ERA5_adm1_fp |> 
+  readr::read_rds() |> 
+  tidyr::drop_na()
 
 ################################################################################
-# Estimation ----
+# Main estimation ----
 # Formula cXt2intrXm is loaded from configuration file
 ################################################################################
 
 log_msg("Begin modeling")
 
-mainmod = lfe::felm(data = complete, formula = cXt2intrXm)
+era5_mod = lfe::felm(data = era5_prev_data, formula = cXt2intrXm)
 
-coeffs = as.data.frame(mainmod$coefficients)
-vcov = as.data.frame(mainmod$clustervcv)
+coeffs = as.data.frame(era5_mod$coefficients)
+vcov = as.data.frame(era5_mod$clustervcv)
 
 log_msg("Save model coefficients and vcov")
 
@@ -82,7 +94,7 @@ mynote = paste0(
 )
 
 stargazer(
-  mainmod,
+  era5_mod,
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "inter"),
@@ -99,8 +111,8 @@ stargazer(
 )
 
 ################################################################################
-# Plot ----
-# Note: analogous to Fig 2A but with analytically derived confidence intervals 
+# Temp response plot ----
+# Note: analogous to Fig 2A but with analytically derived confidence intervals
 # in place of bootstrap runs.
 ################################################################################
 
@@ -110,13 +122,13 @@ log_msg("Plot temperature response")
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
 # plot relative to max of quadratic function
-coefs = summary(mainmod)$coefficients[1:2]
+coefs = summary(era5_mod)$coefficients[1:2]
 
 #reference temperature - curve gets recentered to 0 here
 myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 
 fig = plotPolynomialResponse(
-  mainmod,
+  era5_mod,
   "temp",
   plotXtemp,
   polyOrder = 2,
@@ -134,11 +146,45 @@ log_msg("Save temperature response plot")
 
 ggplot2::ggsave(
   filename = "temp_response_ERA5_cXt2intrXm.pdf",
-  path = figure_diag_dir,
+  path = figure_diag_era5_dir,
   plot = fig,
   width = 7,
   height = 7,
   create.dir = TRUE
+)
+
+################################################################################
+# CRU models ----
+################################################################################
+
+cru_full_mod <- readRDS(main_mod_obj_fn)
+
+cru_prev_data <- analysis_ready_CRU_adm1_fp |> 
+  readr::read_rds() |> 
+  dplyr::filter(monthyr %in% unique(era5_prev_data$monthyr))
+
+cru_sub_mod = lfe::felm(data = cru_prev_data, formula = cXt2intrXm)
+
+mod_list <- list(cru_full_mod, cru_sub_mod, era5_mod)
+
+mycollabs <- c("CRU full", "CRU sub", "ERA5")
+
+stargazer(
+  mod_list,
+  title = "PfPR2 response to daily avg. temperature",
+  align = TRUE,
+  column.labels = mycollabs,
+  keep = c("temp", "flood", "drought", "inter"),
+  out = file.path(table_diag_dir, "ERA5_CRU_comp.tex"),
+  omit.stat = c("f", "ser"),
+  out.header = FALSE,
+  type = "latex",
+  float = F,
+  notes.append = TRUE,
+  notes.align = "l",
+  # notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
+  digits = 2,
+  star.cutoffs = table_star_cutoffs
 )
 
 ################################################################################
@@ -160,17 +206,17 @@ opts <- list(progress = progress)
 ################################################################################
 
 # Block bootstrap by country × N-year clusters:
-clusters <- unique(complete$cntry_yrbin)
+clusters <- unique(era5_prev_data$cntry_yrbin)
 
 # Pre-build a lookup: for each cluster ID, store the row indices
-cluster_rows <- split(seq_len(nrow(complete)), complete$cntry_yrbin)
+cluster_rows <- split(seq_len(nrow(era5_prev_data)), era5_prev_data$cntry_yrbin)
 
 # Define important column names to save
 column_names <- c(
   "temp",
   "temp2",
-  colnames(complete)[grep("flood", colnames(complete))],
-  colnames(complete)[grep("drought", colnames(complete))],
+  colnames(era5_prev_data)[grep("flood", colnames(era5_prev_data))],
+  colnames(era5_prev_data)[grep("drought", colnames(era5_prev_data))],
   "I(intervention)1",
   "I(intervention)2"
 )
@@ -184,20 +230,20 @@ result <- foreach(
 ) %dopar%
   {
     if (i == 1) {
-      complete.boot <- complete
+      era5_prev_data.boot <- era5_prev_data
       model <- "main"
     } else {
       cl <- sample(clusters, size = length(clusters), replace = TRUE)
       boot_idx <- unlist(cluster_rows[cl], use.names = FALSE)
-      complete.boot <- complete[boot_idx, ]
+      era5_prev_data.boot <- era5_prev_data[boot_idx, ]
       model <- as.character(i)
     }
-    mod <- lfe::felm(formula = cXt2intrXm, data = complete.boot)
+    mod <- lfe::felm(formula = cXt2intrXm, data = era5_prev_data.boot)
 
     out <- t(mod$coefficients[1:12])
     colnames(out) <- column_names
 
-    list(coefs = out, model = model, n = nrow(complete.boot))
+    list(coefs = out, model = model, n = nrow(era5_prev_data.boot))
   }
 close(pb)
 stopCluster(clus)
@@ -270,7 +316,7 @@ plotData <- data.frame(
   x = xValsT[, 1] + Tref,
   model = "main",
   response = as.numeric(response),
-  n = length(complete$OBJECTID)
+  n = length(era5_prev_data$OBJECTID)
 )
 
 # collect bootstrap results as a list, then row-bind once
@@ -309,7 +355,7 @@ percentile_data <- plotData |>
 
 log_msg("Make Fig 2.A Spaghetti")
 
-median_temps <- complete |>
+median_temps <- era5_prev_data |>
   dplyr::group_by(smllrgn) |>
   dplyr::summarise(median_temp = median(temp, na.rm = TRUE)) |>
   dplyr::ungroup() |>
@@ -397,7 +443,7 @@ log_msg("Make Fig 2.A temp histogram")
 # Create the histogram as a separate plot
 h_inset <- ggplot() +
   geom_histogram(
-    data = complete,
+    data = era5_prev_data,
     aes(x = temp),
     fill = "#8B3A4A",
     alpha = 1,
@@ -720,177 +766,97 @@ ggsave(
   units = "in"
 )
 
-# log_msg("Script `C02 - Bootstrap.R` completed successfully")
+# log_msg("Script `C02 - Bootstrap.R` era5_prev_datad successfully")
 
 ################################################################################
 # ERA5 vs CRU scatter ----
 ################################################################################
 
-log_msg("ERA% vs CRU scatter plot")
+log_msg("ERA5 vs CRU scatter plot")
 
-era <- intermediate_ERA_adm1_fp |> 
+era <- intermediate_ERA_adm1_fp |>
   data.table::fread()
 
-cru <- intermediate_CRU_adm1_fp |> 
+cru <- intermediate_CRU_adm1_fp |>
   data.table::fread()
 
 cru[, OBJECTID := as.integer(OBJECTID)]
 
 merged <- cru[era, on = .(OBJECTID, year, month), nomatch = 0]
 
-complete <- data.table::as.data.table(complete)
+era5_prev_data <- data.table::as.data.table(era5_prev_data)
 
-complete[, year := as.integer(as.character(year))]
-complete[, month := as.character(month)]
+era5_prev_data[, year := as.integer(as.character(year))]
+era5_prev_data[, month := as.character(month)]
 
-subset <- merged[complete, on = .(OBJECTID, year, month), nomatch = NULL]
+subset <- merged[era5_prev_data, on = .(OBJECTID, year, month), nomatch = NULL]
 
-min_axis <- min(merged$temp, merged$i.temp, na.rm = TRUE)
-max_axis <- max(merged$temp, merged$i.temp, na.rm = TRUE)
-lims <- c(min_axis, max_axis)
+# Convert ERA5 precip: meters/day -> mm/month
+subset[,
+  i.ppt := i.ppt *
+    1000 *
+    days_in_month(as.Date(paste(
+      year,
+      match(month, month.abb),
+      "01",
+      sep = "-"
+    )))
+]
 
-full_p <- ggplot(merged, aes(x = temp, y = i.temp)) +
-  geom_point(alpha = 0.1, size = 1) +
-  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-  scale_x_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-  scale_y_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-  labs(x = "CRU Temp (°C)", y = "ERA5 Temp (°C)") +
-  theme_minimal()
 
 min_axis <- min(subset$temp, subset$i.temp, na.rm = TRUE)
 max_axis <- max(subset$temp, subset$i.temp, na.rm = TRUE)
 lims <- c(min_axis, max_axis)
 
-sub_p <- ggplot(subset, aes(x = temp, y = i.temp)) +
-  geom_point(alpha = 0.1, size = 1) +
-  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-  scale_x_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-  scale_y_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
+sub_t_plot <- ggplot(subset, aes(x = temp, y = i.temp)) +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    color = "red",
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  scale_x_continuous(limits = lims, expand = expansion(add = c(0, 0.5))) +
+  scale_y_continuous(limits = lims, expand = expansion(add = c(0, 0.5))) +
   labs(x = "CRU Temp (°C)", y = "ERA5 Temp (°C)") +
-  theme_minimal()
+  theme_classic() +
+  add_r2(subset$temp, subset$i.temp)
 
-# ggplot2::ggsave(
-#   filename = "CRU_v_ERA5_ADM1_scatter_full.jpg",
-#   path = here::here("Figures"),
-#   width = 6,
-#   height = 6
-# )
+min_axis <- min(subset$ppt, subset$i.ppt, na.rm = TRUE)
+max_axis <- max(subset$ppt, subset$i.ppt, na.rm = TRUE)
+lims <- c(min_axis, max_axis)
 
-# ggplot2::ggsave(
-#   filename = "CRU_v_ERA5_ADM1_scatter_subset.jpg",
-#   path = here::here("Figures"),
-#   width = 6,
-#   height = 6
-# )
+sub_p_plot <- ggplot(subset, aes(x = ppt, y = i.ppt)) +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    color = "red",
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  labs(x = "CRU Precip (mm)", y = "ERA5 Precip (mm)") +
+  scale_x_continuous(limits = lims, expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(limits = lims, expand = expansion(mult = c(0, 0.05))) +
+  theme_classic() +
+  add_r2(subset$ppt, subset$i.ppt)
 
-side_by_side <- full_p + sub_p + plot_annotation(tag_levels = 'A')
+side_by_side <- sub_t_plot +
+  sub_p_plot +
+  patchwork::plot_annotation(tag_levels = 'A')
 
 ggplot2::ggsave(
   filename = "CRU_v_ERA5_ADM1_scatter.jpg",
-  path = here::here("Figures"),
-  width = 10,
-  height = 5
+  plot = side_by_side,
+  # path = here::here("Figures"),
+  path = figure_diag_era5_dir,
+  width = 9,
+  height = 4.5
 )
 
-log_msg("Script `D07 - ERA5 analyhsis.R` completed successfully")
+log_msg("Script `D07 - ERA5 analyhsis.R` era5_prev_datad successfully")
 
 ################################################################################
 # End of file ----
 ################################################################################
-
-# era <- intermediate_ERA_adm1_fp |> 
-#   data.table::fread()
-
-# cru <- intermediate_CRU_adm1_fp |> 
-#   data.table::fread()
-
-# cru[, OBJECTID := as.integer(OBJECTID)]
-
-# merged <- cru[era, on = .(OBJECTID, year, month), nomatch = 0]
-
-# # Convert ERA5 precip: meters/day -> mm/month
-# merged[, i.ppt := i.ppt * 1000 * days_in_month(as.Date(paste(year, match(month, month.abb), "01", sep = "-")))]
-
-# complete <- data.table::as.data.table(complete)
-# complete[, year := as.integer(as.character(year))]
-# complete[, month := as.character(month)]
-
-# subset <- merged[complete, on = .(OBJECTID, year, month), nomatch = NULL]
-
-# # Helper: compute R² (from lm) and r² (Pearson cor squared), return annotation
-# add_r2 <- function(x, y) {
-#   complete <- complete.cases(x, y)
-#   x <- x[complete]; y <- y[complete]
-#   R2 <- summary(lm(y ~ x))$r.squared
-#   r2 <- cor(x, y)^2
-#   label <- sprintf("R² = %.2f\nr² = %.2f", R2, r2)
-#   annotate("text", x = -Inf, y = Inf, label = label,
-#            hjust = -0.1, vjust = 1.3, size = 3.5, fontface = "italic")
-# }
-
-# # Temperature plots
-# min_axis <- min(merged$temp, merged$i.temp, na.rm = TRUE)
-# max_axis <- max(merged$temp, merged$i.temp, na.rm = TRUE)
-# lims <- c(min_axis, max_axis)
-
-# full_temp <- ggplot(merged, aes(x = temp, y = i.temp)) +
-#   geom_point(alpha = 0.1, size = 1) +
-#   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-#   scale_x_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   scale_y_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   labs(x = "CRU Temp (°C)", y = "ERA5 Temp (°C)") +
-#   theme_classic()
-
-# min_axis <- min(subset$temp, subset$i.temp, na.rm = TRUE)
-# max_axis <- max(subset$temp, subset$i.temp, na.rm = TRUE)
-# lims <- c(min_axis, max_axis)
-
-# sub_temp <- ggplot(subset, aes(x = temp, y = i.temp)) +
-#   geom_point(alpha = 0.1, size = 1) +
-#   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-#   scale_x_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   scale_y_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   labs(x = "CRU Temp (°C)", y = "ERA5 Temp (°C)") +
-#   theme_classic()
-
-# # Precipitation plots
-# min_axis <- min(merged$ppt, merged$i.ppt, na.rm = TRUE)
-# max_axis <- max(merged$ppt, merged$i.ppt, na.rm = TRUE)
-# lims <- c(min_axis, max_axis)
-
-# full_precip <- ggplot(merged, aes(x = ppt, y = i.ppt)) +
-#   geom_point(alpha = 0.1, size = 1) +
-#   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-#   scale_x_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   scale_y_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   labs(x = "CRU Precip (mm)", y = "ERA5 Precip (mm)") +
-#   theme_classic()
-
-# min_axis <- min(subset$ppt, subset$i.ppt, na.rm = TRUE)
-# max_axis <- max(subset$ppt, subset$i.ppt, na.rm = TRUE)
-# lims <- c(min_axis, max_axis)
-
-# sub_precip <- ggplot(subset, aes(x = ppt, y = i.ppt)) +
-#   geom_point(alpha = 0.1, size = 1) +
-#   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-#   labs(x = "CRU Precip (mm)", y = "ERA5 Precip (mm)") +
-#   scale_x_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   scale_y_continuous(limits = lims, expand = expansion(add = c(0, 0.1))) +
-#   theme_classic()
-
-# full_temp <- full_temp + add_r2(merged$temp, merged$i.temp)
-# sub_temp  <- sub_temp  + add_r2(subset$temp, subset$i.temp)
-# full_precip <- full_precip + add_r2(merged$ppt, merged$i.ppt)
-# sub_precip  <- sub_precip  + add_r2(subset$ppt, subset$i.ppt)
-
-# # 2x2 panel
-# panel <- (full_temp + sub_temp) / (full_precip + sub_precip) +
-#   plot_annotation(tag_levels = 'A')
-
-# ggplot2::ggsave(
-#   filename = "CRU_v_ERA5_ADM1_scatter.jpg",
-#   plot = panel,
-#   path = here::here("Figures"),
-#   width = 10,
-#   height = 10
-# )

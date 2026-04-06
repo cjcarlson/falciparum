@@ -12,13 +12,15 @@ user = Sys.info()['user']
 
 print(paste0("User set to: ", user))
 
+savio_dir <- '/global/scratch/projects/co_carleton/carleton_colab/projects/'
+
 ##### location for data and output
 data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
-  user ==
-    "cmolitor" ~ '/global/scratch/projects/co_carleton/carleton_colab/projects/malaria-replication/data',
+  # user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication/data'),
+  user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication_orig/data'),
   TRUE ~ NA_character_
 )
 
@@ -45,6 +47,9 @@ print(paste0("repository directory set to: ", repo_dir))
 yr_bin_size <- 5 # 10
 
 clust_label <- paste0("country_x_", yr_bin_size, "yr")
+
+floodvars <- "flood + flood.lag + flood.lag2 + flood.lag3"
+droughtvars <- "drought + drought.lag + drought.lag2 + drought.lag3"
 
 # common variables in all regs
 common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
@@ -110,6 +115,11 @@ urban_fp <- file.path(
   "GHS_UCDB_REGION_SUB_SAHARAN_AFRICA_R2024A.gpkg"
 )
 
+elevation_fp <- file.path(
+  geo_data_dir,
+  "elevation",
+  "elevation_extracted_all_ADM1.csv"
+)
 ################################################################################
 # Climate data (input) ----
 ################################################################################
@@ -244,20 +254,21 @@ dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
 
 figure_dir <- file.path(results_dir, "figures")
 figure_main_dir <- file.path(figure_dir, "main")
-figure_diag_dir <- file.path(figure_dir, "diagnostics")
-figure_diag_sub_dir <- file.path(figure_diag_dir, "subsamples")
-figure_diag_res_dir <- file.path(figure_diag_dir, "residuals")
-figure_diag_fe_dir <- file.path(figure_diag_dir, "fixed_effects")
-figure_diag_temp_dir <- file.path(figure_diag_dir, "temp_lags")
-figure_diag_df_dir <- file.path(figure_diag_dir, "drought_flood_defn")
-figure_diag_tff_dir <- file.path(figure_diag_dir, "temp_functional_form")
-figure_diag_rand_dir <- file.path(figure_diag_dir, "randomization_tests")
-figure_diag_grid_dir <- file.path(figure_diag_dir, "grid_level")
-figure_diag_urban_dir <- file.path(figure_diag_dir, "urbanization")
+# figure_diag_dir <- file.path(figure_dir, "diagnostics")
+figure_diag_sub_dir <- file.path(figure_dir, "subsamples")
+figure_diag_res_dir <- file.path(figure_dir, "residuals")
+figure_diag_fe_dir <- file.path(figure_dir, "fixed_effects")
+figure_diag_temp_dir <- file.path(figure_dir, "temp_lags")
+figure_diag_df_dir <- file.path(figure_dir, "drought_flood_defn")
+figure_diag_tff_dir <- file.path(figure_dir, "temp_functional_form")
+figure_diag_rand_dir <- file.path(figure_dir, "randomization_tests")
+figure_diag_grid_dir <- file.path(figure_dir, "grid_level")
+figure_diag_urban_dir <- file.path(figure_dir, "urbanization")
+figure_diag_era5_dir <- file.path(figure_dir, "era5")
 
 dir.create(figure_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_main_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_dir, showWarnings = FALSE, recursive = TRUE)
+# dir.create(figure_diag_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_sub_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_res_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_fe_dir, showWarnings = FALSE, recursive = TRUE)
@@ -267,6 +278,7 @@ dir.create(figure_diag_tff_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_rand_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_grid_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_diag_urban_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_diag_era5_dir, showWarnings = FALSE, recursive = TRUE)
 
 ################################################################################
 # Model directories ----
@@ -362,8 +374,8 @@ scenario_labels <- c(
 )
 
 scenarios <- c(
-  "historical",
   "hist-nat",
+  "historical",
   "ssp126",
   "ssp245",
   "ssp585"
@@ -378,8 +390,8 @@ region_names <- c(
 )
 
 historical_scenario_names <- c(
-  "historical" = "Historical",
-  "hist-nat" = "Historical natural"
+  "hist-nat" = "Historical natural",
+  "historical" = "Historical"
 )
 
 future_scenario_names <- c(
@@ -420,9 +432,6 @@ yr_bins <- list(
 yr_lookup <- unlist(lapply(names(yr_bins), function(nm) {
   setNames(rep(as.integer(nm), length(yr_bins[[nm]])), yr_bins[[nm]])
 }))
-
-floodvars <- "flood + flood.lag + flood.lag2 + flood.lag3"
-droughtvars <- "drought + drought.lag + drought.lag2 + drought.lag3"
 
 print("Finished loading A01 - Configuration.R")
 

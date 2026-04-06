@@ -49,9 +49,10 @@ source(A_utils_calc_fp)
 
 options(future.globals.maxSize = 3 * 1024^3)
 
-N_CORES <- 12L
+# n_cores <- 12L
+n_cores <- future::availableCores()
 
-future::plan(future::multicore, workers = N_CORES)
+future::plan(future::multicore, workers = n_cores)
 
 ################################################################################
 # Set up logging ----
@@ -60,7 +61,7 @@ future::plan(future::multicore, workers = N_CORES)
 log_msg <- create_logger(file.path(logs_dir, "B01_extract_CRU_ADM1.log"))
 
 log_msg("Starting script `B01 - Extract CRU tmp and prc data ADM1.R`")
-log_msg(sprintf("  Using %d cores for parallel processing", N_CORES))
+log_msg(sprintf("  Using %d cores for parallel processing", n_cores))
 
 ################################################################################
 # ADM1 data ----
@@ -84,7 +85,8 @@ admin_regions <- extract_cru_variable(
   admin_sp = admin_regions,
   var_prefix = "temp",
   max_power = 5L,
-  start_year = 1901L
+  start_year = 1901L,
+  N_CORES = n_cores
 )
 
 log_msg("  Temperature extraction complete")
@@ -101,7 +103,8 @@ admin_regions <- extract_cru_variable(
   admin_sp = admin_regions,
   var_prefix = "ppt",
   max_power = 5L,
-  start_year = 1901L
+  start_year = 1901L,
+  N_CORES = n_cores
 )
 
 log_msg("  Precipitation extraction complete")

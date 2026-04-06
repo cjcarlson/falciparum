@@ -22,7 +22,6 @@ pacman::p_load(
   here,
   terra,
   future,
-  progressr,
   tidyverse,
   lubridate,
   data.table,
@@ -30,15 +29,8 @@ pacman::p_load(
 )
 
 overwrite <- TRUE
-numCores <- min(10, future::availableCores())
+n_cores <- min(10, future::availableCores())
 options(future.globals.maxSize = 6 * 1024^3)
-
-progressr::handlers(
-  progressr::handler_progress(
-    format = ":spin :current/:total (:percent) [:bar] ETA: :eta",
-    width = 60
-  )
-)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
@@ -52,6 +44,8 @@ log_file_path <- file.path(logs_dir, "E01_predict_prev.log")
 log_msg <- create_logger(log_file_path)
 
 log_msg("Starting script `E01 - Predict prevalence.R`")
+
+log_msg(paste0("Using ", n_cores, " CPUs"))
 
 ################################################################################
 # Precipitation thresholds ----
@@ -112,15 +106,13 @@ spatial_dt <- gbod_dt[country_dt, on = "country", nomatch = NULL]
 log_msg("Loading bootstrap coeffs")
 
 bootstrap <- boot_mod_full_fn |>
-  readr::read_csv(show_col_types = FALSE) |>
-  dplyr::filter(model != "main") |>
-  dplyr::mutate(model = as.numeric(model))
+  readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
 # Loop over modes ----
 ################################################################################
 
-future::plan(multisession, workers = numCores)
+future::plan(multisession, workers = n_cores)
 
 for (mode in c("historical", "future")) {
   # mode <- "historical"
@@ -143,7 +135,8 @@ for (mode in c("historical", "future")) {
     row_years <- c(yr_bins[["2015"]], yr_bins[["2050"]], yr_bins[["2100"]])
   }
 
-  log_msg(paste0("Predictions will be saved to: ", prediction_dir))
+  log_msg("Predictions will be saved to: ")
+  log_msg(paste0("    ", prediction_dir))
 
   files <- vector("character")
 
@@ -159,25 +152,22 @@ for (mode in c("historical", "future")) {
   ##############################################################################
   ## Climate model data ----
   data <- data.table::rbindlist(
-    progressr::with_progress({
-      p <- progressr::progressor(along = files)
-      future.apply::future_lapply(
-        files,
-        function(f) {
-          dt <- data.table::fread(f, showProgress = FALSE)
-          dt <- dt[OBJECTID %in% valid_ids]
-          dt <- dt[complete.cases(dt)]
+    future.apply::future_lapply(
+      files,
+      function(f) {
+        dt <- data.table::fread(f, showProgress = FALSE)
+        dt <- dt[OBJECTID %in% valid_ids]
+        dt <- dt[complete.cases(dt)]
 
-          dt[, `:=`(
-            scenario = basename(dirname(f)),
-            model = tools::file_path_sans_ext(basename(f))
-          )]
+        dt[, `:=`(
+          scenario = basename(dirname(f)),
+          model = tools::file_path_sans_ext(basename(f))
+        )]
 
-          dt[, .(scenario, model, OBJECTID, year, month, temp, temp2, ppt)]
-        },
-        future.seed = NULL
-      )
-    })
+        dt[, .(scenario, model, OBJECTID, year, month, temp, temp2, ppt)]
+      },
+      future.seed = NULL
+    )
   )
 
   ##############################################################################
@@ -244,52 +234,53 @@ for (mode in c("historical", "future")) {
   ##############################################################################
   ## Apply model coefficients ----
   log_msg("Computing predictions")
-  results <- progressr::with_progress({
-    p <- progressr::progressor(steps = 1000)
-    future.apply::future_lapply(
-      1:1000,
-      function(i) {
-        file_name <- paste0("iter_", i, ".feather")
-        file_path <- file.path(prediction_dir, file_name)
 
-        if (!file.exists(file_path) | overwrite) {
-          coef <- dplyr::filter(bootstrap, model == i + 1)
+  future.apply::future_lapply(
+    1:1001,
+    function(i) {
+      file_name <- paste0("iter_", i, ".feather")
+      file_path <- file.path(prediction_dir, file_name)
 
-          Pf.temp <- coef$temp * dt$temp + coef$temp2 * dt$temp2
+      if (!file.exists(file_path) | overwrite) {
+        coef <- bootstrap[i, ]
 
-          Pf.flood <- (coef[["flood"]] *
-            dt$flood +
-            coef[["flood.lag"]] * dt$flood.lag +
-            coef[["flood.lag2"]] * dt$flood.lag2 +
-            coef[["flood.lag3"]] * dt$flood.lag3)
+        Pf.temp <- coef$temp * dt$temp + coef$temp2 * dt$temp2
 
-          Pf.drought <- (coef[["drought"]] *
-            dt$drought +
-            coef[["drought.lag"]] * dt$drought.lag +
-            coef[["drought.lag2"]] * dt$drought.lag2 +
-            coef[["drought.lag3"]] * dt$drought.lag3)
+        Pf.flood <- (coef[["flood"]] *
+          dt$flood +
+          coef[["flood.lag"]] * dt$flood.lag +
+          coef[["flood.lag2"]] * dt$flood.lag2 +
+          coef[["flood.lag3"]] * dt$flood.lag3)
 
-          Pf.prec <- Pf.flood + Pf.drought
-          Pred <- Pf.temp + Pf.prec
+        Pf.drought <- (coef[["drought"]] *
+          dt$drought +
+          coef[["drought.lag"]] * dt$drought.lag +
+          coef[["drought.lag2"]] * dt$drought.lag2 +
+          coef[["drought.lag3"]] * dt$drought.lag3)
 
-          pred_data <- data.table::data.table(
-            Pred = Pred,
-            Pf.temp = Pf.temp,
-            Pf.flood = Pf.flood,
-            Pf.drought = Pf.drought
-          )
+        Pf.prec <- Pf.flood + Pf.drought
+        Pred <- Pf.temp + Pf.prec
 
-          pred_data |> arrow::write_feather(file_path)
+        pred_data <- data.table::data.table(
+          Pred = Pred,
+          Pf.temp = Pf.temp,
+          Pf.flood = Pf.flood,
+          Pf.drought = Pf.drought,
+          run = coef$model
+        )
 
-          p(sprintf("iter_%d", i))
-        } else {
-          p(sprintf("iter_%d (skipped)", i))
-          NULL
+        pred_data |> arrow::write_feather(file_path)
+
+        if (i %% 100 == 0) {
+          log_msg(paste0("Completed iteration: ", i))
         }
-      },
-      future.seed = NULL
-    )
-  })
+
+      } else {
+        NULL
+      }
+    },
+    future.seed = NULL
+  )
 }
 
 future::plan(sequential)
@@ -300,51 +291,3 @@ log_msg("Script `E01 - Predict prevalence.R` completed successfully")
 # End of file ----
 ################################################################################
 
-# pred_data[, names(meta) := meta]
-
-# ## Scen, mod, yr summary
-# scen_yr_mean <- pred_data[,
-#   .(Pred = mean(Pred, na.rm = TRUE)),
-#   by = .(scenario, model, year)
-# ]
-# scen_yr_mean[, run := i]
-
-# ## Scen, mod, yr, reg summary
-# scen_mod_yr_reg_mean <- pred_data[,
-#   .(Pred = mean(Pred, na.rm = TRUE)),
-#   by = .(scenario, model, year, region)
-# ]
-# scen_mod_yr_reg_mean[, run := i]
-
-# ## Scen, mod, yr, obj summary
-# map_row_idx <- which(
-#   meta$scenario %in% scen_subset & meta$year %in% row_years
-# )
-# maps_dt <- pred_data[map_row_idx]
-# maps_dt[, year := yr_lookup[as.character(year)]]
-
-# scen_yr_adm_mean <- maps_dt[,
-#   .(Pred = mean(Pred, na.rm = TRUE)),
-#   by = .(scenario, model, year, OBJECTID)
-# ]
-# scen_yr_adm_mean[, run := i]
-
-# p(sprintf("iter_%d", i))
-
-# list(
-#   scen_mod_yr = scen_yr_mean,
-#   scen_mod_yr_reg = scen_mod_yr_reg_mean,
-#   scen_mod_yr_obj = scen_yr_adm_mean
-# )
-
-## Compile and save summaries ----
-# Drop NULLs (skipped iterations)
-# results <- results[!vapply(results, is.null, logical(1))]
-
-# for (stype in c("scen_mod_yr", "scen_mod_yr_reg", "scen_mod_yr_obj")) {
-#   compiled <- rbindlist(lapply(results, `[[`, stype))
-#   out_path <- file.path(summary_dir, paste0("pred_summary_", stype, ".feather"))
-#   dir.create(dirname(out_path), showWarnings = FALSE, recursive = TRUE)
-#   arrow::write_feather(compiled, out_path)
-#   cat(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
-# }

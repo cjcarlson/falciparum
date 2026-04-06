@@ -68,7 +68,6 @@ saveRDS(vcov, file = main_mod_vcov_fn)
 
 log_msg("Save table results")
 
-# Stargazer output
 mynote = paste0(
   "Country-specific quad. trends with intervention FE and country by month FE. ",
   "Standard errors clustered at ",
@@ -132,8 +131,7 @@ ggplot2::ggsave(
   path = figure_main_dir,
   plot = fig,
   width = 7,
-  height = 7,
-  create.dir = TRUE
+  height = 7
 )
 
 log_msg("Script `C01 - MainSpec.R` completed successfully")

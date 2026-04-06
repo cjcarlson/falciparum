@@ -28,13 +28,9 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
-############################################################
+################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence
-# and CRU temperature and precipitation data aggregated to
-# the first level of Administrative division.
-# Builds the country × N-year clustering variable
-############################################################
+################################################################################
 
 print("Loading clean data")
 
@@ -66,33 +62,6 @@ Tmax = 40
 int = 0.1
 plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
 xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
-
-# # point estimate
-# b = as.matrix(c(main$temp, main$temp2))
-# response = as.matrix(xValsT) %*% b #Prediction
-
-# plotData = data.frame(x = xValsT[, 1] + Tref, main = response)
-
-# # loop over all bootstraps, add to dataframe
-# for (mod in 1:dim(bootstraps)[1]) {
-#   sub = bootstraps[mod, ]
-#   b = as.matrix(c(sub$temp, sub$temp2))
-#   boot = as.data.frame(as.matrix(xValsT) %*% b) #Prediction
-#   colnames(boot) = sub$model # paste0("boot", mod)
-#   plotData = cbind(plotData, boot)
-
-#   # progress
-#   if (mod / 100 == round(mod / 100)) {
-#     print(paste0('--------- DONE WITH ITERATION ', mod, ' of 1000 --------'))
-#   }
-# }
-
-# plotData <- plotData |>
-#   tidyr::pivot_longer(
-#     cols = -x,
-#     names_to = "model",
-#     values_to = "response"
-#   )
 
 # point estimate
 b <- as.matrix(c(main$temp, main$temp2))
@@ -126,29 +95,6 @@ for (mod in seq_len(nrow(bootstraps))) {
 }
 
 plotData <- rbind(plotData, do.call(rbind, boot_list))
-
-# plotData |>
-#   as_tibble() |>
-#   dplyr::filter(x == 15, response > 0) |>
-#   dplyr::summarise(mean = mean(n))
-
-# plotData |>
-#   as_tibble() |>
-#   dplyr::filter(x == 15, response < 0) |>
-#   dplyr::summarise(mean = mean(n))
-
-# plotData |>
-#   as_tibble() |>
-#   dplyr::filter(x == 15, response > 0) |>
-#   dplyr::arrange(response) |>
-#   print(n = 65) |>
-#   ggplot() +
-#   geom_point(aes(x = n, y = response), alpha = 0.5)
-
-# ggsave(
-#   filename = "test12.jpg",
-#   path = here("Figures")
-# )
 
 percentile_data <- plotData |>
   dplyr::filter(model != "main") |>
@@ -291,17 +237,17 @@ g_with_hist <- g +
 g_with_hist
 
 ################################################################################
-# Lagged drought and flood responses ----
+# Drought and flood responses ----
 ################################################################################
 
 # reformat: want a dataset of lag x var x model for flood and drought
 # subset to flood and drought
 mycols = c(
-  colnames(bootstraps)[grep("flood", colnames(bootstraps))],
-  colnames(bootstraps)[grep("drought", colnames(bootstraps))]
+  colnames(all_mods)[grep("flood", colnames(all_mods))],
+  colnames(all_mods)[grep("drought", colnames(all_mods))]
 )
 
-rain <- bootstraps |>
+rain <- all_mods |>
   dplyr::select(dplyr::all_of(mycols), model) |>
   dplyr::mutate(
     # calculate cumulative effect
@@ -463,9 +409,9 @@ d
 # Intervention plot ----
 ################################################################################
 
-mycols <- c(colnames(bootstraps)[grep("intervention", colnames(bootstraps))])
+mycols <- c(colnames(all_mods)[grep("intervention", colnames(all_mods))])
 
-inter <- bootstraps |>
+inter <- all_mods |>
   dplyr::select(dplyr::all_of(mycols), model) |>
   tidyr::pivot_longer(
     cols = -model,
@@ -541,39 +487,38 @@ intervention_fig
 # Global time series ----
 ################################################################################
 
-baseline_adjust_summarize <- function(
-  df,
-  variable,
-  baseline_years,
-  confidence_level = 0.90
-) {
-  lower_prob <- (1 - confidence_level) / 2
-  upper_prob <- 1 - lower_prob
+hist_meta <- file.path(hist_pred_dir, "RowMetadata.feather") |>
+  arrow::read_feather()
 
-  var_sym <- rlang::sym(variable)
+hist_pred <- file.path(hist_pred_dir, "iter_1.feather") |>
+  arrow::read_feather() |>
+  data.table::as.data.table()
 
-  baseline_means <- df |>
-    dplyr::filter(year %in% baseline_years) |>
-    dplyr::group_by(model, scenario, run) |>
-    dplyr::summarize(
-      baseline_mean = mean(!!var_sym, na.rm = TRUE),
-      .groups = "drop"
-    )
+hist_pred[, names(hist_meta) := hist_meta]
+hist_pred[, run := as.character(run)]
 
-  adjusted <- df |>
-    dplyr::left_join(baseline_means, by = c("model", "scenario", "run")) |>
-    dplyr::mutate(!!var_sym := (!!var_sym) - baseline_mean) |>
-    dplyr::select(-baseline_mean)
+# Group meana - scenario, model, and year ----
+hist_summary_main <- hist_pred[,
+  list(
+    Pred = mean(Pred, na.rm = TRUE),
+    Pf.temp = mean(Pf.temp, na.rm = TRUE),
+    Pf.flood = mean(Pf.flood, na.rm = TRUE),
+    Pf.drought = mean(Pf.drought, na.rm = TRUE)
+  ),
+  by = .(scenario, model, year, run)
+] |>
+  baseline_adjust_summarize(
+    variable = "Pred",
+    baseline_group = c("model", "scenario", "run"),
+    adjusted_group = c("scenario", "year"),
+    baseline_years = 1900:1930,
+    confidence_level = 0.90
+  ) |>
+  dplyr::mutate(
+    scenario = factor(scenario, levels = names(historical_scenario_names))
+  ) |>
+  dplyr::filter(year > 1901)
 
-  adjusted |>
-    dplyr::group_by(scenario, year) |>
-    dplyr::summarize(
-      median = median(!!var_sym, na.rm = TRUE),
-      upper = quantile(!!var_sym, upper_prob, na.rm = TRUE),
-      lower = quantile(!!var_sym, lower_prob, na.rm = TRUE),
-      .groups = "drop"
-    )
-}
 
 hist.to.graph <- file.path(
   hist_sum_dir,
@@ -582,13 +527,15 @@ hist.to.graph <- file.path(
   arrow::read_feather() |>
   baseline_adjust_summarize(
     variable = "Pred",
+    baseline_group = c("model", "scenario", "run"),
+    adjusted_group = c("scenario", "year"),
     baseline_years = 1900:1930,
     confidence_level = 0.90
-  )  |>
-    dplyr::mutate(
-      scenario = factor(scenario, levels = c('hist-nat', 'historical'))
-    ) |>
-    dplyr::filter(year > 1901)
+  ) |>
+  dplyr::mutate(
+    scenario = factor(scenario, levels = names(historical_scenario_names))
+  ) |>
+  dplyr::filter(year > 1901)
 
 future.to.graph <- file.path(
   fut_sum_dir,
@@ -597,49 +544,46 @@ future.to.graph <- file.path(
   arrow::read_feather() |>
   baseline_adjust_summarize(
     variable = "Pred",
+    baseline_group = c("model", "scenario", "run"),
+    adjusted_group = c("scenario", "year"),
     baseline_years = 2015:2020,
     confidence_level = 0.90
   ) |>
   dplyr::mutate(
-    scenario = factor(scenario, levels = c('ssp126', 'ssp245', 'ssp585'))
+    scenario = factor(scenario, levels = names(future_scenario_names))
   ) |>
   dplyr::filter(year > 2016)
 
-
-# hist.to.graph <- here::here("TempFiles", "Fig2Hist.csv") |>
-#   vroom::vroom(show_col_types = FALSE)
-
-# future.to.graph <- here::here("TempFiles", "Fig2Future.csv") |>
-#   vroom::vroom(show_col_types = FALSE)
-
 base <- hist.to.graph |>
-  filter(scenario == 'historical', year %in% c(2010:2014)) |>
-  pull(median) |>
+  dplyr::filter(scenario == 'historical', year %in% c(2010:2014)) |>
+  dplyr::pull(median) |>
   mean()
 
 future.to.graph <- future.to.graph |>
-  mutate(
+  dplyr::mutate(
     median = median + base,
     upper = upper + base,
     lower = lower + base
   )
 
-graph.data <- bind_rows(hist.to.graph, future.to.graph) #|> dplyr::rename(scenario = RCP))
+graph.data <- hist.to.graph |>
+  dplyr::bind_rows(future.to.graph) |>
+  dplyr::mutate(scenario = factor(scenario, levels = scenarios)) |>
+  # Start plotting in 1902 and 2016 because it's the first full year with lags
+  # incorporated right.
+  dplyr::filter(!(year %in% c(1901, 2015))) |>
+  # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
+  # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
+  # to how ggplot does CI's this is for plotting purposes ONLY and text stats
+  # give full CI's
+  dplyr::mutate(lower = pmax(lower, -2.2))
 
-graph.data <- graph.data |>
-  mutate(
-    scenario = factor(
-      scenario,
-      levels = c('hist-nat', 'historical', 'ssp126', 'ssp245', 'ssp585')
-    )
-  ) |>
-
-  ### Start plotting in 1902 and 2016 because it's the first full year with lags incorporated right.
-  filter(!(year %in% c(1901, 2015))) |>
-  ############ radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT LOOKING CLOSELY
-  ############ this is a way of hard coding the CI's to still plot thanks to how ggplot does CI's
-  ############ this is for plotting purposes ONLY and text stats give full CI's
-  mutate(lower = pmax(lower, -2.2))
+# ggplot() +
+#   geom_line(
+#     data = hist_summary_main,
+#     aes(x = year, y = median, group = scenario, color = scenario),
+#     lwd = 1.3
+#   )
 
 s <- graph.data |>
   ggplot(aes(x = year, y = median, group = scenario, color = scenario)) +
@@ -696,16 +640,16 @@ top_row <- (g_with_hist + f + d + intervention_fig) +
 
 f2 <- top_row / s + plot_annotation(tag_levels = 'A')
 
-# ggsave(
-#   filename = "Figure2.pdf",
-#   plot = f2,
-#   path = here::here("Figures"),
-#   width = 10.32,
-#   height = 7.69,
-#   units = "in",
-#   device = cairo_pdf,
-#   dpi = 1200
-# )
+ggsave(
+  filename = "Figure2.pdf",
+  plot = f2,
+  path = here::here("Figures"),
+  width = 10.32,
+  height = 7.69,
+  units = "in",
+  device = cairo_pdf,
+  dpi = 1200
+)
 
 ggsave(
   filename = "Figure2.jpg",

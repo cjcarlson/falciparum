@@ -394,7 +394,8 @@ extract_cru_variable <- function(
   admin_sp,
   var_prefix,
   max_power = 5L,
-  start_year = 1901L
+  start_year = 1901L,
+  N_CORES = 10
 ) {
   nc_conn <- ncdf4::nc_open(nc_filepath)
   climate_array <- ncdf4::ncvar_get(nc_conn, nc_varname)
@@ -627,6 +628,47 @@ make_lag_form <- function(n_lags = 0, n_leads = 0) {
   ))
 }
 
+################################################################################
+# baseline_adjust_summarize ----
+################################################################################
+
+baseline_adjust_summarize <- function(
+  df,
+  variable,
+  baseline_group,
+  adjusted_group,
+  baseline_years,
+  confidence_level = 0.90
+) {
+  lower_prob <- (1 - confidence_level) / 2
+  upper_prob <- 1 - lower_prob
+
+  var_sym <- rlang::sym(variable)
+  baseline_syms <- rlang::syms(baseline_group)
+  adjusted_syms <- rlang::syms(adjusted_group)
+
+  baseline_means <- df |>
+    dplyr::filter(year %in% baseline_years) |>
+    dplyr::group_by(!!!baseline_syms) |>
+    dplyr::summarize(
+      baseline_mean = mean(!!var_sym, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  adjusted <- df |>
+    dplyr::left_join(baseline_means, by = baseline_group) |>
+    dplyr::mutate(!!var_sym := (!!var_sym) - baseline_mean) |>
+    dplyr::select(-baseline_mean)
+
+  adjusted |>
+    dplyr::group_by(!!!adjusted_syms) |>
+    dplyr::summarize(
+      median = median(!!var_sym, na.rm = TRUE),
+      upper = quantile(!!var_sym, upper_prob, na.rm = TRUE),
+      lower = quantile(!!var_sym, lower_prob, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
 
 print("Finished loading A01 - Utility code for calculations.R")
 

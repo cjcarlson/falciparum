@@ -58,7 +58,8 @@ complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 log_msg("Preparing the compute cluster")
 
-n_cores = min(10, parallel::detectCores())
+# n_cores = min(10, future::detectCores())
+n_cores <- future::availableCores()
 
 # Set seed for reproducible output
 set.seed(11235)
@@ -122,10 +123,10 @@ stopCluster(clus)
 
 log_msg("Finish the bootstrap models")
 
-############################################################################################
+################################################################################
 # Save coeffs ----
 # Pull in all bootstrap runs and full spec to save in one file
-############################################################################################
+################################################################################
 
 log_msg("Consolidating bootstrap coefficients and saving file")
 
