@@ -18,6 +18,7 @@ library(zoo)
 library(lubridate)
 library(cowplot)
 library(multcomp)
+library(sf)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))

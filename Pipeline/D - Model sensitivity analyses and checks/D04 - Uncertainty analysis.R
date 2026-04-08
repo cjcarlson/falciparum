@@ -26,6 +26,7 @@ library(fixest)
 library(raster)
 library(ggpubr)
 library(car)
+library(sf)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))

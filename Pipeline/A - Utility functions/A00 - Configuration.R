@@ -12,7 +12,7 @@ print(paste0("User set to: ", user))
 ##### location for data and output
 datadir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
-  user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
+  user == "tammacarleton" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
   user == "cmolitor" ~ '/global/scratch/projects/co_carleton/carleton_colab/projects/malaria-attribution',
   TRUE ~ NA_character_
@@ -24,7 +24,7 @@ print(paste0("data directory set to: ", datadir))
 ##### location for cloned repo
 repo <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Documents/Github/falciparum',
-  user == "Tamma" ~
+  user == "tammacarleton" ~
     '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum',
   user == "cullen_molitor" ~ '/home/cullen_molitor/falciparum',
   user == "cmolitor" ~ '/global/home/users/cmolitor/falciparum',
