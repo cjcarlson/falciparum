@@ -663,6 +663,7 @@ baseline_adjust_summarize <- function(
   adjusted |>
     dplyr::group_by(!!!adjusted_syms) |>
     dplyr::summarize(
+      mean = mean(!!var_sym, na.rm = TRUE),
       median = median(!!var_sym, na.rm = TRUE),
       upper = quantile(!!var_sym, upper_prob, na.rm = TRUE),
       lower = quantile(!!var_sym, lower_prob, na.rm = TRUE),

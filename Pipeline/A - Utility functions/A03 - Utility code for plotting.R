@@ -669,8 +669,8 @@ plotPolynomialResponse_2_mod = function(
     if (sum(is.na(yLim)) > 0) {
       g = ggplot(data = plotData) + 
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "Grid level"))), alpha = 0.4) +
-        geom_line(aes(x = x, y = response, color = factor(model, levels = c("Main", "Grid level"))), linewidth = 1) + 
+        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c(model1_name, model2_name))), alpha = 0.4) +
+        geom_line(aes(x = x, y = response, color = factor(model, levels = c(model1_name, model2_name))), linewidth = 1) + 
         theme_classic() +
         labs(x = xLab, y = yLab) +
         ggtitle(title) +
@@ -680,10 +680,10 @@ plotPolynomialResponse_2_mod = function(
     } else {
       g = ggplot(data = plotData) + 
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c("Main", "Grid level"))), alpha = 0.4) +
+        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c(model1_name, model2_name))), alpha = 0.4) +
         geom_line(
-          aes(x = x, y = response, color = factor(model, levels = c("Main", "Grid level")),
-           linetype=factor(model, levels = c("Main", "Grid level"))), linewidth = 0.5) +
+          aes(x = x, y = response, color = factor(model, levels = c(model1_name, model2_name)),
+           linetype=factor(model, levels = c(model1_name, model2_name))), linewidth = 0.5) +
         theme_classic() +
         labs(x = xLab, y = yLab) +
         coord_cartesian(ylim = yLim) + 
@@ -698,9 +698,9 @@ plotPolynomialResponse_2_mod = function(
       g = g + 
         geom_vline(xintercept = maxX1, linetype = "solid", color = "black") +
         geom_vline(xintercept = maxX2, linetype = "dashed", color = "black") +
-        annotate(geom = "text", x = maxX1 - 4, y = 4, 
+        annotate(geom = "text", x = maxX1 - 5, y = 5, 
                 label = paste0(maxX1, " C"), color = "grey39", size = 3) +
-        annotate(geom = "text", x = maxX2 + 4, y = 4,
+        annotate(geom = "text", x = maxX2 + 5, y = 5,
                 label = paste0(maxX2, " C "), color = "grey39", size = 3)
     }
   }
@@ -795,7 +795,7 @@ plotLinearLags_2_mod = function(
       theme(plot.title = element_text(size = 8), text = element_text(size = 8))
   } else {
     # Two models - use different colors/shapes for each
-    g = ggplot(data = plotData, aes(x = lag, color = factor(model, levels = c("Main", "Grid level")))) +
+    g = ggplot(data = plotData, aes(x = lag, color = factor(model, levels = c(model1_name, model2_name)))) +
       geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
       geom_point(aes(y = response), size = 2, position = position_dodge(width = 0.5)) +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = .1, position = position_dodge(width = 0.5)) +
@@ -805,7 +805,8 @@ plotLinearLags_2_mod = function(
       ggtitle(title) +
       theme(plot.title = element_text(size = 8), text = element_text(size = 8),
             legend.position = "bottom", legend.title = element_blank()) +
-    scale_color_manual(values = c("Main" = "#C1657C", "Grid level" = "grey50")) 
+    # scale_color_manual(values = c(model1_name = "#C1657C", model2_name = "grey50")) 
+    scale_color_manual(values = c("#C1657C", "grey50")) 
   }
   
   return(g)
@@ -821,8 +822,9 @@ add_r2 <- function(x, y) {
   x <- x[complete]
   y <- y[complete]
   R2 <- summary(lm(y ~ x))$r.squared
-  r2 <- cor(x, y)^2
-  label <- sprintf("R² = %.2f\nr² = %.2f", R2, r2)
+  # r2 <- cor(x, y)^2
+  # label <- sprintf("R² = %.2f\nr² = %.2f", R2, r2)
+  label <- sprintf("R² = %.2f", R2)
   annotate(
     "text",
     x = -Inf,

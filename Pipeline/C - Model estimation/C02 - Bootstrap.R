@@ -24,7 +24,8 @@ pacman::p_load(
   zoo,
   lubridate,
   data.table,
-  parallel
+  parallel,
+  MASS
 )
 
 # source functions for easy plotting and estimation
@@ -32,7 +33,7 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 # Set number of bootstrap simulations.
-S = 1000
+S = 2000
 
 ################################################################################
 # Set up logging ----
@@ -51,6 +52,27 @@ log_msg("Starting script `C02 - Bootstrap.R`")
 log_msg("Loading analysis ready data")
 
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
+
+# block_sizes <- complete %>% 
+#   group_by(cntry_yrbin) %>% 
+#   summarise(n = n())
+
+# hist(block_sizes$n, breaks = 50)
+
+# summary(block_sizes$n)
+# # Coefficient of variation of block sizes -- high CV suggests severe imbalance
+# sd(block_sizes$n) / mean(block_sizes$n)
+
+
+# block_sizes <- complete %>% 
+#   group_by(OBJECTID) %>% 
+#   summarise(n = n())
+
+# hist(block_sizes$n, breaks = 50)
+
+# summary(block_sizes$n)
+# # Coefficient of variation of block sizes -- high CV suggests severe imbalance
+# sd(block_sizes$n) / mean(block_sizes$n)
 
 ################################################################################
 # Cluster setup ----
@@ -153,6 +175,37 @@ log_msg("Script `C02 - Bootstrap.R` completed successfully")
 ################################################################################
 # End of file ----
 ################################################################################
+
+# complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
+
+# mod <- lfe::felm(formula = cXt2intrXm, data = complete)
+
+# vcov <- mod$clustervcv  # cluster-robust vcov matrix
+
+# beta_hat <- coef(mod)[1:12]
+# V_sub <- vcov[1:12, 1:12]
+
+# column_names <- c(
+#   "temp",
+#   "temp2",
+#   colnames(complete)[grep("flood", colnames(complete))],
+#   colnames(complete)[grep("drought", colnames(complete))],
+#   "I(intervention)1",
+#   "I(intervention)2"
+# )
+
+# boot_draws <- MASS::mvrnorm(n = S, mu = beta_hat, Sigma = V_sub)
+# colnames(boot_draws) <- column_names
+
+# boots <- as.data.frame(rbind(
+#   setNames(as.data.frame(t(beta_hat)), column_names),  # "main" row
+#   as.data.frame(boot_draws)
+# ))
+# boots$model <- c("main", as.character(2:(S + 1)))
+# boots$n <- nrow(complete)
+
+# readr::write_csv(boots, file = boot_mod_full_fn)
+
 
 # ################################################################################
 # # This script estimates the main empirical specification linking

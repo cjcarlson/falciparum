@@ -48,7 +48,7 @@ log_file_path <- file.path(logs_dir, "D07_ERA5_analysis.log")
 
 log_msg <- create_logger(log_file_path)
 
-log_msg("Starting script `D07 - ERA5 analyhsis.R`")
+log_msg("Starting script `D07 - ERA5 analysis.R`")
 
 ################################################################################
 # Load data ----
@@ -159,8 +159,8 @@ ggplot2::ggsave(
 
 cru_full_mod <- readRDS(main_mod_obj_fn)
 
-cru_prev_data <- analysis_ready_CRU_adm1_fp |> 
-  readr::read_rds() |> 
+cru_prev_data <- analysis_ready_CRU_adm1_fp |>
+  readr::read_rds() |>
   dplyr::filter(monthyr %in% unique(era5_prev_data$monthyr))
 
 cru_sub_mod = lfe::felm(data = cru_prev_data, formula = cXt2intrXm)
@@ -320,10 +320,10 @@ plotData <- data.frame(
 )
 
 # collect bootstrap results as a list, then row-bind once
-boot_list <- vector("list", nrow(bootstraps))
+boot_list <- vector("list", nrow(all_mods))
 
-for (mod in seq_len(nrow(bootstraps))) {
-  sub <- bootstraps[mod, ]
+for (mod in seq_len(nrow(all_mods))) {
+  sub <- all_mods[mod, ]
   b <- as.matrix(c(sub$temp, sub$temp2))
   boot_response <- as.numeric(as.matrix(xValsT) %*% b)
 
@@ -494,11 +494,11 @@ log_msg("Make Fig 2.B and C - drought and flood")
 # reformat: want a dataset of lag x var x model for flood and drought
 # subset to flood and drought
 mycols = c(
-  colnames(bootstraps)[grep("flood", colnames(bootstraps))],
-  colnames(bootstraps)[grep("drought", colnames(bootstraps))]
+  colnames(all_mods)[grep("flood", colnames(all_mods))],
+  colnames(all_mods)[grep("drought", colnames(all_mods))]
 )
 
-rain <- bootstraps |>
+rain <- all_mods |>
   dplyr::select(dplyr::all_of(mycols), model) |>
   dplyr::mutate(
     # calculate cumulative effect
@@ -663,9 +663,9 @@ d
 
 log_msg("Make Fig 2.D - interventions")
 
-mycols <- c(colnames(bootstraps)[grep("intervention", colnames(bootstraps))])
+mycols <- c(colnames(all_mods)[grep("intervention", colnames(all_mods))])
 
-inter <- bootstraps |>
+inter <- all_mods |>
   dplyr::select(dplyr::all_of(mycols), model) |>
   tidyr::pivot_longer(
     cols = -model,
@@ -766,7 +766,100 @@ ggsave(
   units = "in"
 )
 
-# log_msg("Script `C02 - Bootstrap.R` era5_prev_datad successfully")
+
+################################################################################
+# Temperature overlay plot ----
+################################################################################
+
+t1 = plotPolynomialResponse_2_mod(
+  cru_sub_mod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = NULL,
+  yLim = c(-30, 5),
+  showYTitle = T,
+  mod2 = era5_mod,
+  model1_name = "CRU subset",
+  model2_name = "ERA5",
+  fillcolor2 = "grey50"
+)
+t1
+
+################################################################################
+# Drought plot ----
+################################################################################
+
+d1 <- plotLinearLags_2_mod(
+  mod = cru_sub_mod,
+  model1_name = "CRU subset",
+  patternForPlotVars = "drought",
+  cluster = T,
+  laglength = 3,
+  xLab = "Drought (month lags)",
+  yLab = "Coefficient",
+  title = NULL,
+  yLim = c(-4, 4),
+  mod2 = era5_mod,
+  model2_name = "ERA5"
+)
+d1
+
+################################################################################
+# Flood plot ----
+################################################################################
+
+f1 <- plotLinearLags_2_mod(
+  mod = cru_sub_mod,
+  model1_name = "CRU subset",
+  patternForPlotVars = "flood",
+  cluster = T,
+  laglength = 3,
+  xLab = "Flood (month lags)",
+  yLab = "Coefficient",
+  title = NULL,
+  yLim = c(-4, 4),
+  mod2 = era5_mod,
+  model2_name = "ERA5"
+)
+f1
+
+################################################################################
+# Combine plots ----
+################################################################################
+
+combined_plot1 <- t1 +
+  d1 +
+  f1 +
+  plot_layout(ncol = 3, guides = "collect") &
+  theme(
+    axis.text = element_text(size = 8),
+    axis.title = element_text(size = 8),
+    legend.text = element_text(size = 6),
+    legend.position = "bottom",
+    legend.margin = margin(0, 0, 0, 0)
+  )
+
+combined_plot1
+
+################################################################################
+# Save plot ----
+################################################################################
+
+ggsave(
+  # filename = "temp_drought_flood_cXt2intrXm_w_CRU_and_ERA5.pdf",
+  filename = "temp_drought_flood_cXt2intrXm_w_CRU_and_ERA5.jpg",
+  # path = figure_diag_era5_dir,
+  path = here::here("Figures"),
+  plot = combined_plot1,
+  width = 7,
+  height = 2.5,
+  dpi = 300
+)
 
 ################################################################################
 # ERA5 vs CRU scatter ----
@@ -855,7 +948,7 @@ ggplot2::ggsave(
   height = 4.5
 )
 
-log_msg("Script `D07 - ERA5 analyhsis.R` era5_prev_datad successfully")
+log_msg("Script `D07 - ERA5 analysis.R` completed successfully")
 
 ################################################################################
 # End of file ----

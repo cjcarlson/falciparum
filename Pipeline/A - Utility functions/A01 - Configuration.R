@@ -19,8 +19,8 @@ data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
-  # user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication/data'),
-  user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication_orig/data'),
+  user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-delta-meth/data'),
+  # user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-country5yr/data'),
   TRUE ~ NA_character_
 )
 
@@ -44,7 +44,8 @@ print(paste0("repository directory set to: ", repo_dir))
 # Set clustering year range (country-yr groups) 
 ################################################################################
 
-yr_bin_size <- 5 # 10
+# yr_bin_size <- 10 
+yr_bin_size <- 5 
 
 clust_label <- paste0("country_x_", yr_bin_size, "yr")
 
@@ -364,6 +365,14 @@ part1 <- paste0(replicate(151, "\nAAAAAAAAABBCC"), collapse = "")
 part2 <- "\nAAAAAAAAA####\n"
 part3 <- paste(replicate(80, "DDDDDDDDDDDDD\n"), collapse = "")
 fig_3_4_layout <- paste(part1, part2, part3, sep = "")
+
+scenario_colors <- c(
+  "hist-nat" = "grey50",
+  "historical" = "#287DAB",
+  "ssp126" = "#4d5f8e",
+  "ssp245" = "#C582B2",
+  "ssp585" = "#325756"
+)
 
 scenario_labels <- c(
   'Historical counterfactual',

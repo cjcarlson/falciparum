@@ -34,12 +34,12 @@ n_cores <- min(30, future::availableCores())
 options(future.globals.maxSize = 6 * 1024^3)
 future::plan(future::multicore, workers = n_cores)
 
-progressr::handlers(
-  progressr::handler_progress(
-    format = ":spin :current/:total (:percent) [:bar] ETA: :eta",
-    width = 60
-  )
-)
+# progressr::handlers(
+#   progressr::handler_progress(
+#     format = ":spin :current/:total (:percent) [:bar] ETA: :eta",
+#     width = 60
+#   )
+# )
 
 ################################################################################
 # Set up logging ----
@@ -57,6 +57,7 @@ log_msg("Starting script `E02 - Prevalence summaries.R`")
 
 for (mode in c("historical", "future")) {
   # mode <- "historical"
+  # mode <- "future"
   log_msg(paste0("Starting: ", mode))
 
   ##############################################################################

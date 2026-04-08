@@ -1,5 +1,6 @@
 ################################################################################
-# This script plots the
+# This script plots Figure 3, Historical changes in malaria prevalence
+# attributable to anthropogenic climate change from 1901 to 2014.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -38,14 +39,8 @@ iter.df <- file.path(
   dplyr::mutate(
     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
   ) |>
-  dplyr::select(scenario, model, year, OBJECTID, Pred, run)
-
-
-# iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
-#   arrow::read_feather() |>
-#   dplyr::mutate(
-#     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
-#   )
+  dplyr::select(scenario, model, year, OBJECTID, Pred, run) |>
+  dplyr::filter(run != "main")
 
 slices <- iter.df |>
   dplyr::filter(year == 2014)
@@ -58,7 +53,14 @@ slices.runs <- slices |>
 slice.map1 <- slices.runs |>
   dplyr::ungroup() |>
   dplyr::group_by(OBJECTID) |>
-  dplyr::summarize(mean.diff = mean(diff), runs.diff = sum(diff > 0)) |>
+  dplyr::summarize(
+    mean.diff = mean(diff),
+    runs.diff = sum(diff > 0),
+    lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE),
+    upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
+    lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
+    upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
+  ) |>
   dplyr::mutate(OBJECTID = factor(OBJECTID))
 
 ### ADD THE MAP
@@ -117,64 +119,17 @@ map.diff <- ggplot(sfcont) +
   )
 
 ################################################################################
-# Temperature clines ----
-################################################################################
-
-# iter.df <- file.path(
-#   hist_sum_dir,
-#   "historical_pred_sum_scen_mod_yr_obj.feather"
-# ) |>
-#   arrow::read_feather() |>
-#   dplyr::mutate(
-#     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
-#   ) |>
-#   dplyr::select(scenario, model, year, OBJECTID, Pred, run)
-
-# iter.df <- here::here("TempFiles", "Fig3Big.feather") |>
-#   arrow::read_feather() |>
-#   dplyr::mutate(
-#     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
-#   )
-
-slices <- iter.df |>
-  filter(year == 2014)
-
-slices.runs <- slices |>
-  pivot_wider(names_from = scenario, values_from = Pred) |>
-  mutate(diff = (historical - `hist-nat`)) |>
-  select(-c(historical, `hist-nat`, year))
-
-slice.map1 <- slices.runs |>
-  group_by(OBJECTID) |>
-  summarize(
-    mean.diff = mean(diff, na.rm = TRUE),
-    lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE),
-    upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
-    lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
-    upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
-  )
-
-################################################################################
-# Elevation clines ----
+# Elevation and temperature ----
 ################################################################################
 
 # Get the stuff
 elev <- elevation_fp |>
   readr::read_csv(show_col_types = FALSE) |>
-  dplyr::select(OBJECTID, elevmn)
+  dplyr::select(OBJECTID, elevmn) |>
+  mutate(OBJECTID = factor(OBJECTID))
 
 cont <- ADM1_fp |>
   sf::read_sf()
-
-latlon <- cont |>
-  mutate(
-    lon = map_dbl(geometry, ~ st_point_on_surface(.x)[[1]]),
-    lat = map_dbl(geometry, ~ st_point_on_surface(.x)[[2]])
-  )
-lat <- latlon |>
-  as.data.frame() |>
-  select(OBJECTID, lat) |>
-  mutate(OBJECTID = as.numeric(OBJECTID))
 
 temp <- intermediate_CRU_adm1_fp |>
   readr::read_csv(show_col_types = FALSE)
@@ -182,15 +137,15 @@ temp <- intermediate_CRU_adm1_fp |>
 tmean <- temp |>
   filter(year %in% c(1901:1930)) |>
   group_by(OBJECTID) |>
-  summarize(t = mean(temp, na.rm = TRUE))
+  summarize(t = mean(temp, na.rm = TRUE)) |>
+  mutate(OBJECTID = factor(OBJECTID))
 
 ################################################################################
-# XXXXXXXXX ----
+# Significance ----
 ################################################################################
 
 df <- slice.map1 |>
   left_join(elev) |>
-  left_join(lat) |>
   left_join(tmean)
 
 # Generate a nice little significance color scheme
@@ -204,139 +159,26 @@ df <- df |>
 df_non_sig <- df %>% filter(sign == 0)
 df_sig <- df %>% filter(sign != 0)
 
-#### This version orders the colors such that the grey lines are plotted first
-#### then the red and blue lines are plotted on top.
+################################################################################
+# Temperature plot ----
+# This version orders the colors such that the grey lines are plotted first
+# then the red and blue lines are plotted on top.
+################################################################################
 
-g1 <- ggplot() +
-  geom_errorbar(
-    data = df_non_sig,
-    aes(x = mean.diff, y = elevmn, xmin = lower.diff.95, xmax = upper.diff.95),
-    color = "grey80",
-    alpha = 0.3,
-    size = 0.5
-  ) +
-  geom_errorbar(
-    data = df_non_sig,
-    aes(x = mean.diff, y = elevmn, xmin = lower.diff.90, xmax = upper.diff.90),
-    color = "grey80",
-    alpha = 0.5,
-    size = 0.7
-  ) +
-  geom_point(
-    data = df_non_sig,
-    aes(x = mean.diff, y = elevmn),
-    color = "grey80"
-  ) +
-  geom_errorbar(
-    data = df_sig,
-    aes(
-      x = mean.diff,
-      y = elevmn,
-      xmin = lower.diff.95,
-      xmax = upper.diff.95,
-      color = sign
-    ),
-    alpha = 0.3,
-    size = 0.5
-  ) +
-  geom_errorbar(
-    data = df_sig,
-    aes(
-      x = mean.diff,
-      y = elevmn,
-      xmin = lower.diff.90,
-      xmax = upper.diff.90,
-      color = sign
-    ),
-    alpha = 0.5,
-    size = 0.7
-  ) +
-  geom_point(data = df_sig, aes(x = mean.diff, y = elevmn, color = sign)) +
-  geom_vline(xintercept = 0, linetype = 'dashed') +
-  theme_classic() +
-  xlab("Prevalence (%)") +
-  ylab("Elevation (m)") +
-  theme(
-    axis.title.x = element_text(margin = margin(t = 20, b = 10)),
-    axis.title.y = element_text(margin = margin(r = 20, l = 10)),
-    legend.position = 'n',
-    plot.margin = margin(0, 0, 10, 0)
-  ) +
-  scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
-
-
-g2 <- ggplot() +
-  geom_errorbar(
-    data = df_non_sig,
-    aes(x = mean.diff, y = lat, xmin = lower.diff.95, xmax = upper.diff.95),
-    color = "grey80",
-    alpha = 0.3,
-    size = 0.5
-  ) +
-  geom_errorbar(
-    data = df_non_sig,
-    aes(x = mean.diff, y = lat, xmin = lower.diff.90, xmax = upper.diff.90),
-    color = "grey80",
-    alpha = 0.5,
-    size = 0.7
-  ) +
-  geom_point(
-    data = df_non_sig,
-    aes(x = mean.diff, y = lat),
-    color = "grey80"
-  ) +
-  geom_errorbar(
-    data = df_sig,
-    aes(
-      x = mean.diff,
-      y = lat,
-      xmin = lower.diff.95,
-      xmax = upper.diff.95,
-      color = sign
-    ),
-    alpha = 0.3,
-    size = 0.5
-  ) +
-  geom_errorbar(
-    data = df_sig,
-    aes(
-      x = mean.diff,
-      y = lat,
-      xmin = lower.diff.90,
-      xmax = upper.diff.90,
-      color = sign
-    ),
-    alpha = 0.5,
-    size = 0.7
-  ) +
-  geom_point(data = df_sig, aes(x = mean.diff, y = lat, color = sign)) +
-  geom_vline(xintercept = 0, linetype = 'dashed') +
-  theme_classic() +
-  xlab("Prevalence (%)") +
-  ylab("Latitude") +
-  theme(
-    axis.title.x = element_text(margin = margin(t = 20, b = 10)),
-    axis.title.y = element_text(margin = margin(r = 20, l = 10)),
-    legend.position = 'n',
-    plot.margin = margin(0, 0, 0, 0)
-  ) +
-  scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
-
-
-g3 <- ggplot() +
+temp_plot <- ggplot() +
   geom_errorbar(
     data = df_non_sig,
     aes(x = mean.diff, y = t, xmin = lower.diff.95, xmax = upper.diff.95),
     color = "grey80",
     alpha = 0.3,
-    size = 0.5
+    linewidth = 0.5
   ) +
   geom_errorbar(
     data = df_non_sig,
     aes(x = mean.diff, y = t, xmin = lower.diff.90, xmax = upper.diff.90),
     color = "grey80",
     alpha = 0.5,
-    size = 0.7
+    linewidth = 0.7
   ) +
   geom_point(
     data = df_non_sig,
@@ -353,7 +195,7 @@ g3 <- ggplot() +
       color = sign
     ),
     alpha = 0.3,
-    size = 0.5
+    linewidth = 0.5
   ) +
   geom_errorbar(
     data = df_sig,
@@ -365,7 +207,7 @@ g3 <- ggplot() +
       color = sign
     ),
     alpha = 0.5,
-    size = 0.7
+    linewidth = 0.7
   ) +
   geom_point(data = df_sig, aes(x = mean.diff, y = t, color = sign)) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
@@ -380,16 +222,81 @@ g3 <- ggplot() +
   ) +
   scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
 
+################################################################################
+# Elevation plot ----
+# This version orders the colors such that the grey lines are plotted first
+# then the red and blue lines are plotted on top.
+################################################################################
+
+elev_plot <- ggplot() +
+  geom_errorbar(
+    data = df_non_sig,
+    aes(x = mean.diff, y = elevmn, xmin = lower.diff.95, xmax = upper.diff.95),
+    color = "grey80",
+    alpha = 0.3,
+    linewidth = 0.5
+  ) +
+  geom_errorbar(
+    data = df_non_sig,
+    aes(x = mean.diff, y = elevmn, xmin = lower.diff.90, xmax = upper.diff.90),
+    color = "grey80",
+    alpha = 0.5,
+    linewidth = 0.7
+  ) +
+  geom_point(
+    data = df_non_sig,
+    aes(x = mean.diff, y = elevmn),
+    color = "grey80"
+  ) +
+  geom_errorbar(
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = elevmn,
+      xmin = lower.diff.95,
+      xmax = upper.diff.95,
+      color = sign
+    ),
+    alpha = 0.3,
+    linewidth = 0.5
+  ) +
+  geom_errorbar(
+    data = df_sig,
+    aes(
+      x = mean.diff,
+      y = elevmn,
+      xmin = lower.diff.90,
+      xmax = upper.diff.90,
+      color = sign
+    ),
+    alpha = 0.5,
+    linewidth = 0.7
+  ) +
+  geom_point(data = df_sig, aes(x = mean.diff, y = elevmn, color = sign)) +
+  geom_vline(xintercept = 0, linetype = 'dashed') +
+  theme_classic() +
+  xlab("Prevalence (%)") +
+  ylab("Elevation (m)") +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 20, b = 10)),
+    axis.title.y = element_text(margin = margin(r = 20, l = 10)),
+    legend.position = 'n',
+    plot.margin = margin(0, 0, 10, 0)
+  ) +
+  scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
 
 ################################################################################
-# XXXXXXXXX ----
+# Regional time series data ----
 ################################################################################
 
-data.to.graph <- file.path(
+historical_pred <- file.path(
   hist_sum_dir,
   "historical_pred_sum_scen_mod_yr_reg.feather"
 ) |>
-  arrow::read_feather() |>
+  arrow::read_feather() |> 
+  data.table::as.data.table()
+
+hist_main <- historical_pred[run == "main"] |>
   baseline_adjust_summarize(
     variable = "Pred",
     baseline_group = c("model", "scenario", "region", "run"),
@@ -397,19 +304,35 @@ data.to.graph <- file.path(
     baseline_years = 1900:1930,
     confidence_level = 0.90
   ) |>
-  dplyr::mutate(
-    region = dplyr::recode(region, !!!region_names),
-    scenario = factor(scenario, levels = names(historical_scenario_names))
+  dplyr::filter(year > 1901) |>
+  dplyr::select(-c(upper, lower))
+
+hist_boot <- historical_pred[run != "main"] |>
+  baseline_adjust_summarize(
+    variable = "Pred",
+    baseline_group = c("model", "scenario", "region", "run"),
+    adjusted_group = c("scenario", "region", "year"),
+    baseline_years = 1900:1930,
+    confidence_level = 0.90
   ) |>
   dplyr::filter(year > 1901) |>
+  dplyr::select(-c(median)) |>
+  dplyr::left_join(hist_main) |>
+  dplyr::mutate(
+    scenario = factor(scenario, levels = names(historical_scenario_names))
+  ) |>
   # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
   # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
   # to how ggplot does CI's this is for plotting purposes ONLY and text stats
   # give full CI's
   dplyr::mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0))
 
+################################################################################
+# Regional time series plot ----
+################################################################################
+
 bottom <- ggplot(
-  data = data.to.graph,
+  data = hist_boot,
   aes(x = year, group = scenario, color = scenario, fill = scenario)
 ) +
   geom_line(aes(y = median), lwd = 1.25) +
@@ -444,12 +367,11 @@ bottom <- ggplot(
   theme(legend.position = 'bottom') +
   theme(plot.title = element_text(size = 20))
 
-
 ################################################################################
 # Compile and save plot ----
 ################################################################################
 
-fig3 <- (map.diff + g3 + g1 + bottom) +
+fig3 <- (map.diff + temp_plot + elev_plot + bottom) +
   patchwork::plot_layout(design = fig_3_4_layout) +
   patchwork::plot_annotation(tag_levels = 'A') &
   theme(plot.tag = element_text(size = 23))
