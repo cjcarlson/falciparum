@@ -94,20 +94,9 @@ combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]]
 combined_plot
 
 ggplot2::ggsave(
-  filename = "FigureS5.pdf",
+  filename = "Supp_Figure_fut_partials.jpg",
   plot = combined_plot,
-  path = here::here("Figures"),
-  width = 7.42,
-  height = 10.07,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-ggplot2::ggsave(
-  filename = "FigureS5.jpg",
-  plot = combined_plot,
-  path = here::here("Figures"),
+  path = here::here("Results", "Figures"),
   width = 7.42,
   height = 10.07,
   units = "in"

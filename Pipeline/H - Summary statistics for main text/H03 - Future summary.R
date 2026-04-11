@@ -105,7 +105,7 @@ output_data <- cont_results |>
 
 readr::write_csv(
   output_data,
-  file.path(fut_sum_dir, "Supp_Future_Regions_Summary.csv")
+  file.path(fut_sum_dir, "supp_future_regions_summary.csv")
 )
 
 ################################################################################

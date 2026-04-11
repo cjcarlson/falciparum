@@ -19,8 +19,7 @@ data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
-  # user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-delta-meth/data'),
-  user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-country5yr/data'),
+  user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication/data'),
   TRUE ~ NA_character_
 )
 
@@ -167,10 +166,8 @@ prev_DB_fp <- file.path(
   '00 Africa 1900-2015 SSA PR database (260617).csv'
 )
 
-urban_summary_fp <- file.path(prev_dir, 'urban_summary.csv')
-
 ################################################################################
-# Intermediate climate data ----
+# Intermediate data ----
 ################################################################################
 
 climate_prc_key_dir <- file.path(inter_dir, "precip_keys")
@@ -183,6 +180,7 @@ hist_pred_dir <- file.path(inter_cmip6_pred_dir, "historical")
 fut_pred_dir <- file.path(inter_cmip6_pred_dir, "future")
 hist_sum_dir <- file.path(inter_cmip6_sum_dir, "historical")
 fut_sum_dir <- file.path(inter_cmip6_sum_dir, "future")
+inter_urban_dir <- file.path(inter_dir, "urban")
 
 dir.create(climate_prc_key_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(inter_cru_ext_dir, showWarnings = FALSE, recursive = TRUE)
@@ -194,6 +192,7 @@ dir.create(hist_pred_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(hist_sum_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(fut_pred_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(fut_sum_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(inter_urban_dir, showWarnings = FALSE, recursive = TRUE)
 
 intermediate_CRU_adm1_fp <- file.path(
   inter_cru_ext_dir,
@@ -213,6 +212,8 @@ intermediate_ERA_adm1_fp <- file.path(
 precip_CRU_adm1_fp <- file.path(climate_prc_key_dir, "PrecipKey_CRU_adm1.csv")
 precip_CRU_grid_fp <- file.path(climate_prc_key_dir, "PrecipKey_CRU_grid.csv")
 precip_ERA5_adm1_fp <- file.path(climate_prc_key_dir, "PrecipKey_ERA5_adm1.csv")
+
+urban_summary_fp <- file.path(inter_urban_dir, 'urban_summary.csv')
 
 ################################################################################
 # Analysis ready files (output) ----

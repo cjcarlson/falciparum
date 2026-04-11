@@ -646,22 +646,10 @@ top_row <- (temp_w_hist_plot + flood_plot + drought_plot + intervention_plot) +
 f2 <- top_row / yearly_ts_plot + plot_annotation(tag_levels = 'A')
 
 ggsave(
-  filename = "Figure2_vcov.pdf",
-  plot = f2,
-  # path = here::here("Figures"),
-  path = figure_vcov_dir,
-  width = 10.32,
-  height = 7.69,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-ggsave(
   filename = "Figure2_vcov.jpg",
   plot = f2,
-  # path = here::here("Figures"),
-  path = figure_vcov_dir,
+  path = here::here("Results", "Figures"),
+  # path = figure_vcov_dir,
   width = 10.32,
   height = 7.69,
   units = "in"

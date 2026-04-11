@@ -72,7 +72,7 @@ log_msg(paste0("Predicting with ", model_version, " model"))
 # Precipitation thresholds ----
 ################################################################################
 
-log_msg("Loading the precipitation")
+log_msg("Loading the precipitation key")
 
 precip_dt <- precip_fp |>
   data.table::fread()
@@ -124,7 +124,7 @@ spatial_dt <- gbod_dt[country_dt, on = "country", nomatch = NULL]
 # Coefficients ----
 ################################################################################
 
-log_msg(paste0("Loading", model_version, "coeffs"))
+log_msg(paste0("Loading ", model_version, " coeffs"))
 
 coeffs_complete <- boot_fp |>
   readr::read_csv(show_col_types = FALSE)

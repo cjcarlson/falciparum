@@ -161,7 +161,7 @@ write.csv(df, file.path(table_diag_res_dir, "residuals_Month_Fstat.csv"))
 box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels = "auto")
 box
 ggsave(
-  filename = "residuals_ALL_boxplot.png",
+  filename = "residuals_ALL_boxplot.jpg",
   path = figure_res_dir,
   plot = box,
   width = 5,
@@ -172,7 +172,7 @@ ggsave(
 hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels = "auto")
 hists
 ggsave(
-  filename = "pvals_ALL_correlations.png",
+  filename = "pvals_ALL_correlations.jpg",
   path = table_diag_res_dir,
   plot = hists,
   width = 5,
@@ -453,7 +453,7 @@ vvPplot = plot(
 vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
 vars
 ggsave(
-  filename = "variogram_2panel.png",
+  filename = "variogram_2panel.jpg",
   path = table_diag_res_dir,
   plot = vars,
   width = 9,
@@ -827,8 +827,8 @@ uncert = plot_grid(
 )
 
 ggsave(
-  filename = "temp_response_conley_difft_SEs.pdf",
-  path = figure_res_dir,
+  filename = "Supp_Figure_temp_response_difft_SEs.jpg",
+  path = here::here("Results", "Figures"),
   plot = uncert,
   width = 10,
   height = 10
@@ -863,7 +863,8 @@ stargazer(
   align = TRUE,
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
-  out = file.path(table_diag_res_dir, "uncertainty.tex"),
+  # out = file.path(table_diag_res_dir, "uncertainty.tex"),
+  out = here::here("Results", "Tables", "uncertainty.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -906,7 +907,7 @@ g <- ggplot(data = complete) +
 g
 
 ggsave(
-  filename = "model_residuals.pdf",
+  filename = "model_residuals.jpg",
   pat = figure_res_dir,
   plot = g,
   width = 7,
@@ -1005,7 +1006,7 @@ uncert = plot_grid(
 )
 
 ggsave(
-  filename = "temp_response_countryyr_difft_SEs.pdf",
+  filename = "temp_response_countryyr_difft_SEs.jpg",
   path = figure_res_dir,
   plot = uncert,
   width = 10,

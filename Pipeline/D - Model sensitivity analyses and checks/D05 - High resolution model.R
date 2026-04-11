@@ -64,7 +64,7 @@ stargazer(
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "intervention"),
-  out = file.path(table_main_dir, "main_specification_cXt2intrXm-highres.tex"),
+  out = file.path(table_main_dir, "main_specification_adm1_grid.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -185,9 +185,9 @@ combined_plot1
 ################################################################################
 
 ggsave(
-  filename = "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.pdf",
-  path = figure_grid_dir,
-  # path = here::here("Figures"),
+  filename = "Supp_Figure_temp_rain_adm1_and_grid.jpg",
+  # path = figure_grid_dir,
+  path = here::here("Results", "Figures"),
   plot = combined_plot1,
   width = 7,
   height = 2.5,

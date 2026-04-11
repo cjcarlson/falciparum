@@ -214,20 +214,8 @@ p <- plot_grid(
 p
 
 ggsave(
-  filename = 'FigureS1.pdf',
-  # path = figure_supp_dir,
-  path = here::here("Figures"),
-  plot = p,
-  height = 10,
-  width = 10,
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-ggsave(
-  filename = 'FigureS1.jpg',
-  # path = figure_supp_dir,
-  path = here::here("Figures"),
+  filename = 'Supp_Figure_thermal_curve_and_data.jpg',
+  path = here::here("Results", "Figures"),
   plot = p,
   height = 10,
   width = 10

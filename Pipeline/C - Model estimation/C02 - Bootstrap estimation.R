@@ -63,8 +63,7 @@ complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 log_msg("Preparing the compute cluster")
 
-# n_cores = min(10, future::detectCores())
-n_cores <- future::availableCores()
+n_cores = min(50, future::availableCores())
 
 # Make compute cluster
 clus <- parallel::makeCluster(n_cores)
@@ -101,8 +100,7 @@ log_msg("Begin the bootstrap models")
 result <- foreach(
   i = 1:(S + 1),
   .packages = c("lfe")
-  # ,
-  # .options.snow = opts
+  # , .options.snow = opts
 ) %dopar%
   {
     if (i == 1) {
@@ -146,8 +144,6 @@ boots <- do.call(
     }
   )
 )
-
-# saveRDS(boots, file = boot_mod_full_fn)
 
 readr::write_csv(boots, file = boot_mod_full_fn)
 

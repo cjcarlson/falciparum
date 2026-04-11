@@ -400,20 +400,9 @@ fig3 <- (map.diff + temp_plot + elev_plot + regional_ts_plot) +
   theme(plot.tag = element_text(size = 23))
 
 ggsave(
-  filename = "Figure3.pdf",
+  filename = "Figure3_hist_map_tmp_el_and_TS.jpg",
   plot = last_plot(),
-  path = here::here("Figures"),
-  width = 11.63,
-  height = 10.07,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-ggsave(
-  filename = "Figure3.jpg",
-  plot = last_plot(),
-  path = here::here("Figures"),
+  path = here::here("Results", "Figures"),
   width = 11.63,
   height = 10.07,
   units = "in",

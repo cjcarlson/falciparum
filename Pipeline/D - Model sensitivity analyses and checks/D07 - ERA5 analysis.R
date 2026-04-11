@@ -145,12 +145,12 @@ fig = plotPolynomialResponse(
 log_msg("Save temperature response plot")
 
 ggplot2::ggsave(
-  filename = "temp_response_ERA5_cXt2intrXm.pdf",
+  filename = "temp_response_ERA5_cXt2intrXm.jpg",
   path = figure_era5_dir,
+  # path = here::here("Results", "Figures"),
   plot = fig,
   width = 7,
-  height = 7,
-  create.dir = TRUE
+  height = 7
 )
 
 ################################################################################
@@ -748,20 +748,10 @@ top_row <- (temp_with_hist + flood_plot + drought_plot + intervention_fig) +
 f2 <- top_row + plot_annotation(tag_levels = 'A')
 
 ggsave(
-  filename = "Figure2_ERA5.pdf",
-  plot = f2,
-  path = here::here("Figures"),
-  width = 10.32,
-  height = 3.9,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-ggsave(
   filename = "Figure2_ERA5.jpg",
   plot = f2,
-  path = here::here("Figures"),
+  path = figure_era5_dir,
+  # path = here::here("Results", "Figures"),
   width = 10.32,
   height = 3.9,
   units = "in"
@@ -789,7 +779,8 @@ temp_overlay_plot = plotPolynomialResponse_2_mod(
   mod2 = era5_mod,
   model1_name = "CRU subset",
   model2_name = "ERA5",
-  fillcolor2 = "grey50"
+  fillcolor2 = "grey50",
+  x_adjust = -4
 )
 temp_overlay_plot
 
@@ -860,10 +851,9 @@ combined_plot1
 log_msg("Saving CRU vs ERA5 temp, flood, and drought responses")
 
 ggsave(
-  # filename = "temp_drought_flood_cXt2intrXm_w_CRU_and_ERA5.pdf",
-  filename = "temp_drought_flood_cXt2intrXm_w_CRU_and_ERA5.jpg",
-  path = figure_era5_dir,
-  # path = here::here("Figures"),
+  filename = "Supp_Figure_temp_rain_CRU_and_ERA5.jpg",
+  # path = figure_era5_dir,
+  path = here::here("Results", "Figures"),
   plot = combined_plot1,
   width = 7,
   height = 2.5,
@@ -950,8 +940,7 @@ side_by_side <- sub_t_plot +
 
 ggplot2::ggsave(
   filename = "CRU_v_ERA5_ADM1_scatter.jpg",
-  plot = side_by_side,
-  # path = here::here("Figures"),
+  # path = here::here("Results", "Figures"),
   path = figure_era5_dir,
   width = 9,
   height = 4.5

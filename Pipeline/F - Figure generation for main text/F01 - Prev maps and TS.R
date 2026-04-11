@@ -23,6 +23,7 @@ pacman::p_load(
 sf::sf_use_s2(FALSE)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
 
 ################################################################################
 # Set up logging ----
@@ -175,22 +176,10 @@ p1 <- ((map_n_samples_plot / map_mean_prev_plot) | ts) +
   patchwork::plot_layout(widths = c(1.5, 1)) +
   patchwork::plot_annotation(tag_levels = 'A')
 
-
 ggplot2::ggsave(
-  filename = "Figure1.pdf",
+  filename = "Figure1_prev_maps_and_TS.jpg",
   plot = p1,
-  path = here::here("Figures"),
-  width = 9,
-  height = 10,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-ggplot2::ggsave(
-  filename = "Figure1.jpg",
-  plot = p1,
-  path = here::here("Figures"),
+  path = here::here("Results", "Figures"),
   width = 9,
   height = 10,
   units = "in"

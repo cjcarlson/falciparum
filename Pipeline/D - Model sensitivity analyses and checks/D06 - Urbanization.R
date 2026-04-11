@@ -161,14 +161,12 @@ combined_plot <- t +
 ################################################################################
 
 ggplot2::ggsave(
-  filename = "urban_sensitivity.pdf",
-  path = figure_urban_dir,
+  filename = "Supp_Figure_urban_sensitivity.jpg",
+  path = here::here("Results", "Figures"),
   plot = combined_plot,
   width = 7,
   height = 2.5,
-  units = "in",
-  dpi = 300,
-  create.dir = TRUE
+  units = "in"
 )
 
 ################################################################################

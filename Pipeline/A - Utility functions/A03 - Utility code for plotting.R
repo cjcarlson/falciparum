@@ -89,7 +89,9 @@ plotPolynomialResponse <- function(
   title = "title",
   yLim = c(-1, 1),
   showYTitle = TRUE,
-  ci_level = 0.95
+  ci_level = 0.95,
+  plotmax_x = 3.5,
+  plotmax_y = 2.55
 ) {
   ### mod is a model regression model object (e.g. mod = lm(y~x) or mode = felm(y~x)).
   ### patternForPlotVars is a string that is in the variables from the model that you want to plot but not in the ones you don't want to plot.
@@ -272,7 +274,7 @@ plotPolynomialResponse <- function(
       ) +
       theme_classic() +
       labs(x = xLab, y = yLab) +
-      ggtitle(paste0(title, " ", ci_level, "% CI"))
+      ggtitle(title)
   }
 
   # 10) optionally fix y-limits
@@ -313,8 +315,8 @@ plotPolynomialResponse <- function(
       geom_vline(xintercept = maxX, color = "grey39") +
       annotate(
         geom = "text",
-        x = maxX + 3.5,
-        y = 2.55,
+        x = maxX + plotmax_x,
+        y = plotmax_y,
         label = paste0(maxX, " C"),
         color = "grey39",
         size = 3

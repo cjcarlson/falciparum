@@ -106,7 +106,7 @@ g <- ggplot(data = complete) +
 g
 
 ggsave(
-  filename = "model_residuals.pdf",
+  filename = "model_residuals.jpg",
   path = figure_res_dir,
   plot = g,
   width = 7,
@@ -204,7 +204,8 @@ stargazer(
   align = TRUE,
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "METHOD"),
-  out = file.path(table_sens_dir, "DiagMethod_sensitivity.tex"),
+  # out = file.path(table_sens_dir, "Diagnostic_method.tex"),
+  out = here::here("Results", "Tables", "Diagnostic_method.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -244,7 +245,7 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]], nrow = 1)
 p
 
 ggsave(
-  filename = "diagnostic_method_sensitivity.pdf",
+  filename = "diagnostic_method_sensitivity.jpg",
   path = figure_fe_dir,
   plot = p,
   width = 9,
@@ -319,7 +320,9 @@ for (m in 1:length(modellist)) {
     yLab = "Prevalence (%)",
     title = mycollabs[m],
     yLim = c(-30, 10),
-    showYTitle = T
+    showYTitle = T,
+    plotmax_x = 2,
+    plotmax_y = 5
   ) +
     theme(plot.title = element_text(size = 10)) +
     geom_vline(
@@ -331,6 +334,15 @@ for (m in 1:length(modellist)) {
       xintercept = percentiles_list[[m]]$p99,
       colour = "grey39",
       linetype = "dashed"
+    ) +
+    annotate(
+      geom = "text",
+      x = 36,
+      y = 10,
+      vjust = -1,
+      label = paste0("italic(N) == ", percentiles_list[[m]]$n),
+      size = 3,
+      parse = TRUE
     )
 }
 
@@ -353,15 +365,6 @@ h_pre <- ggplot(data = pre_data, aes(x = temp)) +
     xintercept = percentiles_list[[1]]$p99,
     colour = "grey39",
     linetype = "dashed"
-  ) +
-  annotate(
-    geom = "text",
-    x = 36,
-    y = 0,
-    vjust = -1,
-    label = paste0("italic(N) == ", percentiles_list[[1]]$n),
-    size = 3,
-    parse = TRUE
   ) +
   xlim(Tmin - .0001, Tmax) +
   geom_vline(xintercept = 22, colour = "grey39") +
@@ -393,15 +396,6 @@ h_post <- ggplot(data = pos_data, aes(x = temp)) +
     colour = "grey39",
     linetype = "dashed"
   ) +
-  annotate(
-    geom = "text",
-    x = 36,
-    y = 0,
-    vjust = -1,
-    label = paste0("italic(N) == ", percentiles_list[[2]]$n),
-    size = 3,
-    parse = TRUE
-  ) +
   theme(
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
@@ -429,11 +423,11 @@ p = plot_grid(
   align = "v",
   rel_heights = c(15, 1)
 )
-# p
+p
 
 ggsave(
-  filename = "split_sample_1995.pdf",
-  path = figure_sub_dir,
+  filename = "Supp_Figure_split_sample_1995.jpg",
+  path = here::here("Results", "Figures"),
   plot = p,
   width = 10,
   height = 5
@@ -519,7 +513,7 @@ for (m in 1:length(modellist)) {
 # p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow=1)
 # p
 # ggsave(
-#   filename = "split_GBOD_2nd_poly.pdf",
+#   filename = "split_GBOD_2nd_poly.jpg",
 #   # path = figure_sub_dir,
 #   plot = p,
 #   width = 12,
@@ -609,7 +603,7 @@ p = plot_grid(
 
 # p
 ggsave(
-  filename = "split_GBOD_temp_hist.pdf",
+  filename = "split_GBOD_temp_hist.jpg",
   path = figure_sub_dir,
   plot = p,
   width = 12,
@@ -618,172 +612,173 @@ ggsave(
 
 ################################################################################
 # Overlay main spec and CIs with results from models with other FE ----
+# Moved to D01 as center panel
 ################################################################################
 
-Tref = 24
-int = 0.1
+# Tref = 24
+# int = 0.1
 
-plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
-xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
+# plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
+# xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
 
-# point estimate and CIs for main spec
-beta = mainmod$coefficients
-vars = rownames(beta)
-plotVars = vars[grepl(pattern = "temp", x = vars)]
-b = as.matrix(beta[rownames(beta) %in% plotVars])
-vcov = getVcov(mainmod$clustervcv, plotVars)
-response = as.matrix(xValsT) %*% b #Prediction
-length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
-lb = response - length
-ub = response + length
+# # point estimate and CIs for main spec
+# beta = mainmod$coefficients
+# vars = rownames(beta)
+# plotVars = vars[grepl(pattern = "temp", x = vars)]
+# b = as.matrix(beta[rownames(beta) %in% plotVars])
+# vcov = getVcov(mainmod$clustervcv, plotVars)
+# response = as.matrix(xValsT) %*% b #Prediction
+# length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
+# lb = response - length
+# ub = response + length
 
-#Plotgin dataframe -- add back in the reference temperature so it's centered at xRef
-plotData = data.frame(
-  x = xValsT[, 1] + Tref,
-  response = response,
-  lb = lb,
-  ub = ub
-)
-sub = plotData[plotData$x >= 10 & plotData$x <= 30, ]
-maxX = max(sub$x[sub$response == max(sub$response)])
+# #Plotgin dataframe -- add back in the reference temperature so it's centered at xRef
+# plotData = data.frame(
+#   x = xValsT[, 1] + Tref,
+#   response = response,
+#   lb = lb,
+#   ub = ub
+# )
+# sub = plotData[plotData$x >= 10 & plotData$x <= 30, ]
+# maxX = max(sub$x[sub$response == max(sub$response)])
 
-# point estimates for all other FE checks
-cym = as.formula(paste0(
-  common,
-  " | OBJECTID + year + month | 0 | ",
-  clustering
-))
-cXt2m = as.formula(paste0(
-  common,
-  " + ",
-  country_time,
-  " | OBJECTID  + month | 0 | ",
-  clustering
-))
-cXt2cXm = as.formula(paste0(
-  common,
-  " + ",
-  country_time,
-  " | OBJECTID + country:month | 0 | ",
-  clustering
-))
-cXt2intm = as.formula(paste0(
-  common,
-  " + ",
-  country_time,
-  " | OBJECTID  + intervention + month | 0 | ",
-  clustering
-))
-cXt2intcXm = as.formula(paste0(
-  common,
-  " + I(intervention) + ",
-  country_time,
-  " | OBJECTID  + country:month | 0 | ",
-  clustering
-))
-rXyrXm = as.formula(paste0(
-  common,
-  " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | ",
-  clustering
-))
-rXycXm = as.formula(paste0(
-  common,
-  " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | ",
-  clustering
-))
-rXyrXmcXt = as.formula(paste0(
-  common,
-  " + country:monthyr | ", 
-  "OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | ",
-  clustering
-))
-myforms = c(
-  cym,
-  cXt2m,
-  cXt2cXm,
-  cXt2intm,
-  cXt2intcXm,
-  rXyrXm,
-  rXycXm,
-  rXyrXmcXt
-)
-mycollabs = c(
-  "cym",
-  "cXt2m",
-  "cXt2cXm",
-  "cXt2intm",
-  "cXt2intcXm",
-  "rXyrXm",
-  "rXycXm",
-  "rXyrXmcXt"
-)
+# # point estimates for all other FE checks
+# cym = as.formula(paste0(
+#   common,
+#   " | OBJECTID + year + month | 0 | ",
+#   clustering
+# ))
+# cXt2m = as.formula(paste0(
+#   common,
+#   " + ",
+#   country_time,
+#   " | OBJECTID  + month | 0 | ",
+#   clustering
+# ))
+# cXt2cXm = as.formula(paste0(
+#   common,
+#   " + ",
+#   country_time,
+#   " | OBJECTID + country:month | 0 | ",
+#   clustering
+# ))
+# cXt2intm = as.formula(paste0(
+#   common,
+#   " + ",
+#   country_time,
+#   " | OBJECTID  + intervention + month | 0 | ",
+#   clustering
+# ))
+# cXt2intcXm = as.formula(paste0(
+#   common,
+#   " + I(intervention) + ",
+#   country_time,
+#   " | OBJECTID  + country:month | 0 | ",
+#   clustering
+# ))
+# rXyrXm = as.formula(paste0(
+#   common,
+#   " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | ",
+#   clustering
+# ))
+# rXycXm = as.formula(paste0(
+#   common,
+#   " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | ",
+#   clustering
+# ))
+# rXyrXmcXt = as.formula(paste0(
+#   common,
+#   " + country:monthyr | ",
+#   "OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | ",
+#   clustering
+# ))
+# myforms = c(
+#   cym,
+#   cXt2m,
+#   cXt2cXm,
+#   cXt2intm,
+#   cXt2intcXm,
+#   rXyrXm,
+#   rXycXm,
+#   rXyrXmcXt
+# )
+# mycollabs = c(
+#   "cym",
+#   "cXt2m",
+#   "cXt2cXm",
+#   "cXt2intm",
+#   "cXt2intcXm",
+#   "rXyrXm",
+#   "rXycXm",
+#   "rXyrXmcXt"
+# )
 
-# Run all robustness models
-modellist = list()
-i = 0
-for (m in myforms) {
-  i = i + 1
-  modellist[[i]] = felm(data = complete, formula = m)
-}
+# # Run all robustness models
+# modellist = list()
+# i = 0
+# for (m in myforms) {
+#   i = i + 1
+#   modellist[[i]] = felm(data = complete, formula = m)
+# }
 
-# loop over all other FE models, add to plotting dataframe
-for (mod in 1:length(modellist)) {
-  beta = modellist[[mod]]$coefficients
-  vars = rownames(beta)
-  plotVars = vars[grepl(pattern = "temp", x = vars)]
-  b = as.matrix(beta[rownames(beta) %in% plotVars])
-  response = as.data.frame(as.matrix(xValsT) %*% b)
-  colnames(response) = paste0(mycollabs[mod])
-  plotData = cbind(plotData, response)
-}
+# # loop over all other FE models, add to plotting dataframe
+# for (mod in 1:length(modellist)) {
+#   beta = modellist[[mod]]$coefficients
+#   vars = rownames(beta)
+#   plotVars = vars[grepl(pattern = "temp", x = vars)]
+#   b = as.matrix(beta[rownames(beta) %in% plotVars])
+#   response = as.data.frame(as.matrix(xValsT) %*% b)
+#   colnames(response) = paste0(mycollabs[mod])
+#   plotData = cbind(plotData, response)
+# }
 
-# reshape
-plotmain = plotData %>% dplyr::select(x, response, lb, ub)
-plotFE = plotData %>% dplyr::select(x, cym:rXyrXmcXt)
-plotFE = plotFE %>% gather(plotFE, response, cym:rXyrXmcXt)
-colnames(plotFE) = c("x", "model", "response")
+# # reshape
+# plotmain = plotData %>% dplyr::select(x, response, lb, ub)
+# plotFE = plotData %>% dplyr::select(x, cym:rXyrXmcXt)
+# plotFE = plotFE %>% gather(plotFE, response, cym:rXyrXmcXt)
+# colnames(plotFE) = c("x", "model", "response")
 
-# plot
-g = ggplot() +
-  geom_hline(yintercept = 0, color = "darkgrey", alpha = .5) +
-  geom_ribbon(
-    data = plotmain, # CIs main spec
-    mapping = aes(x, ymin = lb, ymax = ub),
-    alpha = 0.4,
-    fill = "#C1657C"
-  ) +
-  geom_line(
-    data = plotFE, # point estimate other specs
-    aes(x = x, y = response, group = model),
-    color = "seagreen",
-    alpha = 0.8
-  ) +
-  geom_line(
-    data = plotmain, # point estimate main spec
-    mapping = aes(x = x, y = response),
-    color = "black",
-    linewidth = 1
-  ) +
-  theme_classic() +
-  labs(
-    x = expression(paste("Mean temperature (", degree, "C)")),
-    y = "Prevalence (%)"
-  ) +
-  xlim(Tmin, Tmax) +
-  theme(
-    axis.title.x = element_text(vjust = -3),
-    axis.title.y = element_text(vjust = 5),
-    plot.margin = unit(c(0.3, 0.3, 1, 1), units = "cm")
-  )
-g
+# # plot
+# g = ggplot() +
+#   geom_hline(yintercept = 0, color = "darkgrey", alpha = .5) +
+#   geom_ribbon(
+#     data = plotmain, # CIs main spec
+#     mapping = aes(x, ymin = lb, ymax = ub),
+#     alpha = 0.4,
+#     fill = "#C1657C"
+#   ) +
+#   geom_line(
+#     data = plotFE, # point estimate other specs
+#     aes(x = x, y = response, group = model),
+#     color = "seagreen",
+#     alpha = 0.8
+#   ) +
+#   geom_line(
+#     data = plotmain, # point estimate main spec
+#     mapping = aes(x = x, y = response),
+#     color = "black",
+#     linewidth = 1
+#   ) +
+#   theme_classic() +
+#   labs(
+#     x = expression(paste("Mean temperature (", degree, "C)")),
+#     y = "Prevalence (%)"
+#   ) +
+#   xlim(Tmin, Tmax) +
+#   theme(
+#     axis.title.x = element_text(vjust = -3),
+#     axis.title.y = element_text(vjust = 5),
+#     plot.margin = unit(c(0.3, 0.3, 1, 1), units = "cm")
+#   )
+# g
 
-ggsave(
-  filename = "overlaid_specifications_Tresponse.pdf",
-  path = figure_fe_dir,
-  plot = g,
-  width = 4.5,
-  height = 5
-)
+# ggsave(
+#   filename = "overlaid_specifications_Tresponse.jpg",
+#   path = figure_fe_dir,
+#   plot = g,
+#   width = 4.5,
+#   height = 5
+# )
 
 ################################################################################
 # End of file ----

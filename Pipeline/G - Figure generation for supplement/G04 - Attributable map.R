@@ -137,20 +137,9 @@ supp_2 <- ggplot(cont) +
   )
 
 ggplot2::ggsave(
-  filename = "FigureS2.pdf",
+  filename = "Supp_Figure_attributable_map.jpg",
   plot = supp_2,
-  path = here::here("Figures"),
-  width = 9.53,
-  height = 10.07,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-ggplot2::ggsave(
-  filename = "FigureS2.jpg",
-  plot = supp_2,
-  path = here::here("Figures"),
+  path = here::here("Results", "Figures"),
   width = 9.53,
   height = 10.07,
   units = "in"

@@ -151,7 +151,8 @@ stargazer(
   align = TRUE,
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
-  out = file.path(table_sens_dir, "FixedEffects_sensitivity.tex"),
+  # out = file.path(table_sens_dir, "FixedEffects_sensitivity.tex"),
+  out = here::here("Results", "Tables", "FixedEffects_sensitivity.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -276,6 +277,47 @@ g = ggplot() +
     color = "grey39",
     size = 3
   ) +
+  annotate(
+    "curve",
+    x = 32,
+    xend = 35,
+    y = -17,
+    yend = -10,
+    arrow = arrow(length = unit(0.15, "cm"), type = "closed"),
+    color = "black",
+    linewidth = 0.4,
+    curvature = -0.3
+  ) +
+  annotate(
+    "text",
+    x = 28,
+    y = -20,
+    label = "main\nspecification",
+    size = 2.5,
+    hjust = 0,
+    color = "black"
+  ) +
+  # Arrow pointing to the other specifications (green lines)
+  annotate(
+    "curve",
+    x = 18,
+    xend = 13.5,
+    y = -17,
+    yend = -12,
+    arrow = arrow(length = unit(0.15, "cm"), type = "closed"),
+    color = "seagreen",
+    linewidth = 0.4,
+    curvature = 0.3
+  ) +
+  annotate(
+    "text",
+    x = 18,
+    y = -20,
+    label = "all other\nspecifications",
+    size = 2.5,
+    hjust = 0.5,
+    color = "seagreen"
+  ) +
   theme_classic() +
   labs(
     x = expression(paste("Mean temperature (", degree, "C)")),
@@ -288,7 +330,7 @@ g = ggplot() +
     text = element_text(size = 8),
     plot.title = element_text(size = 8)
   )
-# g
+g
 
 p = plot_grid(
   figList[[1]],
@@ -305,13 +347,12 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "panelFE_FE_sensitivity.pdf",
-  path = figure_fe_dir,
+  filename = "Supp_Figure_panelFE_FE_sensitivity.jpg",
+  path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
   height = 7
 )
-
 
 ################################################################################
 # Time controls ----
@@ -355,7 +396,7 @@ g = ggplot(data = complete, aes(x = datevar, PfPR2)) +
   facet_wrap(~smllrgn)
 
 ggsave(
-  filename = 'region_quad_trends.png',
+  filename = 'region_quad_trends.jpg',
   path = figure_fe_dir,
   plot = g,
   height = 6,
@@ -408,7 +449,7 @@ p = plot_grid(
 )
 
 ggsave(
-  filename = 'country_quad_trends_by_GBOD_region.pdf',
+  filename = 'country_quad_trends_by_GBOD_region.jpg',
   path = figure_fe_dir,
   plot = p,
   height = 10,
@@ -459,8 +500,8 @@ rlist = unique(complete$smllrgn)
 molist = unique(complete$month)
 
 avgbyregionmo = complete %>%
-  group_by(smllrgn, month) %>%
-  summarize(ymn = mean(PfPR2))
+  dplyr::group_by(smllrgn, month) %>%
+  dplyr::summarize(ymn = mean(PfPR2))
 toplot = left_join(complete, avgbyregionmo, by = c("smllrgn", "month"))
 toplot = toplot %>% mutate(monthnum = month(datevar))
 
@@ -473,7 +514,7 @@ g = ggplot(data = toplot, aes(x = monthnum, y = ymn)) +
 g
 
 ggsave(
-  filename = 'region_seasonality.png',
+  filename = 'region_seasonality.jpg',
   path = figure_fe_dir,
   plot = g,
   height = 6,
@@ -492,7 +533,7 @@ complete$residuals = main$residuals
 # residuals histogram
 g = ggplot(data = complete) + geom_histogram(aes(residuals)) + theme_classic()
 
-ggsave(filename = 'residuals_cXt2intrXm.png', path = figure_main_dir, plot = g)
+ggsave(filename = 'residuals_cXt2intrXm.jpg', path = figure_main_dir, plot = g)
 
 # residuals over time
 g = ggplot(data = complete, aes(x = datevar, y = residuals)) +
@@ -503,7 +544,7 @@ g = ggplot(data = complete, aes(x = datevar, y = residuals)) +
 g
 
 ggsave(
-  filename = 'residuals_cXt2intrXm_overtime.png',
+  filename = 'residuals_cXt2intrXm_overtime.jpg',
   path = figure_main_dir,
   plot = g
 )
@@ -520,7 +561,7 @@ g = ggplot(data = complete, aes(x = datevar, y = residuals)) +
 g
 
 ggsave(
-  filename = 'residuals_cXt2intrXm_overtime_by_region.png',
+  filename = 'residuals_cXt2intrXm_overtime_by_region.jpg',
   path = figure_main_dir,
   plot = g
 )
@@ -542,8 +583,8 @@ climate_data <- intermediate_CRU_adm1_fp |>
   dplyr::arrange(OBJECTID, monthyr)
 
 templags = climate_data %>%
-  group_by(OBJECTID) %>%
-  mutate(
+  dplyr::group_by(OBJECTID) %>%
+  dplyr::mutate(
     temp.lag = lag(temp, order_by = monthyr),
     temp.lag2 = lag(temp, order_by = monthyr, n = 2),
     temp.lag3 = lag(temp, order_by = monthyr, n = 3),
@@ -741,7 +782,11 @@ p = plot_grid(c, p1, p2, p3, nrow = 1)
 p
 
 cowplot::save_plot(
-  file.path(figure_temp_dir, "templags_cumulative_effects.pdf"),
+  filename = here::here(
+    "Results",
+    "Figures",
+    "Supp_Figure_templags_cumulative_effects.jpg"
+  ),
   p,
   ncol = 1,
   base_asp = 4
@@ -861,8 +906,8 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "temp_responses_drought_flood_sensitivity.pdf",
-  path = figure_df_dir,
+  filename = "Supp_Figure_temp_responses_drought_flood_sensitivity.jpg",
+  path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
   height = 10
@@ -909,8 +954,8 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "drought_responses_sensitivity.pdf",
-  path = figure_df_dir,
+  filename = "Supp_Figure_drought_responses_sensitivity.jpg",
+  path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
   height = 10
@@ -952,8 +997,8 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "flood_responses_sensitivity.pdf",
-  path = figure_df_dir,
+  filename = "Supp_Figure_flood_responses_sensitivity.jpg",
+  path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
   height = 10
@@ -1054,8 +1099,8 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
 p
 
 ggsave(
-  filename = "temperature_poly_order.pdf",
-  path = figure_tff_dir,
+  filename = "Supp_Figure_temperature_poly_order.jpg",
+  path = here::here("Results", "Figures"),
   plot = p,
   width = 10,
   height = 10
@@ -1142,8 +1187,8 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
 p
 
 ggsave(
-  filename = "precipitation_poly_order.pdf",
-  path = figure_df_dir,
+  filename = "Supp_Figure_precipitation_poly_order.jpg",
+  path = here::here("Results", "Figures"),
   plot = p,
   width = 10,
   height = 10

@@ -163,14 +163,12 @@ monthly_diff <- ggplot() +
 monthly_diff
 
 ggplot2::ggsave(
-  filename = "FigureS-monthly-diff.pdf",
+  filename = "Supp_Figure_monthly-diff.jpg",
   plot = monthly_diff,
-  path = here::here("Figures"),
+  path = here::here("Results", "Figures"),
   width = 7.42,
   height = 10.07,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
+  units = "in"
 )
 
 ################################################################################
@@ -317,7 +315,8 @@ region_peak_effect <- rgn_mean_diff_df |>
 
 kableExtra::save_kable(
   region_peak_effect,
-  file = file.path(hist_sum_dir, "monthly_differences.tex")
+  # file = file.path(hist_sum_dir, "monthly_differences.tex")
+  file = here::here("Results", "Tables", "monthly_differences.tex")
 )
 
 ################################################################################

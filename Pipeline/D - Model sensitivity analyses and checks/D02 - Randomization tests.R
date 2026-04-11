@@ -229,7 +229,7 @@ p <- ggplot(
 p
 
 ggsave(
-  filename = "coefficients_time_randomiz.pdf",
+  filename = "coefficients_time_randomize.jpg",
   path = figure_rand_dir,
   plot = p,
   width = 7,
@@ -246,7 +246,7 @@ p2 <- ggplot(
 p2
 
 ggsave(
-  filename = "coefficients_time_randomiz_TEMP2.pdf",
+  filename = "coefficients_time_randomiz_TEMP2.jpg",
   path = figure_rand_dir,
   plot = p2,
   width = 7,
@@ -262,7 +262,7 @@ p3 <- ggplot(data = toplot[toplot$pval == TRUE, ], aes(x = value)) +
 p3
 
 ggsave(
-  filename = "pVals_time_randomiz.pdf",
+  filename = "pVals_time_randomize.jpg",
   path = figure_rand_dir,
   plot = p3,
   width = 7,
