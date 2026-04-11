@@ -1,6 +1,6 @@
 ################################################################################
 # Use the following code to predict prevalence based on temperature and
-# precipitation data with coefficients estimated from 1,000 bootstrap models.
+# precipitation data with coefficients estimated from 1,000 bootstraps.
 # This code makes historical and future predictions based on 5 climate
 # scenarios and 10 climate models. The code uses N cores to parallelize, which
 # is chosen by the user. The code saves the predictions in feather format for
@@ -21,6 +21,7 @@ pacman::p_load(
   zoo,
   here,
   terra,
+  arrow,
   future,
   tidyverse,
   lubridate,
@@ -28,7 +29,6 @@ pacman::p_load(
   future.apply
 )
 
-overwrite <- TRUE
 n_cores <- min(10, future::availableCores())
 options(future.globals.maxSize = 6 * 1024^3)
 
@@ -36,10 +36,29 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 ################################################################################
+# Choose model coeffs ----
+################################################################################
+
+# model_version <- "era5"
+# model_version <- "vcov"
+model_version <- "cru"
+
+if (model_version == "cru") {
+  precip_fp <- precip_CRU_adm1_fp
+  boot_fp <- boot_mod_full_fn
+} else if (model_version == "vcov") {
+  precip_fp <- precip_CRU_adm1_fp
+  boot_fp <- vcov_sample_mod_full_fn
+} else if (model_version == "era5") {
+  precip_fp <- precip_ERA5_adm1_fp
+  boot_fp <- boot_mod_full_ERA5_fn
+}
+
+################################################################################
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "E01_predict_prev.log")
+log_file_path <- file.path(logs_dir, "E01_pred_prev.log")
 
 log_msg <- create_logger(log_file_path)
 
@@ -47,13 +66,15 @@ log_msg("Starting script `E01 - Predict prevalence.R`")
 
 log_msg(paste0("Using ", n_cores, " CPUs"))
 
+log_msg(paste0("Predicting with ", model_version, " model"))
+
 ################################################################################
 # Precipitation thresholds ----
 ################################################################################
 
 log_msg("Loading the precipitation")
 
-precip_dt <- precip_CRU_adm1_fp |>
+precip_dt <- precip_fp |>
   data.table::fread()
 
 data.table::setnames(
@@ -100,19 +121,19 @@ gbod_dt <- gbd_fp |>
 spatial_dt <- gbod_dt[country_dt, on = "country", nomatch = NULL]
 
 ################################################################################
-# Bootstrap coefficients ----
+# Coefficients ----
 ################################################################################
 
-log_msg("Loading bootstrap coeffs")
+log_msg(paste0("Loading", model_version, "coeffs"))
 
-bootstrap <- boot_mod_full_fn |>
+coeffs_complete <- boot_fp |>
   readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
 # Loop over modes ----
 ################################################################################
 
-future::plan(multisession, workers = n_cores)
+future::plan(multicore, workers = n_cores)
 
 for (mode in c("historical", "future")) {
   # mode <- "historical"
@@ -126,13 +147,13 @@ for (mode in c("historical", "future")) {
     scen_subset <- names(historical_scenario_names)
     prediction_dir <- hist_pred_dir
     summary_dir <- hist_sum_dir
-    row_years <- c(yr_bins[["1901"]], yr_bins[["2014"]])
+    row_years <- c(yr_1901, yr_2014)
   } else {
     start_date <- lubridate::ymd("2015-01-01")
     scen_subset <- names(future_scenario_names)
     prediction_dir <- fut_pred_dir
     summary_dir <- fut_sum_dir
-    row_years <- c(yr_bins[["2015"]], yr_bins[["2050"]], yr_bins[["2100"]])
+    row_years <- c(yr_2015, yr_2050, yr_2100)
   }
 
   log_msg("Predictions will be saved to: ")
@@ -211,76 +232,142 @@ for (mode in c("historical", "future")) {
   ]
 
   ##############################################################################
-  ## Save metadata ----
-  meta_path <- file.path(prediction_dir, "RowMetadata.feather")
-  if (!file.exists(meta_path) | overwrite) {
-    log_msg("Saving metadata to save on prediction file size")
-    meta <- dt[, .(
-      scenario,
-      model,
-      region,
-      ISO,
-      country,
-      OBJECTID,
-      year,
-      month,
-      monthyr
-    )]
+  ## Metadata ----
+  meta <- dt[, .(
+    scenario,
+    model,
+    region,
+    ISO,
+    country,
+    OBJECTID,
+    year,
+    month,
+    monthyr
+  )]
 
-    meta |> arrow::write_feather(meta_path)
-    meta <- meta[, .(OBJECTID, year, month, scenario, model, region)]
-  }
+  rows <- which((meta$scenario %in% scen_subset) & (meta$year %in% row_years))
 
   ##############################################################################
-  ## Apply model coefficients ----
+  ## Make predictions ----
   log_msg("Computing predictions")
 
-  future.apply::future_lapply(
+  iter.list <- future.apply::future_lapply(
     1:1001,
     function(i) {
-      file_name <- paste0("iter_", i, ".feather")
-      file_path <- file.path(prediction_dir, file_name)
+      # Prediction ----
+      coef <- coeffs_complete[i, ]
 
-      if (!file.exists(file_path) | overwrite) {
-        coef <- bootstrap[i, ]
+      Pf.temp <- coef$temp * dt$temp + coef$temp2 * dt$temp2
 
-        Pf.temp <- coef$temp * dt$temp + coef$temp2 * dt$temp2
+      Pf.flood <- (coef[["flood"]] *
+        dt$flood +
+        coef[["flood.lag"]] * dt$flood.lag +
+        coef[["flood.lag2"]] * dt$flood.lag2 +
+        coef[["flood.lag3"]] * dt$flood.lag3)
 
-        Pf.flood <- (coef[["flood"]] *
-          dt$flood +
-          coef[["flood.lag"]] * dt$flood.lag +
-          coef[["flood.lag2"]] * dt$flood.lag2 +
-          coef[["flood.lag3"]] * dt$flood.lag3)
+      Pf.drought <- (coef[["drought"]] *
+        dt$drought +
+        coef[["drought.lag"]] * dt$drought.lag +
+        coef[["drought.lag2"]] * dt$drought.lag2 +
+        coef[["drought.lag3"]] * dt$drought.lag3)
 
-        Pf.drought <- (coef[["drought"]] *
-          dt$drought +
-          coef[["drought.lag"]] * dt$drought.lag +
-          coef[["drought.lag2"]] * dt$drought.lag2 +
-          coef[["drought.lag3"]] * dt$drought.lag3)
+      Pf.prec <- Pf.flood + Pf.drought
+      Pred <- Pf.temp + Pf.prec
 
-        Pf.prec <- Pf.flood + Pf.drought
-        Pred <- Pf.temp + Pf.prec
+      pred_data <- data.table::data.table(
+        Pred = Pred,
+        Pf.temp = Pf.temp,
+        Pf.flood = Pf.flood,
+        Pf.drought = Pf.drought,
+        run = coef$model
+      )
 
-        pred_data <- data.table::data.table(
-          Pred = Pred,
-          Pf.temp = Pf.temp,
-          Pf.flood = Pf.flood,
-          Pf.drought = Pf.drought,
-          run = coef$model
-        )
+      pred_data[, names(meta) := meta]
+      pred_data[, run := as.character(run)]
 
-        pred_data |> arrow::write_feather(file_path)
+      # Summaries ----
+      # Scenario, model, and year ----
+      scen_mod_yr <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, run)
+      ]
+      # Scenario, model, year, and region ----
+      scen_mod_yr_reg <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, region, run)
+      ]
+      # Scenario, model, year, month, and region ----
+      scen_mod_yr_mon_reg <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, month, region, run)
+      ]
+      # Scenario, model, year, and adm1 ----
+      pred_data <- pred_data[rows, ]
+      pred_data$year[pred_data$year %in% yr_1901] <- 1901
+      pred_data$year[pred_data$year %in% yr_2014] <- 2014
+      pred_data$year[pred_data$year %in% yr_2015] <- 2015
+      pred_data$year[pred_data$year %in% yr_2050] <- 2050
+      pred_data$year[pred_data$year %in% yr_2100] <- 2100
 
-        if (i %% 100 == 0) {
-          log_msg(paste0("Completed iteration: ", i))
-        }
+      scen_mod_yr_obj <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, OBJECTID, run)
+      ]
 
-      } else {
-        NULL
+      if (i %% 100 == 0) {
+        log_msg(paste0("Completed iteration: ", i))
       }
+
+      return(
+        list(
+          scen_mod_yr = scen_mod_yr,
+          scen_mod_yr_reg = scen_mod_yr_reg,
+          scen_mod_yr_mon_reg = scen_mod_yr_mon_reg,
+          scen_mod_yr_obj = scen_mod_yr_obj
+        )
+      )
     },
     future.seed = NULL
   )
+
+  summaries <- c(
+    "scen_mod_yr",
+    "scen_mod_yr_reg",
+    "scen_mod_yr_mon_reg",
+    "scen_mod_yr_obj"
+  )
+
+  for (sum_type in summaries) {
+    out_path <- file.path(
+      summary_dir,
+      paste0(mode, "_", model_version, "_pred_sum_", sum_type, ".feather")
+    )
+    compiled <- rbindlist(lapply(iter.list, `[[`, sum_type))
+    arrow::write_feather(compiled, out_path)
+    log_msg(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
+  }
+  rm(data, dt, meta, iter.list, compiled)
+  gc()
 }
 
 future::plan(sequential)
@@ -290,4 +377,3 @@ log_msg("Script `E01 - Predict prevalence.R` completed successfully")
 ################################################################################
 # End of file ----
 ################################################################################
-

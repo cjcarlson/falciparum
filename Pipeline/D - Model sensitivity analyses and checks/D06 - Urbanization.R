@@ -162,7 +162,7 @@ combined_plot <- t +
 
 ggplot2::ggsave(
   filename = "urban_sensitivity.pdf",
-  path = figure_diag_urban_dir,
+  path = figure_urban_dir,
   plot = combined_plot,
   width = 7,
   height = 2.5,

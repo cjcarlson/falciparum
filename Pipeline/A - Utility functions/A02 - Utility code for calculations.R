@@ -1,6 +1,6 @@
 ################################################################################
-# Utility functions for calculations including climate data extraction, 
-# precipitation extremes, correlation analysis, and R0 computations. Core helper 
+# Utility functions for calculations including climate data extraction,
+# precipitation extremes, correlation analysis, and R0 computations. Core helper
 # functions used throughout the analysis pipeline. Should be sourced after A01.
 ################################################################################
 # Start ----
@@ -582,7 +582,7 @@ create_logger <- function(log_file = NULL) {
   if (!is.null(log_file)) {
     log_dir <- dirname(log_file)
     if (!dir.exists(log_dir)) {
-      dir.create(log_dir, recursive = TRUE)
+      dir.create(log_dir, showWarnings = FALSE, recursive = TRUE)
     }
   }
 
@@ -593,6 +593,7 @@ create_logger <- function(log_file = NULL) {
     if (!is.null(log_file)) {
       cat(formatted_msg, "\n", file = log_file, append = TRUE)
     }
+    flush.console()
   }
 }
 
@@ -621,9 +622,14 @@ make_temp_terms <- function(n_lags = 0, n_leads = 0) {
 make_lag_form <- function(n_lags = 0, n_leads = 0) {
   temp_terms <- make_temp_terms(n_lags, n_leads)
   as.formula(paste0(
-    "PfPR2 ~ ", temp_terms, " + ",
-    floodvars, " + ", droughtvars,
-    " + I(intervention) + ", country_time,
+    "PfPR2 ~ ",
+    temp_terms,
+    " + ",
+    floodvars,
+    " + ",
+    droughtvars,
+    " + I(intervention) + ",
+    country_time,
     " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
   ))
 }
@@ -669,6 +675,103 @@ baseline_adjust_summarize <- function(
       lower = quantile(!!var_sym, lower_prob, na.rm = TRUE),
       .groups = "drop"
     )
+}
+
+################################################################################
+# calc_hist_diff ----
+################################################################################
+
+calc_hist_regional_diff <- function(data, region_name = NULL) {
+  if (!is.null(region_name)) {
+    data <- data %>% dplyr::filter(region == region_name)
+  }
+
+  bm <- data |>
+    dplyr::filter(year %in% 1900:1930) |>
+    dplyr::group_by(model, scenario, run) |>
+    dplyr::summarize(BetaMean = mean(Pred, na.rm = TRUE))
+
+  df <- data |>
+    dplyr::left_join(bm) |>
+    dplyr::mutate(Pred = Pred - BetaMean) |>
+    dplyr::select(-BetaMean)
+
+  df2 <- df |>
+    dplyr::filter(year %in% 2010:2014) |>
+    dplyr::select(model, run, year, Pred, scenario) |>
+    tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
+    dplyr::group_by(model, run) |>
+    dplyr::summarize(
+      `hist-nat` = mean(`hist-nat`),
+      historical = mean(historical)
+    )
+
+  diff <- df2$historical - df2$`hist-nat`
+
+  results <- tibble::tibble(
+    MeanDifference = mean(diff),
+    ScaledMeanDifference = 100000 * mean(diff) / 100,
+    Quantile_025 = quantile(diff, 0.025),
+    Quantile_975 = quantile(diff, 0.975),
+    ProportionPositive = prop.table(table(diff > 0))["TRUE"]
+  ) |>
+    dplyr::mutate(dplyr::across(where(is.numeric), ~ round(., 4)))
+
+  if (!is.null(region_name)) {
+    results <- results %>% dplyr::mutate(Region = region_name)
+  } else {
+    results <- results %>%
+      dplyr::mutate(Region = "Sub-Saharan Africa (continent-wide)")
+  }
+}
+
+################################################################################
+# calc_future_regional_diff ----
+################################################################################
+
+calc_future_regional_diff <- function(data, region_name = NULL) {
+  if (!is.null(region_name)) {
+    data <- data |> filter(region == region_name)
+  }
+
+  bm <- data |>
+    filter(year %in% 2015:2020) |>
+    group_by(model, scenario, run) |>
+    summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
+
+  df <- data |>
+    left_join(bm, by = c("model", "scenario", "run")) |>
+    mutate(Pred = Pred - BetaMean) |>
+    select(-BetaMean)
+
+  results <- bind_rows(
+    df |>
+      filter(year %in% 2048:2052) |>
+      mutate(period = "2048-2052"),
+    df |>
+      filter(year %in% 2096:2100) |>
+      mutate(period = "2096-2100")
+  ) |>
+    group_by(run, model, scenario, period) |>
+    summarize(Pred = mean(Pred), .groups = "drop") |>
+    group_by(scenario, period) |>
+    summarize(
+      mean = mean(Pred),
+      lower = quantile(Pred, 0.025),
+      upper = quantile(Pred, 0.975),
+      prop_positive = mean(Pred > 0),
+      n_positive = sum(Pred > 0),
+      n_total = n(),
+      .groups = "drop"
+    )
+
+  if (!is.null(region_name)) {
+    results <- results |> mutate(region = region_name)
+  } else {
+    results <- results |> mutate(region = "Sub-Saharan Africa (continent-wide)")
+  }
+
+  return(results)
 }
 
 print("Finished loading A01 - Utility code for calculations.R")

@@ -1,102 +1,140 @@
+############################################################
+# This script makes 
+############################################################
+# Set up ----
+############################################################
 
-library(sf)
-library(here)
-library(tidyverse)
-library(patchwork)
-library(colorspace)
-library(multiscales)
+rm(list = ls())
 
-###########################################################################.
-###########################################################################.
-###########################################################################.
-###########################################################################.
-###########################################################################.
-###########################################################################.
-###########################################################################.
+if (!require("pacman")) {
+  install.packages("pacman")
+}
 
+# packages
+pacman::p_load(
+  sf,
+  here,
+  patchwork,
+  tidyverse,
+  colorspace,
+  data.table
+)
+
+# source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+# source(A_utils_plot_fp)
 
-cont <- sf::read_sf(file.path(data_dir, 'Data', 'AfricaADM1.shp'))|> 
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
+################################################################################
+# Hist delta map data ----
+################################################################################
 
-iter.df <- here::here("TempFiles", "Fig3Big.feather")|> 
-  arrow::read_feather() |> 
-  dplyr::filter(year == 2014) |> 
-  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |> 
+# log_msg("Loading historical_cru_pred_sum_scen_mod_yr_obj.feather")
+
+hist_scen_mod_yr_adm1_pred <- file.path(
+  hist_sum_dir,
+  "historical_cru_pred_sum_scen_mod_yr_obj.feather"
+) |>
+  arrow::read_feather() |>
+  dplyr::mutate(
+    model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
+  ) |>
+  dplyr::select(scenario, model, year, OBJECTID, Pred, run) |>
+  dplyr::filter(year == 2014)
+
+# log_msg("Calculating ADM1 mean difference")
+
+main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
+  dplyr::filter(run == "main", ) |>
+  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
   dplyr::mutate(diff = (historical - `hist-nat`)) |>
   dplyr::group_by(OBJECTID) |>
+  dplyr::summarize(mean.diff = mean(diff))
+
+# log_msg("Calculating ADM1 confidence interval")
+
+boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
+  dplyr::filter(run != "main") |>
+  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
+  dplyr::mutate(diff = (historical - `hist-nat`), ) |>
+  dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
-    mean.diff = mean(diff, na.rm = TRUE), 
+    runs.diff = sum(diff > 0),
     lower.diff = quantile(diff, 0.05, na.rm = TRUE),
-    upper.diff = quantile(diff, 0.95, na.rm = TRUE)
-  ) 
+    upper.diff = quantile(diff, 0.95, na.rm = TRUE),
+  ) |>
+  dplyr::left_join(main_2010_2014) |>
+  dplyr::mutate(
+    OBJECTID = factor(OBJECTID),
+    moe = 1 - abs(runs.diff - 5000) / 5000
+  )
 
-cont <- dplyr::left_join(cont, iter.df)
+# log_msg("Add summarized data to ADM1 map data")
 
-ggplot(cont) + 
+cont <- ADM1_fp |>
+  sf::read_sf() |>
+  dplyr::left_join(boots_2010_2014, by = join_by(OBJECTID))
+
+g1 <- ggplot(cont) +
   geom_sf(aes(fill = mean.diff), color = "gray30", size = 0.05) +
-  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) + 
+  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
   scale_fill_continuous_divergingx(palette = "Geyser", na.value = "white") +
-  labs(fill = "Change (%)") + 
-  theme_void() + 
+  labs(fill = "Change (%)") +
+  theme_void() +
   theme(
     legend.position = "inside",
     legend.position.inside = c(0.15, 0.25)
-  ) ->
-  g1
+  )
 
-cont |>
-  mutate(sign = as.numeric(lower.diff > 0) + -1*as.numeric(upper.diff < 0)) |>
-  mutate(sign = factor(sign)) -> cont
+cont <- cont |>
+  mutate(sign = as.numeric(lower.diff > 0) + -1 * as.numeric(upper.diff < 0)) |>
+  mutate(sign = factor(sign))
 
-ggplot(cont) + 
+g2 <- ggplot(cont) +
   geom_sf(aes(fill = sign), color = "gray30", size = 0.05) +
-  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) + 
+  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
   scale_fill_manual(
-    values = c("#00AFBB","grey80","#fa5340"),
-    labels = c('Decline','Insignificant','Increase'),
-    na.value = "white", na.translate = F) +
-  labs(fill = "Significance") + 
-  theme_void() + 
+    values = c("#00AFBB", "grey80", "#fa5340"),
+    labels = c('Decline', 'Insignificant', 'Increase'),
+    na.value = "white",
+    na.translate = F
+  ) +
+  labs(fill = "Significance") +
+  theme_void() +
   theme(
     legend.position = "inside",
-    legend.position.inside =   c(0.15, 0.25)
-  )-> 
-  g2 
+    legend.position.inside = c(0.15, 0.25)
+  )
 
-g1 + g2 
+g1 + g2
 
 ### Supplemental Figure 2
 
-cont |>
+cont <- cont |>
   mutate(sign = as.numeric(lower.diff > 0) + as.numeric(upper.diff < 0)) |>
   mutate(sign = replace_na(sign, 0)) |>
   arrange(-sign) |>
-  mutate(sign = as.factor(sign)) -> 
-  cont
+  mutate(sign = as.factor(sign))
 
-cont |> 
+top <- cont |>
   select(sign) |>
   filter(sign == 1) |>
   st_make_valid() |>
   st_union() |>
   st_make_valid() |>
-  st_union() -> 
-  top
+  st_union()
 
 supp_2 <- ggplot(cont) +
   geom_sf(aes(fill = mean.diff), color = 'grey70', size = 0.05) +
-  coord_sf(datum = NA,
-           xlim = c(-17.5, 52),
-           ylim = c(-35.5, 37.5)) +
+  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
   theme_void() +
   scale_fill_continuous_divergingx(palette = "Geyser", na.value = "white") +
-  labs(fill = "Prevalence (%)")+
+  labs(fill = "Prevalence (%)") +
   geom_sf(data = top, color = 'black', size = 0.25, fill = NA) +
   theme(
     legend.position = "inside",
     legend.position.inside = c(0.25, 0.35)
-  ) 
+  )
 
 ggplot2::ggsave(
   filename = "FigureS2.pdf",

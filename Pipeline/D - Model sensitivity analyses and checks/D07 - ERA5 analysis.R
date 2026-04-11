@@ -59,8 +59,8 @@ log_msg("Starting script `D07 - ERA5 analysis.R`")
 
 log_msg("Loading analysis ready data")
 
-era5_prev_data <- analysis_ready_ERA5_adm1_fp |> 
-  readr::read_rds() |> 
+era5_prev_data <- analysis_ready_ERA5_adm1_fp |>
+  readr::read_rds() |>
   tidyr::drop_na()
 
 ################################################################################
@@ -146,7 +146,7 @@ log_msg("Save temperature response plot")
 
 ggplot2::ggsave(
   filename = "temp_response_ERA5_cXt2intrXm.pdf",
-  path = figure_diag_era5_dir,
+  path = figure_era5_dir,
   plot = fig,
   width = 7,
   height = 7,
@@ -467,7 +467,7 @@ h_inset <- ggplot() +
 h_grob <- ggplotGrob(h_inset)
 
 # Add histogram to main plot
-g_with_hist <- g +
+temp_with_hist <- g +
   annotation_custom(
     h_grob,
     xmin = Tmin,
@@ -483,7 +483,7 @@ g_with_hist <- g +
     plot.margin = unit(c(0.0, 0.0, 1, 0), units = "cm"),
   )
 
-g_with_hist
+temp_with_hist
 
 ################################################################################
 # Lagged drought and flood responses ----
@@ -556,7 +556,7 @@ custom_stats <- rain |>
 
 log_msg("Make Fig 2.B - flood")
 
-f = ggplot() +
+flood_plot = ggplot() +
   theme_bw() +
   geom_hline(
     yintercept = 0,
@@ -599,7 +599,7 @@ f = ggplot() +
     plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm")
   ) +
   ylim(min_max)
-f
+flood_plot
 
 ################################################################################
 # Drought plot ----
@@ -607,7 +607,7 @@ f
 
 log_msg("Make Fig 2.C - drought")
 
-d = ggplot() +
+drought_plot = ggplot() +
   theme_bw() +
   geom_hline(
     yintercept = 0,
@@ -655,7 +655,7 @@ d = ggplot() +
     expand = expansion(c(0, 0)),
     breaks = seq(-6, 4, by = 2)
   )
-d
+drought_plot
 
 ################################################################################
 # Intervention plot ----
@@ -741,7 +741,7 @@ intervention_fig
 
 log_msg("Combine and save")
 
-top_row <- (g_with_hist + f + d + intervention_fig) +
+top_row <- (temp_with_hist + flood_plot + drought_plot + intervention_fig) +
   plot_layout(ncol = 4, widths = c(5, 5, 5, 2))
 
 f2 <- top_row + plot_annotation(tag_levels = 'A')
@@ -771,7 +771,9 @@ ggsave(
 # Temperature overlay plot ----
 ################################################################################
 
-t1 = plotPolynomialResponse_2_mod(
+log_msg("Make temp plot")
+
+temp_overlay_plot = plotPolynomialResponse_2_mod(
   cru_sub_mod,
   "temp",
   plotXtemp,
@@ -788,13 +790,15 @@ t1 = plotPolynomialResponse_2_mod(
   model2_name = "ERA5",
   fillcolor2 = "grey50"
 )
-t1
+temp_overlay_plot
 
 ################################################################################
 # Drought plot ----
 ################################################################################
 
-d1 <- plotLinearLags_2_mod(
+log_msg("Make drought plot")
+
+drought_linear_lags_plot <- plotLinearLags_2_mod(
   mod = cru_sub_mod,
   model1_name = "CRU subset",
   patternForPlotVars = "drought",
@@ -807,13 +811,15 @@ d1 <- plotLinearLags_2_mod(
   mod2 = era5_mod,
   model2_name = "ERA5"
 )
-d1
+drought_linear_lags_plot
 
 ################################################################################
 # Flood plot ----
 ################################################################################
 
-f1 <- plotLinearLags_2_mod(
+log_msg("Make flood plot")
+
+flood_linear_lags_plot <- plotLinearLags_2_mod(
   mod = cru_sub_mod,
   model1_name = "CRU subset",
   patternForPlotVars = "flood",
@@ -826,15 +832,15 @@ f1 <- plotLinearLags_2_mod(
   mod2 = era5_mod,
   model2_name = "ERA5"
 )
-f1
+flood_linear_lags_plot
 
 ################################################################################
 # Combine plots ----
 ################################################################################
 
-combined_plot1 <- t1 +
-  d1 +
-  f1 +
+combined_plot1 <- temp_overlay_plot +
+  drought_linear_lags_plot +
+  flood_linear_lags_plot +
   plot_layout(ncol = 3, guides = "collect") &
   theme(
     axis.text = element_text(size = 8),
@@ -850,11 +856,13 @@ combined_plot1
 # Save plot ----
 ################################################################################
 
+log_msg("Saving CRU vs ERA5 temp, flood, and drought responses")
+
 ggsave(
   # filename = "temp_drought_flood_cXt2intrXm_w_CRU_and_ERA5.pdf",
   filename = "temp_drought_flood_cXt2intrXm_w_CRU_and_ERA5.jpg",
-  # path = figure_diag_era5_dir,
-  path = here::here("Figures"),
+  path = figure_era5_dir,
+  # path = here::here("Figures"),
   plot = combined_plot1,
   width = 7,
   height = 2.5,
@@ -943,7 +951,7 @@ ggplot2::ggsave(
   filename = "CRU_v_ERA5_ADM1_scatter.jpg",
   plot = side_by_side,
   # path = here::here("Figures"),
-  path = figure_diag_era5_dir,
+  path = figure_era5_dir,
   width = 9,
   height = 4.5
 )

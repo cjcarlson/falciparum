@@ -25,18 +25,34 @@ sf::sf_use_s2(FALSE)
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 
 ################################################################################
+# Set up logging ----
+################################################################################
+
+log_file_path <- file.path(logs_dir, "F01_prev_map_ts.log")
+
+log_msg <- create_logger(log_file_path)
+
+log_msg("Starting script `F01 - Prev maps and TS.R`")
+
+################################################################################
 # Load data ----
 ################################################################################
 
-cont <- ADM1_fp |> 
+log_msg("Load the spatial data")
+
+cont <- ADM1_fp |>
   sf::st_read() |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
 
-gbod <- gbd_fp |> sf::read_sf()
+gbod <- sf::read_sf(gbd_fp)
+
+log_msg("Load the prevalence data")
 
 prev_sf <- prev_DB_fp |>
   readr::read_csv() |>
   sf::st_as_sf(coords = c("Long", "Lat"), crs = st_crs(cont))
+
+log_msg("Join the prevalence and spatial data")
 
 cont$meanprev <- sf::st_join(cont, prev_sf) |>
   dplyr::group_by(OBJECTID) |>
@@ -47,18 +63,26 @@ cont$npts <- sf::st_intersects(cont, prev_sf) |>
   lengths()
 
 ################################################################################
-# Top row of plot ----
+# Left side of plot ----
 ################################################################################
 
-map.n <- ggplot() +
+log_msg("Plot the number of samples map")
+
+map_n_samples_plot <- ggplot() +
   geom_sf(data = cont, aes(fill = npts), color = NA) +
   coord_sf(datum = NA, xlim = c(-19, 53)) +
   theme_void() +
   theme(legend.position = c(0.2, 0.3)) +
-  scale_fill_gradientn('Samples', colours = viridisLite::mako(100), trans = "log10") +
-  guides(fill = guide_colourbar(ticks = FALSE)) 
+  scale_fill_gradientn(
+    'Samples',
+    colours = viridisLite::mako(100),
+    trans = "log10"
+  ) +
+  guides(fill = guide_colourbar(ticks = FALSE))
 
-map.p <- ggplot(cont) +
+log_msg("Plot the mean prevalence map")
+
+map_mean_prev_plot <- ggplot(cont) +
   geom_sf(aes(fill = meanprev), color = NA) +
   coord_sf(datum = NA, xlim = c(-19, 53)) +
   theme_void() +
@@ -70,11 +94,13 @@ map.p <- ggplot(cont) +
   ) +
   guides(fill = guide_colourbar(ticks = FALSE))
 
-top <- map.n + map.p
+top <- map_n_samples_plot + map_mean_prev_plot
 
 ################################################################################
-# Bottom row of plot ----
+# Right side of plot ----
 ################################################################################
+
+log_msg("Plot the regional time series of prevalence")
 
 o <- sf::st_join(prev_sf, gbod)
 
@@ -91,17 +117,7 @@ df <- bind_rows(df2, df)
 
 df <- df |>
   dplyr::filter(!is.na(region)) |>
-  dplyr::mutate(
-    region = dplyr::recode(
-      region,
-      !!!c(
-        'Sub-Saharan Africa (Central)' = 'Central Africa',
-        'Sub-Saharan Africa (East)' = 'East Africa',
-        'Sub-Saharan Africa (Southern)' = 'Southern Africa',
-        'Sub-Saharan Africa (West)' = 'West Africa'
-      )
-    )
-  ) |>
+  dplyr::mutate(region = dplyr::recode(region, !!!region_names[2:5])) |>
   dplyr::mutate(
     region = factor(
       region,
@@ -113,7 +129,7 @@ df <- df |>
         'West Africa'
       )
     )
-  ) 
+  )
 
 ts <- df |>
   ggplot(aes(x = monthyr, y = `PfPR2-10`)) +
@@ -145,7 +161,7 @@ ts <- df |>
   ylab(expression(paste(
     italic("falciparum"),
     " malaria prevalence, ages 2-10 (%)"
-  ))) 
+  )))
 
 ts
 
@@ -153,7 +169,9 @@ ts
 # Save plot ----
 ################################################################################
 
-p1 <- ((map.n / map.p) | ts) +
+log_msg("Save the plot")
+
+p1 <- ((map_n_samples_plot / map_mean_prev_plot) | ts) +
   patchwork::plot_layout(widths = c(1.5, 1)) +
   patchwork::plot_annotation(tag_levels = 'A')
 
@@ -177,6 +195,8 @@ ggplot2::ggsave(
   height = 10,
   units = "in"
 )
+
+log_msg("Script `F01 - Prev maps and TS.R` completed successfully")
 
 ################################################################################
 # End of file ----

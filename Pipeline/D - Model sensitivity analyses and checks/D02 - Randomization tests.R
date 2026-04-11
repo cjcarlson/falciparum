@@ -228,7 +228,7 @@ p
 
 ggsave(
   filename = "coefficients_time_randomiz.pdf",
-  path = figure_diag_rand_dir,
+  path = figure_rand_dir,
   plot = p,
   width = 7,
   height = 9
@@ -245,7 +245,7 @@ p2
 
 ggsave(
   filename = "coefficients_time_randomiz_TEMP2.pdf",
-  path = figure_diag_rand_dir,
+  path = figure_rand_dir,
   plot = p2,
   width = 7,
   height = 9
@@ -261,7 +261,7 @@ p3
 
 ggsave(
   filename = "pVals_time_randomiz.pdf",
-  path = figure_diag_rand_dir,
+  path = figure_rand_dir,
   plot = p3,
   width = 7,
   height = 9

@@ -1,6 +1,6 @@
 ################################################################################
-# Configuration file for the malaria attribution pipeline. This script sets up 
-# all file paths, directories, model parameters, and constants used throughout 
+# Configuration file for the malaria attribution pipeline. This script sets up
+# all file paths, directories, model parameters, and constants used throughout
 # the analysis. It should be sourced at the beginning of each pipeline script.
 ################################################################################
 # Setup ----
@@ -19,8 +19,8 @@ data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
-  user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-delta-meth/data'),
-  # user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-country5yr/data'),
+  # user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-delta-meth/data'),
+  user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication-country5yr/data'),
   TRUE ~ NA_character_
 )
 
@@ -41,11 +41,11 @@ print(paste0("repository directory set to: ", repo_dir))
 ################################################################################
 # Model formula ----
 # Main specification formula. See other files for robustness/sensitivity checks.
-# Set clustering year range (country-yr groups) 
+# Set clustering year range (country-yr groups)
 ################################################################################
 
-# yr_bin_size <- 10 
-yr_bin_size <- 5 
+# yr_bin_size <- 10
+yr_bin_size <- 5
 
 clust_label <- paste0("country_x_", yr_bin_size, "yr")
 
@@ -56,8 +56,8 @@ droughtvars <- "drought + drought.lag + drought.lag2 + drought.lag3"
 common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
 country_time <- "country:monthyr + country:monthyr2"
 
-# clustering <- "OBJECTID" 
-clustering <- "cntry_yrbin" 
+# clustering <- "OBJECTID"
+clustering <- "cntry_yrbin"
 
 cXt2intrXm <- as.formula(
   paste0(
@@ -74,8 +74,8 @@ cXt2intrXm <- as.formula(
 # Choose the minimum and maximum for range of temperature for x axis
 ################################################################################
 
-Tmin = 10 
-Tmax = 40 
+Tmin = 10
+Tmax = 40
 
 ################################################################################
 # Utility files ----
@@ -128,20 +128,8 @@ elevation_fp <- file.path(
 climate_dir <- file.path(input_dir, "climate")
 climate_cru_dir <- file.path(climate_dir, "CRU_TS403")
 climate_bc_cmip6_dir <- file.path(climate_dir, "bc_CMIP6")
-
-era5_dir <- file.path(
-  "/global",
-  "scratch",
-  "projects",
-  "co_carleton",
-  "carleton_colab",
-  "data",
-  "1_era5",
-  "temp_and_prec_monthly_single_levels_1940-2026"
-)
-
-temp_fp <- file.path(era5_dir, "2m_temperature.grib")
-prec_fp <- file.path(era5_dir, "Total_precipitation.grib")
+climate_era5_dir <- file.path(climate_dir, "ERA5_monthly_single_levels_1940-2026")
+climate_gwl_dir <- file.path(climate_dir, "GWL")
 
 ################################################################################
 # CRU data (input) ----
@@ -162,8 +150,11 @@ cru_pre_fp <- file.path(
 # ERA5 data (input) ----
 ################################################################################
 
-era5_tmp_dir <- file.path(era5_dir, "t2m_tiff")
-era5_pre_dir <- file.path(era5_dir, "prec_nc")
+temp_fp <- file.path(climate_era5_dir, "2m_temperature.grib")
+prec_fp <- file.path(climate_era5_dir, "Total_precipitation.grib")
+
+# era5_tmp_dir <- file.path(climate_era5_dir, "t2m_tiff")
+# era5_pre_dir <- file.path(climate_era5_dir, "prec_nc")
 
 ################################################################################
 # Prevalence data (input) ----
@@ -189,8 +180,8 @@ inter_cmip6_pred_dir <- file.path(inter_dir, "CMIP6_predict")
 inter_cmip6_sum_dir <- file.path(inter_dir, "CMIP6_summary")
 inter_era5_ex_dir <- file.path(inter_dir, "ERA5_extract")
 hist_pred_dir <- file.path(inter_cmip6_pred_dir, "historical")
-hist_sum_dir <- file.path(inter_cmip6_sum_dir, "historical")
 fut_pred_dir <- file.path(inter_cmip6_pred_dir, "future")
+hist_sum_dir <- file.path(inter_cmip6_sum_dir, "historical")
 fut_sum_dir <- file.path(inter_cmip6_sum_dir, "future")
 
 dir.create(climate_prc_key_dir, showWarnings = FALSE, recursive = TRUE)
@@ -254,32 +245,36 @@ dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
 ################################################################################
 
 figure_dir <- file.path(results_dir, "figures")
-figure_main_dir <- file.path(figure_dir, "main")
+figure_main_dir <- file.path(figure_dir, "main_specification")
+figure_supp_dir <- file.path(figure_dir, "supplemental")
 # figure_diag_dir <- file.path(figure_dir, "diagnostics")
-figure_diag_sub_dir <- file.path(figure_dir, "subsamples")
-figure_diag_res_dir <- file.path(figure_dir, "residuals")
-figure_diag_fe_dir <- file.path(figure_dir, "fixed_effects")
-figure_diag_temp_dir <- file.path(figure_dir, "temp_lags")
-figure_diag_df_dir <- file.path(figure_dir, "drought_flood_defn")
-figure_diag_tff_dir <- file.path(figure_dir, "temp_functional_form")
-figure_diag_rand_dir <- file.path(figure_dir, "randomization_tests")
-figure_diag_grid_dir <- file.path(figure_dir, "grid_level")
-figure_diag_urban_dir <- file.path(figure_dir, "urbanization")
-figure_diag_era5_dir <- file.path(figure_dir, "era5")
+figure_sub_dir <- file.path(figure_dir, "subsamples")
+figure_res_dir <- file.path(figure_dir, "residuals")
+figure_fe_dir <- file.path(figure_dir, "fixed_effects")
+figure_temp_dir <- file.path(figure_dir, "temp_lags")
+figure_df_dir <- file.path(figure_dir, "drought_flood_defn")
+figure_tff_dir <- file.path(figure_dir, "temp_functional_form")
+figure_rand_dir <- file.path(figure_dir, "randomization_tests")
+figure_grid_dir <- file.path(figure_dir, "grid_level")
+figure_urban_dir <- file.path(figure_dir, "urbanization")
+figure_era5_dir <- file.path(figure_dir, "era5")
+figure_vcov_dir <- file.path(figure_dir, "vcov")
 
 dir.create(figure_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figure_main_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_supp_dir, showWarnings = FALSE, recursive = TRUE)
 # dir.create(figure_diag_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_sub_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_res_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_fe_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_temp_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_df_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_tff_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_rand_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_grid_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_urban_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(figure_diag_era5_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_sub_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_res_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_fe_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_temp_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_df_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_tff_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_rand_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_grid_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_urban_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_era5_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(figure_vcov_dir, showWarnings = FALSE, recursive = TRUE)
 
 ################################################################################
 # Model directories ----
@@ -317,6 +312,10 @@ boot_mod_full_fn <- file.path(model_boot_dir, "block_bootstrap_cXt2intrXm.csv")
 boot_mod_full_ERA5_fn <- file.path(
   model_boot_dir,
   "block_bootstrap_ERA5_cXt2intrXm.csv"
+)
+vcov_sample_mod_full_fn <- file.path(
+  model_boot_dir,
+  "vcov_sample_cXt2intrXm.csv"
 )
 
 scramble_time_fp <- file.path(model_rand_dir, "scramble_time_placebo.rds")
@@ -411,7 +410,6 @@ future_scenario_names <- c(
 
 region_formulas <- purrr::map2(
   names(region_names),
-  names(region_names),
   unname(region_names),
   rlang::new_formula
 )
@@ -427,20 +425,6 @@ yr_2014 <- 2010:2014
 yr_2015 <- 2015:2019
 yr_2050 <- 2048:2052
 yr_2100 <- 2096:2100
-
-# Year bins — defined once, reused everywhere
-yr_bins <- list(
-  "1901" = 1901:1905,
-  "2014" = 2010:2014,
-  "2015" = 2015:2019,
-  "2050" = 2048:2052,
-  "2100" = 2096:2100
-)
-
-# Build a named lookup vector: original_year -> bin_year
-yr_lookup <- unlist(lapply(names(yr_bins), function(nm) {
-  setNames(rep(as.integer(nm), length(yr_bins[[nm]])), yr_bins[[nm]])
-}))
 
 print("Finished loading A01 - Configuration.R")
 

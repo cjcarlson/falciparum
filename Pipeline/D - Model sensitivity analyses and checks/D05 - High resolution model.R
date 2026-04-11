@@ -186,7 +186,7 @@ combined_plot1
 
 ggsave(
   filename = "temp_drought_flood_cXt2intrXm_w_adm1_and_high_res.pdf",
-  path = figure_diag_grid_dir,
+  path = figure_grid_dir,
   # path = here::here("Figures"),
   plot = combined_plot1,
   width = 7,

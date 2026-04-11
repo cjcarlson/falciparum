@@ -15,7 +15,7 @@ if (!require("pacman")) {
 pacman::p_load(
   sf,
   here,
-  reshape,
+  # reshape,
   tidyverse,
   lubridate,
   patchwork
@@ -28,56 +28,81 @@ source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
 ################################################################################
-# Load data ----
+# Set up logging ----
 ################################################################################
 
-iter.df <- file.path(
+log_file_path <- file.path(logs_dir, "F03_hist_map_temp_el_ts.log")
+
+log_msg <- create_logger(log_file_path)
+
+log_msg("Starting script `F03 - Hist map, temp, elev, and TS.R`")
+
+################################################################################
+# Hist delta map data ----
+################################################################################
+
+log_msg("Loading historical_cru_pred_sum_scen_mod_yr_obj.feather")
+
+hist_scen_mod_yr_adm1_pred <- file.path(
   hist_sum_dir,
-  "historical_pred_sum_scen_mod_yr_obj.feather"
+  "historical_cru_pred_sum_scen_mod_yr_obj.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(
     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
   ) |>
   dplyr::select(scenario, model, year, OBJECTID, Pred, run) |>
-  dplyr::filter(run != "main")
-
-slices <- iter.df |>
   dplyr::filter(year == 2014)
 
-slices.runs <- slices |>
+log_msg("Calculating ADM1 mean difference")
+
+main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
+  dplyr::filter(run == "main",) |>
   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
   dplyr::mutate(diff = (historical - `hist-nat`)) |>
-  dplyr::select(-c(historical, `hist-nat`, year))
+  dplyr::group_by(OBJECTID) |>
+  dplyr::summarize(mean.diff = mean(diff))
 
-slice.map1 <- slices.runs |>
-  dplyr::ungroup() |>
+log_msg("Calculating ADM1 confidence interval")
+
+boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
+  dplyr::filter(run != "main") |>
+  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
+  dplyr::mutate(diff = (historical - `hist-nat`), ) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
-    mean.diff = mean(diff),
     runs.diff = sum(diff > 0),
     lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
     lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
   ) |>
-  dplyr::mutate(OBJECTID = factor(OBJECTID))
+  dplyr::left_join(main_2010_2014) |>
+  dplyr::mutate(
+    OBJECTID = factor(OBJECTID),
+    moe = 1 - abs(runs.diff - 5000) / 5000
+  )
 
-### ADD THE MAP
+log_msg("Add summarized data to ADM1 map data")
+
 sfcont <- ADM1_fp |>
   sf::read_sf() |>
-  dplyr::left_join(slice.map1, by = join_by(OBJECTID)) |>
-  dplyr::mutate(moe = 1 - abs(runs.diff - 5000) / 5000)
+  dplyr::left_join(boots_2010_2014, by = join_by(OBJECTID))
+
+################################################################################
+# End of hist (2010-2014) delta plot ----
+################################################################################
+
+log_msg("Plot the historical map")
 
 colors <- scales::colour_ramp(
-  colors = c(red = "#AC202F", purple = "#740280", blue = "#2265A3")
-)((0:7) / 7)
-
-colors <- rev(colors)
-
-################################################################################
-# Plot the map ----
-################################################################################
+  colors = c(
+    red = "#AC202F",
+    purple = "#740280",
+    blue = "#2265A3"
+  )
+)((0:7) / 7) |>
+  rev()
 
 map.diff <- ggplot(sfcont) +
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
@@ -105,16 +130,11 @@ map.diff <- ggplot(sfcont) +
   ) +
   theme_void() +
   theme(
-    # legend.key.width = unit(0.5, "cm"),
-    # legend.key.height = unit(0.5, "cm"),
     plot.title = element_text(hjust = 0.5, margin = margin(r = 10)),
     plot.subtitle = element_text(hjust = 0.5),
     legend.title = element_text(hjust = 0.5),
     legend.position = c(0.18, 0.3),
-    # legend.position = "inside",
-    # legend.position.inside = c(0.18, 0.3),
     legend.key.size = grid::unit(0.8, "cm"),
-    # legend.title.align = 0.5,
     plot.margin = margin(0, 0, 0, 0)
   )
 
@@ -122,35 +142,29 @@ map.diff <- ggplot(sfcont) +
 # Elevation and temperature ----
 ################################################################################
 
-# Get the stuff
+log_msg("Load elevation and CRU temperature data")
+
 elev <- elevation_fp |>
   readr::read_csv(show_col_types = FALSE) |>
   dplyr::select(OBJECTID, elevmn) |>
-  mutate(OBJECTID = factor(OBJECTID))
+  dplyr::mutate(OBJECTID = factor(OBJECTID))
 
-cont <- ADM1_fp |>
-  sf::read_sf()
-
-temp <- intermediate_CRU_adm1_fp |>
-  readr::read_csv(show_col_types = FALSE)
-
-tmean <- temp |>
-  filter(year %in% c(1901:1930)) |>
-  group_by(OBJECTID) |>
-  summarize(t = mean(temp, na.rm = TRUE)) |>
-  mutate(OBJECTID = factor(OBJECTID))
+tmean <- intermediate_CRU_adm1_fp |>
+  readr::read_csv(show_col_types = FALSE) |>
+  dplyr::filter(year %in% c(1901:1930)) |>
+  dplyr::group_by(OBJECTID) |>
+  dplyr::summarize(t = mean(temp, na.rm = TRUE)) |>
+  dplyr::mutate(OBJECTID = factor(OBJECTID))
 
 ################################################################################
 # Significance ----
 ################################################################################
 
-df <- slice.map1 |>
-  left_join(elev) |>
-  left_join(tmean)
-
 # Generate a nice little significance color scheme
-df <- df |>
-  mutate(
+df <- boots_2010_2014 |>
+  dplyr::left_join(elev) |>
+  dplyr::left_join(tmean) |>
+  dplyr::mutate(
     sign = as.numeric(lower.diff.90 > 0) + -1 * as.numeric(upper.diff.90 < 0),
     sign = factor(sign)
   )
@@ -164,6 +178,8 @@ df_sig <- df %>% filter(sign != 0)
 # This version orders the colors such that the grey lines are plotted first
 # then the red and blue lines are plotted on top.
 ################################################################################
+
+log_msg("Plot the average temperature")
 
 temp_plot <- ggplot() +
   geom_errorbar(
@@ -228,6 +244,8 @@ temp_plot <- ggplot() +
 # then the red and blue lines are plotted on top.
 ################################################################################
 
+log_msg("Plot the elevation")
+
 elev_plot <- ggplot() +
   geom_errorbar(
     data = df_non_sig,
@@ -289,11 +307,13 @@ elev_plot <- ggplot() +
 # Regional time series data ----
 ################################################################################
 
+log_msg("load the regional time series data")
+
 historical_pred <- file.path(
   hist_sum_dir,
-  "historical_pred_sum_scen_mod_yr_reg.feather"
+  "historical_cru_pred_sum_scen_mod_yr_reg.feather"
 ) |>
-  arrow::read_feather() |> 
+  arrow::read_feather() |>
   data.table::as.data.table()
 
 hist_main <- historical_pred[run == "main"] |>
@@ -316,7 +336,7 @@ hist_boot <- historical_pred[run != "main"] |>
     confidence_level = 0.90
   ) |>
   dplyr::filter(year > 1901) |>
-  dplyr::select(-c(median)) |>
+  dplyr::select(-c(median, mean)) |>
   dplyr::left_join(hist_main) |>
   dplyr::mutate(
     scenario = factor(scenario, levels = names(historical_scenario_names))
@@ -331,12 +351,13 @@ hist_boot <- historical_pred[run != "main"] |>
 # Regional time series plot ----
 ################################################################################
 
-bottom <- ggplot(
+log_msg("Plot the regional time series data")
+
+regional_ts_plot <- ggplot(
   data = hist_boot,
   aes(x = year, group = scenario, color = scenario, fill = scenario)
 ) +
-  geom_line(aes(y = median), lwd = 1.25) +
-  # geom_ribbon(aes(ymin=lower, ymax=upper, fill = scenario), color = NA, alpha = 0.1) +
+  geom_line(aes(y = mean), lwd = 1.25) +
   geom_ribbon(
     aes(ymin = lower, ymax = upper, colour = scenario),
     fill = NA,
@@ -371,7 +392,9 @@ bottom <- ggplot(
 # Compile and save plot ----
 ################################################################################
 
-fig3 <- (map.diff + temp_plot + elev_plot + bottom) +
+log_msg("Compile plots and save")
+
+fig3 <- (map.diff + temp_plot + elev_plot + regional_ts_plot) +
   patchwork::plot_layout(design = fig_3_4_layout) +
   patchwork::plot_annotation(tag_levels = 'A') &
   theme(plot.tag = element_text(size = 23))
@@ -395,6 +418,8 @@ ggsave(
   height = 10.07,
   units = "in",
 )
+
+log_msg("Script `F03 - Hist map, temp, elev, and TS.R` completed successfully")
 
 ################################################################################
 # End of file ----

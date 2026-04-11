@@ -1,109 +1,79 @@
+################################################################################
+# This script
+################################################################################
+# Set up ----
+################################################################################
 
-########################################################################
-# This script plots the main prevalence-temperature dose-response function 
-# as well as its uncertainty over 1,000 bootstrap samples 
-########################################################################
+rm(list = ls())
+
+if (!require("pacman")) {
+  install.packages("pacman")
+}
 
 # packages
-library(lfe)
-library(zoo)
-library(here)
-library(reshape)
-library(cowplot)
-library(tidyverse)
-library(lubridate)
+pacman::p_load(here, tidyverse)
 
 # source functions from previous script
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
-source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
+source(A_utils_plot_fp)
 
-########################################################################
-# A. Read in saved regression results
-########################################################################
+################################################################################
+# Model coefficients ----
+################################################################################
 
-# load main model (full sample)
-main <- file.path(data_dir, "Results", "Models", "coefficients_cXt2intrXm.rds") |>
-  readRDS()
-coefs <- main[,1]
-names(coefs) <- rownames(main)
-main <- as.data.frame(t(as.matrix(coefs)))
+# log_msg("Load model coefficients")
 
-# function to compute optimal temp for each run
-optT <- function(beta1, beta2){
-  opt = -beta1/(2*beta2)
-  return(opt)
-}
+all_mods <- boot_mod_full_fn |>
+  readr::read_csv(show_col_types = FALSE)
 
-# load bootstraps into one dataframe
-df = as.data.frame(main)
-df$model = "main"
+################################################################################
+# Prepare temperature response data ----
+################################################################################
 
-files = list.files(file.path(data_dir, "Results","Models","bootstrap"))
-stop = length(files)-1
-files=files[1:stop]
+# log_msg("Prepare the temperature spaghetti data")
 
-for(f in 1:length(files)){
-  tmp = readRDS(file.path(data_dir, "Results","Models","bootstrap",files[f]))
-  tmp = as.data.frame(tmp)
-  tmp$model = paste0("boot",f)
-  df = df %>% add_row(as.data.frame(tmp))
-} 
-
-########################################################################
-# C. Spaghetti plot of estimated T response functions
-########################################################################
-
-#setup 
+conf_level <- 0.90
 Tref = 24
 Tmin = 10
 Tmax = 40
 int = 0.1
-plotXtemp = cbind(seq(Tmin,Tmax,by=int), seq(Tmin,Tmax,by=int)^2)
-xValsT = genRecenteredXVals_polynomial(plotXtemp,Tref,2)
+plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
+xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
 
-# point estimate
-main = subset(df, model=="main")
-b = as.matrix(c(main$temp, main$temp2))
-response = as.matrix(xValsT) %*% b #Prediction
+# collect bootstrap results as a list, then row-bind once
+boot_list <- vector("list", nrow(all_mods))
 
-plotData = data.frame(x = xValsT[,1] + Tref, response = response)
+for (mod in seq_len(nrow(all_mods))) {
+  sub <- all_mods[mod, ]
+  b <- as.matrix(c(sub$temp, sub$temp2))
+  boot_response <- as.numeric(as.matrix(xValsT) %*% b)
 
-#plotData$model = "main"    
+  boot_list[[mod]] <- data.frame(
+    x = xValsT[, 1] + Tref,
+    model = sub$model,
+    response = boot_response
+  )
 
-# loop over all bootstraps, add to dataframe
-
-for(mod in 1:dim(df)[1]){
-  sub = df[mod,]
-  b = as.matrix(c(sub$temp,sub$temp2))
-  boot = as.data.frame(as.matrix(xValsT) %*% b)
-  colnames(boot) = paste0("boot",mod)
-  plotData = cbind(plotData, boot)
-  
-  if(mod %% 100 == 0) {
-    message(sprintf('--------- DONE WITH ITERATION %d of 1000 --------', mod))
+  if (mod %% 100 == 0) {
+    print(paste0("--------- DONE WITH ITERATION ", mod, " of 1000 --------"))
   }
 }
 
-# reshape
-colnames(plotData)[3] = "boot1"
-plotData = plotData %>% gather(plotData, response, boot1:boot1001)  
-colnames(plotData) = c("temp", "model","response")  
+plotData <- data.table::rbindlist(boot_list)
 
 ########################################################################
-########################################################################
+#
 ########################################################################
 
-plotData %>% 
-  group_by(model) %>%
-  filter(response == max(response)) -> 
-  temps
+temps <- plotData |>
+  dplyr::group_by(model) |>
+  dplyr::filter(response == max(response))
 
 print(temps)
 
-temps %>% 
-  filter(!(model=='boot1')) %>% 
-  pull(temp) -> 
-  temps
+temps <- temps |>
+  dplyr::filter(model != "main") |>
+  dplyr::pull(x)
 
 print(fivenum(temps))
 

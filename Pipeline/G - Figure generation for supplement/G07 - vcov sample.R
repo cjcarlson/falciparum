@@ -32,11 +32,11 @@ source(A_utils_plot_fp)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "F02_coeff_and_ts.log")
+log_file_path <- file.path(logs_dir, "G07_vcov_sample.R.log")
 
 log_msg <- create_logger(log_file_path)
 
-log_msg("Starting script `F02 - Coeff and TS.R`")
+log_msg("Starting script `G07 - vcov sample.R`")
 
 ################################################################################
 # Load data ----
@@ -53,7 +53,7 @@ complete <- analysis_ready_CRU_adm1_fp |>
 
 log_msg("Load model coefficients")
 
-all_mods <- boot_mod_full_fn |>
+all_mods <- vcov_sample_mod_full_fn |>
   readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
@@ -82,7 +82,6 @@ for (mod in seq_len(nrow(all_mods))) {
     x = xValsT[, 1] + Tref,
     model = sub$model,
     response = boot_response
-    # n = sub$n
   )
 
   if (mod %% 100 == 0) {
@@ -499,7 +498,7 @@ log_msg("Load and prepare historical projections")
 
 historical_pred <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr.feather"
+  "historical_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
   arrow::read_feather()
 
@@ -534,7 +533,7 @@ log_msg("Load and prepare future projections")
 
 future_pred <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr.feather"
+  "future_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
   arrow::read_feather()
 
@@ -647,9 +646,10 @@ top_row <- (temp_w_hist_plot + flood_plot + drought_plot + intervention_plot) +
 f2 <- top_row / yearly_ts_plot + plot_annotation(tag_levels = 'A')
 
 ggsave(
-  filename = "Figure2.pdf",
+  filename = "Figure2_vcov.pdf",
   plot = f2,
-  path = here::here("Figures"),
+  # path = here::here("Figures"),
+  path = figure_vcov_dir,
   width = 10.32,
   height = 7.69,
   units = "in",
@@ -658,15 +658,16 @@ ggsave(
 )
 
 ggsave(
-  filename = "Figure2.jpg",
+  filename = "Figure2_vcov.jpg",
   plot = f2,
-  path = here::here("Figures"),
+  # path = here::here("Figures"),
+  path = figure_vcov_dir,
   width = 10.32,
   height = 7.69,
   units = "in"
 )
 
-log_msg("Script `F02 - Coeff and TS.R` completed successfully")
+log_msg("Script `G07 - vcov sample.R` completed successfully")
 
 ################################################################################
 # End of file ----

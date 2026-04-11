@@ -162,7 +162,7 @@ box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels = "auto")
 box
 ggsave(
   filename = "residuals_ALL_boxplot.png",
-  path = figure_diag_res_dir,
+  path = figure_res_dir,
   plot = box,
   width = 5,
   height = 5
@@ -830,7 +830,7 @@ uncert = plot_grid(
 
 ggsave(
   filename = "temp_response_conley_difft_SEs.pdf",
-  path = figure_diag_res_dir,
+  path = figure_res_dir,
   plot = uncert,
   width = 10,
   height = 10
@@ -909,7 +909,7 @@ g
 
 ggsave(
   filename = "model_residuals.pdf",
-  pat = figure_diag_res_dir,
+  pat = figure_res_dir,
   plot = g,
   width = 7,
   height = 7
@@ -1011,7 +1011,7 @@ uncert = plot_grid(
 
 ggsave(
   filename = "temp_response_countryyr_difft_SEs.pdf",
-  path = figure_diag_res_dir,
+  path = figure_res_dir,
   plot = uncert,
   width = 10,
   height = 10

@@ -1,7 +1,7 @@
 ################################################################################
-# Utility functions for plotting polynomial response curves, linear lag effects, 
-# and visualization of regression results. Contains helper functions for 
-# variance calculations and recentering. Should be sourced after 
+# Utility functions for plotting polynomial response curves, linear lag effects,
+# and visualization of regression results. Contains helper functions for
+# variance calculations and recentering. Should be sourced after
 # A01 - Configuration.R.
 ################################################################################
 # Setup ----
@@ -36,8 +36,8 @@ getVcov = function(vcv, vars) {
 ################################################################################
 
 genRecenteredXVals_polynomial = function(xVals, xRef, polyOrder, lag = NA) {
-  ### This function generates X values that are recentered around value xRef. 
-  ### The output of this function can be passed to plotPolynomialResponse to 
+  ### This function generates X values that are recentered around value xRef.
+  ### The output of this function can be passed to plotPolynomialResponse to
   ### generate recentered polynomial response functions
   ### xVals are the x values you want to pass to your plotting function
   ### xRef is the reference value you want to recenter around
@@ -119,12 +119,13 @@ plotPolynomialResponse <- function(
   # yLim = c(-30, 5)
   # showYTitle = T
   # ci_level = 0.95
-  
+
   # Handle different model types
   if (inherits(mod, "felm")) {
-    beta = mod$coefficients 
+    beta = mod$coefficients
     vars = rownames(beta)
-  } else if (inherits(mod, "fixest")) {  # feols returns objects of class "fixest"
+  } else if (inherits(mod, "fixest")) {
+    # feols returns objects of class "fixest"
     beta = mod$coefficients
     vars = names(beta)
     # Convert to matrix format to maintain compatibility with rest of code
@@ -137,15 +138,15 @@ plotPolynomialResponse <- function(
     beta = as.matrix(beta)
     rownames(beta) = vars
   }
-  
+
   #Get the variables that we're plotting
-  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)] 
-  
+  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
+
   # Recenter Xs so predictions are relative to the reference T
-  xValsT = genRecenteredXVals_polynomial(xVals,xRef,polyOrder,lag)
-  
+  xValsT = genRecenteredXVals_polynomial(xVals, xRef, polyOrder, lag)
+
   #Get the estimated variance covariance matrix
-  if (cluster==T) {
+  if (cluster == T) {
     if (inherits(mod, "fixest")) {
       # For feols/fixest models, use vcov() function
       vcov_full = vcov(mod)
@@ -156,7 +157,7 @@ plotPolynomialResponse <- function(
     }
   } else {
     if (inherits(mod, "fixest")) {
-      vcov_full = vcov(mod, se = "iid")  # Get non-clustered vcov
+      vcov_full = vcov(mod, se = "iid") # Get non-clustered vcov
       vcov = getVcov(vcov_full, plotVars)
     } else {
       vcov = getVcov(mod$vcv, plotVars)
@@ -166,9 +167,9 @@ plotPolynomialResponse <- function(
   b = as.matrix(beta[rownames(beta) %in% plotVars])
 
   n = nrow(xValsT)
-  
+
   z_crit <- qnorm(1 - (1 - ci_level) / 2)
-  
+
   # 4) see if there are any interactions:
   if (any(grepl(":", plotVars))) {
     # build two design matrices, one for urban=0 (“rural”) and one for urban=1
@@ -339,9 +340,9 @@ plotPolynomialResponseSimple = function(
   yLim = c(-1, 1),
   showYTitle = T
 ) {
-  ### same as plotPolynomialResponse(), but input is not a model 
+  ### same as plotPolynomialResponse(), but input is not a model
   ### but the actual set of coefficients, and no SE are plotted
-  ### temporary function until I can figure out how to get the 
+  ### temporary function until I can figure out how to get the
   ### right SEs on the cumulative effects
 
   beta = coefs ##See if this works
@@ -535,31 +536,39 @@ plotLinearLags_urban = function(
 
 # For D05
 plotPolynomialResponse_2_mod = function(
-  mod, 
-  patternForPlotVars, 
-  xVals, 
-  polyOrder, 
-  lag = NA, 
-  plotmax = T, 
-  cluster = T, 
-  xRef = 0, 
-  fillcolor = "#C1657C", 
-  xLab, 
-  yLab, 
-  title = "title", 
-  yLim = c(-1, 1), 
+  mod,
+  patternForPlotVars,
+  xVals,
+  polyOrder,
+  lag = NA,
+  plotmax = T,
+  cluster = T,
+  xRef = 0,
+  fillcolor = "#C1657C",
+  xLab,
+  yLab,
+  title = "title",
+  yLim = c(-1, 1),
   showYTitle = T,
   mod2 = NULL,
   model1_name = "Model 1",
   model2_name = "Model 2",
-  fillcolor2 = "#43A7BA"
+  fillcolor2 = "#43A7BA",
+  x_adjust = 4
 ) {
-  
   # Function to extract polynomial response data for a single model
-  extractPolynomialData = function(model, pattern, xValues, polyOrd, lagVal, clusterFlag, xReference) {
+  extractPolynomialData = function(
+    model,
+    pattern,
+    xValues,
+    polyOrd,
+    lagVal,
+    clusterFlag,
+    xReference
+  ) {
     # Handle different model types
     if (inherits(model, "felm")) {
-      beta = model$coefficients 
+      beta = model$coefficients
       vars = rownames(beta)
     } else if (inherits(model, "fixest")) {
       beta = model$coefficients
@@ -572,13 +581,13 @@ plotPolynomialResponse_2_mod = function(
       beta = as.matrix(beta)
       rownames(beta) = vars
     }
-    
+
     # Get the variables that we're plotting
-    plotVars = vars[grepl(pattern = pattern, x = vars)] 
-    
+    plotVars = vars[grepl(pattern = pattern, x = vars)]
+
     # Recenter Xs so predictions are relative to the reference T
     xValsT = genRecenteredXVals_polynomial(xValues, xReference, polyOrd, lagVal)
-    
+
     # Get the estimated variance covariance matrix
     if (clusterFlag == T) {
       if (inherits(model, "fixest")) {
@@ -595,82 +604,140 @@ plotPolynomialResponse_2_mod = function(
         vcov = getVcov(model$vcv, plotVars)
       }
     }
-    
+
     b = as.matrix(beta[rownames(beta) %in% plotVars])
-    
+
     response = as.matrix(xValsT) %*% b
-    length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
-    
+    length = 1.96 *
+      sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
+
     lb = response - length
     ub = response + length
-    
+
     # Return data with x recentered to xRef
     return(data.frame(
-      x = xValsT[,1] + xReference, 
-      response = response, 
-      lb = lb, 
+      x = xValsT[, 1] + xReference,
+      response = response,
+      lb = lb,
       ub = ub
     ))
   }
-  
+
   # Extract data for first model
-  plotData1 = extractPolynomialData(mod, patternForPlotVars, xVals, polyOrder, lag, cluster, xRef)
+  plotData1 = extractPolynomialData(
+    mod,
+    patternForPlotVars,
+    xVals,
+    polyOrder,
+    lag,
+    cluster,
+    xRef
+  )
   plotData1$model = model1_name
-  
+
   # If second model provided, extract its data too
   if (!is.null(mod2)) {
-    plotData2 = extractPolynomialData(mod2, patternForPlotVars, xVals, polyOrder, lag, cluster, xRef)
+    plotData2 = extractPolynomialData(
+      mod2,
+      patternForPlotVars,
+      xVals,
+      polyOrder,
+      lag,
+      cluster,
+      xRef
+    )
     plotData2$model = model2_name
     plotData = rbind(plotData1, plotData2)
   } else {
     plotData = plotData1
   }
-  
+
   # Calculate maximum points for vertical lines if needed
   if (plotmax == T) {
     sub1 = plotData1[plotData1$x >= 10 & plotData1$x <= 30, ]
     maxX1 = max(sub1$x[sub1$response == max(sub1$response)])
-    
+
     if (!is.null(mod2)) {
       sub2 = plotData2[plotData2$x >= 10 & plotData2$x <= 30, ]
       maxX2 = max(sub2$x[sub2$response == max(sub2$response)])
     }
   }
-  
+
   # Create the plot
   if (is.null(mod2)) {
     # Single model plot (original behavior)
     if (sum(is.na(yLim)) > 0) {
-      g = ggplot(data = plotData) + 
+      g = ggplot(data = plotData) +
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = fillcolor) +
-        geom_line(mapping = aes(x = x, y = response), color = "black", linewidth = 1) + 
+        geom_ribbon(
+          aes(x, ymin = lb, ymax = ub),
+          alpha = 0.4,
+          fill = fillcolor
+        ) +
+        geom_line(
+          mapping = aes(x = x, y = response),
+          color = "black",
+          linewidth = 1
+        ) +
         theme_classic() +
         labs(x = xLab, y = yLab) +
         ggtitle(title)
     } else {
-      g = ggplot(data = plotData) + 
+      g = ggplot(data = plotData) +
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = fillcolor) +
-        geom_line(mapping = aes(x = x, y = response), color = "black", linewidth = 1) +
+        geom_ribbon(
+          aes(x, ymin = lb, ymax = ub),
+          alpha = 0.4,
+          fill = fillcolor
+        ) +
+        geom_line(
+          mapping = aes(x = x, y = response),
+          color = "black",
+          linewidth = 1
+        ) +
         theme_classic() +
         labs(x = xLab, y = yLab) +
-        coord_cartesian(ylim = yLim) + 
+        coord_cartesian(ylim = yLim) +
         ggtitle(title)
     }
-    
+
     if (plotmax == T) {
-      g = g + geom_vline(mapping = aes(xintercept = maxX1), linetype = "solid", color = "grey39") +
-        annotate(geom = "text", x = maxX1 + 3, y = 5, label = paste0(maxX1, " C"), color = "grey39")
+      g = g +
+        geom_vline(
+          mapping = aes(xintercept = maxX1),
+          linetype = "solid",
+          color = "grey39"
+        ) +
+        annotate(
+          geom = "text",
+          x = maxX1 + 3,
+          y = 5,
+          label = paste0(maxX1, " C"),
+          color = "grey39"
+        )
     }
-    
   } else {
     # Two model plot
     if (sum(is.na(yLim)) > 0) {
-      g = ggplot(data = plotData) + 
+      g = ggplot(data = plotData) +
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c(model1_name, model2_name))), alpha = 0.4) +
-        geom_line(aes(x = x, y = response, color = factor(model, levels = c(model1_name, model2_name))), linewidth = 1) + 
+        geom_ribbon(
+          aes(
+            x,
+            ymin = lb,
+            ymax = ub,
+            fill = factor(model, levels = c(model1_name, model2_name))
+          ),
+          alpha = 0.4
+        ) +
+        geom_line(
+          aes(
+            x = x,
+            y = response,
+            color = factor(model, levels = c(model1_name, model2_name))
+          ),
+          linewidth = 1
+        ) +
         theme_classic() +
         labs(x = xLab, y = yLab) +
         ggtitle(title) +
@@ -678,37 +745,63 @@ plotPolynomialResponse_2_mod = function(
         scale_color_manual(values = c("black", "black")) +
         theme(legend.position = "bottom", legend.title = element_blank())
     } else {
-      g = ggplot(data = plotData) + 
+      g = ggplot(data = plotData) +
         geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(aes(x, ymin = lb, ymax = ub, fill = factor(model, levels = c(model1_name, model2_name))), alpha = 0.4) +
+        geom_ribbon(
+          aes(
+            x,
+            ymin = lb,
+            ymax = ub,
+            fill = factor(model, levels = c(model1_name, model2_name))
+          ),
+          alpha = 0.4
+        ) +
         geom_line(
-          aes(x = x, y = response, color = factor(model, levels = c(model1_name, model2_name)),
-           linetype=factor(model, levels = c(model1_name, model2_name))), linewidth = 0.5) +
+          aes(
+            x = x,
+            y = response,
+            color = factor(model, levels = c(model1_name, model2_name)),
+            linetype = factor(model, levels = c(model1_name, model2_name))
+          ),
+          linewidth = 0.5
+        ) +
         theme_classic() +
         labs(x = xLab, y = yLab) +
-        coord_cartesian(ylim = yLim) + 
+        coord_cartesian(ylim = yLim) +
         ggtitle(title) +
         scale_fill_manual(values = c(fillcolor, fillcolor2)) +
         scale_color_manual(values = c("black", "black")) +
         scale_linetype_manual(values = c("solid", "dashed")) +
         theme(legend.position = "bottom", legend.title = element_blank())
     }
-    
+
     if (plotmax == T) {
-      g = g + 
+      g = g +
         geom_vline(xintercept = maxX1, linetype = "solid", color = "black") +
         geom_vline(xintercept = maxX2, linetype = "dashed", color = "black") +
-        annotate(geom = "text", x = maxX1 - 5, y = 5, 
-                label = paste0(maxX1, " C"), color = "grey39", size = 3) +
-        annotate(geom = "text", x = maxX2 + 5, y = 5,
-                label = paste0(maxX2, " C "), color = "grey39", size = 3)
+        annotate(
+          geom = "text",
+          x = maxX1 - x_adjust,
+          y = 5,
+          label = paste0(maxX1, " C"),
+          color = "grey39",
+          size = 3
+        ) +
+        annotate(
+          geom = "text",
+          x = maxX2 + x_adjust,
+          y = 5,
+          label = paste0(maxX2, " C "),
+          color = "grey39",
+          size = 3
+        )
     }
   }
-  
+
   if (!showYTitle) {
     g = g + theme(axis.title.y = element_blank())
   }
-  
+
   return(g)
 }
 
@@ -729,25 +822,24 @@ plotLinearLags_2_mod = function(
   model1_name = "Model 1",
   model2_name = "Model 2"
 ) {
-  
   # Function to extract data for a single model
   extractModelData = function(model, pattern, cluster_flag, lag_length) {
     beta = model$coefficients
     vars = rownames(beta)
     plotVars = vars[grepl(pattern = pattern, x = vars)]
     b = as.matrix(beta[rownames(beta) %in% plotVars])
-    
+
     if (cluster_flag == T) {
       vcov = getVcov(model$clustervcv, plotVars)
     } else {
       vcov = getVcov(model$vcv, plotVars)
     }
-    
+
     response = 1 * b
     length = 1.96 * sqrt(diag(vcov))
     lb = response - length
     ub = response + length
-    
+
     return(data.frame(
       lag = 0:lag_length,
       response = response,
@@ -755,11 +847,11 @@ plotLinearLags_2_mod = function(
       ub = ub
     ))
   }
-  
+
   # Extract data for first model
   plotData1 = extractModelData(mod, patternForPlotVars, cluster, laglength)
   plotData1$model = model1_name
-  
+
   # If second model provided, extract its data too
   if (!is.null(mod2)) {
     plotData2 = extractModelData(mod2, patternForPlotVars, cluster, laglength)
@@ -768,14 +860,14 @@ plotLinearLags_2_mod = function(
   } else {
     plotData = plotData1
   }
-  
+
   # Determine colors
   if (is.null(mod2)) {
     # Single model - use original color logic
     beta = mod$coefficients
     vars = rownames(beta)
     plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
-    
+
     if (plotVars[1] == "drought") {
       mycolor = "#C99776"
     } else if (plotVars[1] == "flood") {
@@ -783,7 +875,7 @@ plotLinearLags_2_mod = function(
     } else {
       mycolor = "black"
     }
-    
+
     g = ggplot(data = plotData, aes(x = lag)) +
       geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
       geom_point(aes(y = response), color = mycolor, size = 2) +
@@ -795,20 +887,35 @@ plotLinearLags_2_mod = function(
       theme(plot.title = element_text(size = 8), text = element_text(size = 8))
   } else {
     # Two models - use different colors/shapes for each
-    g = ggplot(data = plotData, aes(x = lag, color = factor(model, levels = c(model1_name, model2_name)))) +
+    g = ggplot(
+      data = plotData,
+      aes(x = lag, color = factor(model, levels = c(model1_name, model2_name)))
+    ) +
       geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
-      geom_point(aes(y = response), size = 2, position = position_dodge(width = 0.5)) +
-      geom_errorbar(aes(ymin = lb, ymax = ub), width = .1, position = position_dodge(width = 0.5)) +
+      geom_point(
+        aes(y = response),
+        size = 2,
+        position = position_dodge(width = 0.5)
+      ) +
+      geom_errorbar(
+        aes(ymin = lb, ymax = ub),
+        width = .1,
+        position = position_dodge(width = 0.5)
+      ) +
       theme_classic() +
       labs(x = xLab, y = yLab) +
       coord_cartesian(ylim = yLim) +
       ggtitle(title) +
-      theme(plot.title = element_text(size = 8), text = element_text(size = 8),
-            legend.position = "bottom", legend.title = element_blank()) +
-    # scale_color_manual(values = c(model1_name = "#C1657C", model2_name = "grey50")) 
-    scale_color_manual(values = c("#C1657C", "grey50")) 
+      theme(
+        plot.title = element_text(size = 8),
+        text = element_text(size = 8),
+        legend.position = "bottom",
+        legend.title = element_blank()
+      ) +
+      # scale_color_manual(values = c(model1_name = "#C1657C", model2_name = "grey50"))
+      scale_color_manual(values = c("#C1657C", "grey50"))
   }
-  
+
   return(g)
 }
 
@@ -835,6 +942,103 @@ add_r2 <- function(x, y) {
     size = 3.5,
     fontface = "italic"
   )
+}
+
+################################################################################
+# partials_plot ----
+################################################################################
+
+partials_plot <- function(
+  data,
+  y_label,
+  show_legend = FALSE,
+  legend_position = c(0.14, 0.875)
+) {
+  p <- ggplot(
+    data,
+    aes(x = year, y = mean, group = scenario, color = scenario)
+  ) +
+    theme_bw() +
+    geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) +
+
+    scale_color_manual(values = scenario_colors, labels = scenario_labels) +
+    scale_fill_manual(values = scenario_colors, labels = scenario_labels) +
+    geom_line(aes(x = year, y = mean), lwd = 1.3) +
+    geom_ribbon(
+      aes(ymin = lower, ymax = upper, colour = scenario),
+      fill = NA,
+      linewidth = 0.1,
+      show.legend = FALSE,
+    ) +
+    geom_ribbon(
+      aes(ymin = lower, ymax = upper, fill = scenario),
+      color = NA,
+      alpha = 0.1
+    ) +
+    labs(x = NULL, y = y_label, color = NULL, fill = NULL)
+  theme(
+    axis.title.x = element_text(vjust = -3),
+    axis.title.y = element_text(vjust = 6),
+    plot.margin = unit(c(0.2, 0.5, 0.2, 1), "cm"),
+    legend.title = element_blank()
+  )
+
+  if (show_legend) {
+    p <- p +
+      theme(
+        legend.position = legend_position,
+        legend.spacing.y = unit(0, "mm"),
+        legend.margin = margin(0, 0, 0, 0)
+      )
+  } else {
+    p <- p + theme(legend.position = "none")
+  }
+  return(p)
+}
+
+################################################################################
+# create_future_slice_map ----
+################################################################################
+
+create_future_slice_map_data <- function(df, scenario, year) {
+  slice_map <- df |>
+    dplyr::filter(run == "main", scenario == !!scenario) |>
+    tidyr::pivot_wider(names_from = year, values_from = Pred) |>
+    dplyr::mutate(diff = (!!sym(year) - `2015`)) |>
+    dplyr::group_by(OBJECTID) |>
+    dplyr::summarize(mean.diff = mean(diff))
+
+  colnames(slice_map)[2] <- paste0("mean.diff.", year, substr(scenario, 4, 6))
+  return(slice_map)
+}
+
+################################################################################
+# create_future_slice_map ----
+################################################################################
+
+create_future_slice_map <- function(data_column, limits) {
+  pal <- colorspace::divergingx_hcl(n = 11, palette = "Geyser")
+
+  midpoint <- 0
+  mid_rescaled <- (midpoint - limits[1]) / (limits[2] - limits[1])
+
+  values <- c(
+    seq(0, mid_rescaled, length.out = 6),
+    seq(mid_rescaled, 1, length.out = 6)[-1]
+  )
+
+  ggplot(cont) +
+    geom_sf(aes(fill = !!sym(data_column)), color = "gray30", size = 0.05) +
+    coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
+    theme_void() +
+    scale_fill_gradientn(
+      colors = pal,
+      values = values,
+      na.value = "white",
+      limits = limits,
+      oob = scales::squish
+    ) +
+    labs(fill = "Prevalence (%)")
 }
 
 print("Done loading A03 - Utility code for plotting.R")

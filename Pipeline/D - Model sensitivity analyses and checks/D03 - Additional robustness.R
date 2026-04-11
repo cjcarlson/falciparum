@@ -106,7 +106,7 @@ g
 
 ggsave(
   filename = "model_residuals.pdf",
-  path = figure_diag_res_dir,
+  path = figure_res_dir,
   plot = g,
   width = 7,
   height = 7
@@ -241,7 +241,7 @@ p
 
 ggsave(
   filename = "diagnostic_method_sensitivity.pdf",
-  path = figure_diag_fe_dir,
+  path = figure_fe_dir,
   plot = p,
   width = 9,
   height = 3
@@ -428,7 +428,7 @@ p = plot_grid(
 
 ggsave(
   filename = "split_sample_1995.pdf",
-  path = figure_diag_sub_dir,
+  path = figure_sub_dir,
   plot = p,
   width = 10,
   height = 5
@@ -514,7 +514,7 @@ for (m in 1:length(modellist)) {
 # p
 # ggsave(
 #   filename = "split_GBOD_2nd_poly.pdf",
-#   # path = figure_diag_sub_dir,
+#   # path = figure_sub_dir,
 #   plot = p,
 #   width = 12,
 #   height = 4
@@ -604,7 +604,7 @@ p = plot_grid(
 # p
 ggsave(
   filename = "split_GBOD_temp_hist.pdf",
-  path = figure_diag_sub_dir,
+  path = figure_sub_dir,
   plot = p,
   width = 12,
   height = 4
@@ -761,7 +761,7 @@ g
 
 ggsave(
   filename = "overlaid_specifications_Tresponse.pdf",
-  path = figure_diag_fe_dir,
+  path = figure_fe_dir,
   plot = g,
   width = 4.5,
   height = 5

@@ -33,7 +33,11 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 # Set number of bootstrap simulations.
-S = 2000
+S = 1000
+
+# Set seed for reproducible output
+set.seed(11235)
+# set.seed(42)
 
 ################################################################################
 # Set up logging ----
@@ -53,27 +57,6 @@ log_msg("Loading analysis ready data")
 
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
-# block_sizes <- complete %>% 
-#   group_by(cntry_yrbin) %>% 
-#   summarise(n = n())
-
-# hist(block_sizes$n, breaks = 50)
-
-# summary(block_sizes$n)
-# # Coefficient of variation of block sizes -- high CV suggests severe imbalance
-# sd(block_sizes$n) / mean(block_sizes$n)
-
-
-# block_sizes <- complete %>% 
-#   group_by(OBJECTID) %>% 
-#   summarise(n = n())
-
-# hist(block_sizes$n, breaks = 50)
-
-# summary(block_sizes$n)
-# # Coefficient of variation of block sizes -- high CV suggests severe imbalance
-# sd(block_sizes$n) / mean(block_sizes$n)
-
 ################################################################################
 # Cluster setup ----
 ################################################################################
@@ -82,9 +65,6 @@ log_msg("Preparing the compute cluster")
 
 # n_cores = min(10, future::detectCores())
 n_cores <- future::availableCores()
-
-# Set seed for reproducible output
-set.seed(11235)
 
 # Make compute cluster
 clus <- parallel::makeCluster(n_cores)
@@ -175,185 +155,3 @@ log_msg("Script `C02 - Bootstrap.R` completed successfully")
 ################################################################################
 # End of file ----
 ################################################################################
-
-# complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
-
-# mod <- lfe::felm(formula = cXt2intrXm, data = complete)
-
-# vcov <- mod$clustervcv  # cluster-robust vcov matrix
-
-# beta_hat <- coef(mod)[1:12]
-# V_sub <- vcov[1:12, 1:12]
-
-# column_names <- c(
-#   "temp",
-#   "temp2",
-#   colnames(complete)[grep("flood", colnames(complete))],
-#   colnames(complete)[grep("drought", colnames(complete))],
-#   "I(intervention)1",
-#   "I(intervention)2"
-# )
-
-# boot_draws <- MASS::mvrnorm(n = S, mu = beta_hat, Sigma = V_sub)
-# colnames(boot_draws) <- column_names
-
-# boots <- as.data.frame(rbind(
-#   setNames(as.data.frame(t(beta_hat)), column_names),  # "main" row
-#   as.data.frame(boot_draws)
-# ))
-# boots$model <- c("main", as.character(2:(S + 1)))
-# boots$n <- nrow(complete)
-
-# readr::write_csv(boots, file = boot_mod_full_fn)
-
-
-# ################################################################################
-# # This script estimates the main empirical specification linking
-# # PfPR2 to drought, flood, and temperature via block bootstrap.
-# #
-# # CLUSTERING / BOOTSTRAP BLOCK: Resampling is done at the
-# # country × N-year level (set yr_bin_size in config), matching
-# # the clustering used for analytical standard errors.
-# ################################################################################
-
-# ################################################################################
-# # Set up ----
-# ################################################################################
-
-# rm(list = ls())
-
-# if (!require("pacman")) {
-#   install.packages("pacman")
-# }
-
-# # packages
-# pacman::p_load(
-#   here,
-#   doSNOW,
-#   lfe,
-#   tidyverse,
-#   zoo,
-#   lubridate,
-#   data.table,
-#   parallel
-# )
-
-# # source functions for easy plotting and estimation
-# source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
-# source(A_utils_calc_fp)
-
-# # Set number of bootstrap simulations.
-# S = 1000
-
-# ################################################################################
-# # Load data ----
-# ################################################################################
-
-# # log_msg("Loading analysis ready data")
-
-# complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
-
-# ############################################################################################
-# # Cluster setup ----
-# ############################################################################################
-
-# # log_msg("Preparing the compute cluster")
-
-# n_cores = min(10, parallel::detectCores())
-
-# # Set seed for reproducible output
-# set.seed(11235)
-
-# # Make compute cluster
-# clus <- parallel::makeCluster(n_cores)
-# doSNOW::registerDoSNOW(clus)
-
-# # Make progress bar
-# pb <- txtProgressBar(max = S, style = 3)
-# progress <- function(n) setTxtProgressBar(pb, n)
-# opts <- list(progress = progress)
-
-# ############################################################################################
-# # Bootstrap
-# ############################################################################################
-
-# # BLOCK BOOTSTRAP by ADM1s:
-# adm1s = unique(complete$OBJECTID)
-
-# # Set number of bootstrap simulations.
-# S = 1000
-
-# # Set number of cores to parallelize over:
-# n_cores = 12
-
-# ## Bootstrap, sampling by ADM1
-# # Store in the first row of the output the regression run with all observations
-# # parallelize
-# set.seed(11235)
-# clus <- makeCluster(n_cores)
-# registerDoSNOW(clus)
-# pb <- txtProgressBar(max = S, style = 3)
-# progress <- function(n) setTxtProgressBar(pb, n)
-# opts <- list(progress = progress)
-
-# # Define important column names to save
-# column_names <- c(
-#   "temp",
-#   "temp2",
-#   colnames(complete)[grep("flood", colnames(complete))],
-#   colnames(complete)[grep("drought", colnames(complete))],
-#   "I(intervention)1",
-#   "I(intervention)2"
-# )
-
-# # log_msg("Begin the bootstrap models")
-
-# result <- foreach(
-#   i = 1:(S + 1),
-#   .packages = c("lfe"),
-#   .options.snow = opts
-# ) %dopar%
-#   {
-#     if (i == 1) {
-#       complete.boot <- complete
-#       model <- "main"
-#     } else {
-#       cl <- sample(adm1s, size = length(adm1s), replace = T)
-#       df.bs <- sapply(cl, function(x) which(complete[, 'OBJECTID'] == x))
-#       complete.boot <- complete[unlist(df.bs), ]
-#       model <- as.character(i)
-#     }
-#     mod <- lfe::felm(formula = cXt2intrXm, data = complete.boot)
-
-#     out <- t(mod$coefficients[1:12])
-#     colnames(out) <- column_names
-
-#     list(coefs = out, model = model, n = nrow(complete.boot))
-#   }
-# close(pb)
-# stopCluster(clus)
-
-# # log_msg("Finish the bootstrap models")
-
-# ############################################################################################
-# # Save coeffs ----
-# # Pull in all bootstrap runs and full spec to save in one file
-# ############################################################################################
-
-# # log_msg("Consolidating bootstrap coefficients and saving file")
-
-# # Unpack into a data.frame
-# boots <- do.call(
-#   rbind,
-#   lapply(
-#     result,
-#     function(x) {
-#       df <- as.data.frame(x$coefs)
-#       df$model <- x$model
-#       df$n <- x$n
-#       df
-#     }
-#   )
-# )
-
-# readr::write_csv(boots, file = boot_mod_full_fn)

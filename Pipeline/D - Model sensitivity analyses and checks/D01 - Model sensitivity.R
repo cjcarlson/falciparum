@@ -31,17 +31,15 @@ source(A_utils_plot_fp)
 
 ################################################################################
 # Plotting toggles ----
-# Choose reference temperature for response function, as well
-# as minimum and maximum for range of temperature
 ################################################################################
 
 Tref = 25 # reference temperature - curve gets recentered to 0 here
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence
-# and CRU temperature and precipitation data aggregated to
-# the first level of Administrative division.
+# Read in the analysis ready data file with malaria prevalence and CRU 
+# temperature and precipitation data aggregated to the first level of 
+# Administrative division.
 ################################################################################
 
 print("Loading analysis ready data")
@@ -296,7 +294,7 @@ p
 
 ggsave(
   filename = "panelFE_FE_sensitivity.pdf",
-  path = figure_diag_fe_dir,
+  path = figure_fe_dir,
   plot = p,
   width = 7,
   height = 7
@@ -340,13 +338,13 @@ for (r in 1:length(rlist)) {
 g = ggplot(data = complete, aes(x = datevar, PfPR2)) +
   geom_point(color = "cadetblue4", size = 1) +
   theme_classic() +
-  geom_line(aes(y = yhat), color = "red", size = 1) +
+  geom_line(aes(y = yhat), color = "red", linewidth = 1) +
   labs(y = "PfPR2", x = "Date") +
   facet_wrap(~smllrgn)
 
 ggsave(
   filename = 'region_quad_trends.png',
-  path = figure_diag_fe_dir,
+  path = figure_fe_dir,
   plot = g,
   height = 6,
   width = 8,
@@ -354,9 +352,8 @@ ggsave(
 
 ################################################################################
 # Time controls - Regional 2 ----
-# 2. Show that trends appear a) nonlinear; and b) heterogeneous by
-# country within GBOD regions, suggesting country specific quadratic
-# trends are preferred
+# 2. Show that trends appear a) nonlinear; and b) heterogeneous by country 
+# within GBOD regions, suggesting country specific quadratic trends are preferred
 ################################################################################
 
 clist = unique(complete$country)
@@ -377,7 +374,7 @@ for (r in 1:length(rlist)) {
   ) +
     geom_point(color = "cadetblue4", size = 1) +
     theme_classic() +
-    geom_line(aes(y = yhat), color = "red", size = 1) +
+    geom_line(aes(y = yhat), color = "red", linewidth = 1) +
     labs(y = "PfPR2", x = "") +
     facet_wrap(~country)
 }
@@ -400,7 +397,7 @@ p = plot_grid(
 
 ggsave(
   filename = 'country_quad_trends_by_GBOD_region.pdf',
-  path = figure_diag_fe_dir,
+  path = figure_fe_dir,
   plot = p,
   height = 10,
   width = 10,
@@ -419,19 +416,23 @@ ggsave(
 regcounts <- complete %>% group_by(smllrgn) %>% tally()
 summary(regcounts$n)
 
-# on average, we've got 27 observations per GBOD region per year to identify regionXyear FEs
+# on average, we've got 27 observations per GBOD region per year to identify 
+# regionXyear FEs
 regyrcounts <- complete %>% group_by(smllrgn, year) %>% tally()
 summary(regyrcounts$n)
 
-# on average, we've got 206 observations per GBOD region per month to identify regionXmonth FEs
+# on average, we've got 206 observations per GBOD region per month to identify 
+# regionXmonth FEs
 regmocounts <- complete %>% group_by(smllrgn, month) %>% tally()
 summary(regmocounts$n)
 
-# on average, we've got 20 observations per country per month to identify countryXmonth FEs (not great...)
+# on average, we've got 20 observations per country per month to identify 
+# countryXmonth FEs (not great...)
 isomocounts <- complete %>% group_by(country, month) %>% tally()
 summary(isomocounts$n)
 
-# on average, we've got just 6 observations per country per year to identify countryXyear FEs (highly insufficient)
+# on average, we've got just 6 observations per country per year to identify 
+# countryXyear FEs (highly insufficient)
 isoyrcounts <- complete %>% group_by(country, year) %>% tally()
 summary(isoyrcounts$n)
 
@@ -461,7 +462,7 @@ g
 
 ggsave(
   filename = 'region_seasonality.png',
-  path = figure_diag_fe_dir,
+  path = figure_fe_dir,
   plot = g,
   height = 6,
   width = 8
@@ -484,8 +485,8 @@ ggsave(filename = 'residuals_cXt2intrXm.png', path = figure_main_dir, plot = g)
 # residuals over time
 g = ggplot(data = complete, aes(x = datevar, y = residuals)) +
   geom_point(size = 1, alpha = .3) +
-  geom_hline(yintercept = 0, size = .5, color = "red") +
-  stat_smooth(method = "loess", formula = y ~ x, size = 1) +
+  geom_hline(yintercept = 0, linewidth = .5, color = "red") +
+  stat_smooth(method = "loess", formula = y ~ x, linewidth = 1) +
   theme_classic()
 g
 
@@ -500,8 +501,8 @@ summary(lm(residuals ~ datevar, data = complete)) #uncorrelated with time
 # residuals over time by region
 g = ggplot(data = complete, aes(x = datevar, y = residuals)) +
   geom_point(size = .5, alpha = .3) +
-  geom_hline(yintercept = 0, size = .5, color = "red") +
-  stat_smooth(method = "lm", formula = y ~ poly(x, 3), size = .5) +
+  geom_hline(yintercept = 0, linewidth = .5, color = "red") +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 3), linewidth = .5) +
   theme_classic() +
   facet_wrap(~smllrgn)
 g
@@ -727,7 +728,7 @@ p = plot_grid(c, p1, p2, p3, nrow = 1)
 p
 
 cowplot::save_plot(
-  file.path(figure_diag_temp_dir, "templags_cumulative_effects.pdf"),
+  file.path(figure_temp_dir, "templags_cumulative_effects.pdf"),
   p,
   ncol = 1,
   base_asp = 4
@@ -847,7 +848,7 @@ p
 
 ggsave(
   filename = "temp_responses_drought_flood_sensitivity.pdf",
-  path = figure_diag_df_dir,
+  path = figure_df_dir,
   plot = p,
   width = 7,
   height = 10
@@ -895,7 +896,7 @@ p
 
 ggsave(
   filename = "drought_responses_sensitivity.pdf",
-  path = figure_diag_df_dir,
+  path = figure_df_dir,
   plot = p,
   width = 7,
   height = 10
@@ -938,7 +939,7 @@ p
 
 ggsave(
   filename = "flood_responses_sensitivity.pdf",
-  path = figure_diag_df_dir,
+  path = figure_df_dir,
   plot = p,
   width = 7,
   height = 10
@@ -1037,7 +1038,7 @@ p
 
 ggsave(
   filename = "temperature_poly_order.pdf",
-  path = figure_diag_tff_dir,
+  path = figure_tff_dir,
   plot = p,
   width = 10,
   height = 10
@@ -1121,7 +1122,7 @@ p
 
 ggsave(
   filename = "precipitation_poly_order.pdf",
-  path = figure_diag_df_dir,
+  path = figure_df_dir,
   plot = p,
   width = 10,
   height = 10
