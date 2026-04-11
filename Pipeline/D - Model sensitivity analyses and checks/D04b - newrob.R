@@ -221,6 +221,14 @@ conley_tab
 common <- paste0("PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars)
 country_time <- "country:monthyr + country:monthyr2"
 
+# felm doesn't like triple interactions, hard code this one
+complete <- complete |>
+  dplyr::group_by(as.factor(smllrgn), month) |>
+  dplyr::mutate(smllrgnMO = dplyr::cur_group_id()) |>
+  dplyr::ungroup() |>
+  dplyr::mutate(smllrgnMO = as.factor(smllrgnMO), cntry_yrbin10 = as.factor(cntry_yrbin10)) 
+  
+
 ym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | cntry_yrbin5"))
 cXt2m = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + month | 0 | cntry_yrbin5"))
 cXt2cXm = as.formula(paste0(common, " + ", country_time, " | OBJECTID + country:month | 0 | cntry_yrbin5"))
@@ -231,7 +239,7 @@ cXt2rXmyXm = as.formula(paste0(common, " + ", country_time, " | OBJECTID  + as.f
 rXmcXy = as.formula(paste0(common, " | OBJECTID  + as.factor(smllrgn):month + country:year | 0 | cntry_yrbin5"))
 rXyrXm = as.formula(paste0(common, " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | cntry_yrbin5"))
 rXycXm = as.formula(paste0(common, " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | cntry_yrbin5"))
-aXdrXmd = as.formula(paste0(common, " | OBJECTID:cntry_yrbin10  + as.factor(smllrgn):month:cntry_yrbin10 | 0 | cntry_yrbin5"))
+aXdrXmd = as.formula(paste0(common, " | as.factor(OBJECTID):cntry_yrbin10  + smllrgnMO:cntry_yrbin10 | 0 | cntry_yrbin5"))
 rXyrXmcXt = as.formula(paste0(common, " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | cntry_yrbin5"))
 myforms = c(
   ym, cXt2m, cXt2cXm, cXt2intm, cXt2intrXm, 
@@ -239,18 +247,18 @@ myforms = c(
 ) 
 
 mycollabs = c(
-  "yr + mo FEs.", 
-  "cntry trd, mo FEs.", 
-  "cntry trd, cntry-mo FEs.",
-  "cntry trd, int + mo FEs.", 
-  "cntry trd, int + rgn-mo FEs.", # Main Spec
-  "cntry trd, int + cntry-mo FEs.", 
-  "cntry trd, year-mo + rgn-mo FEs.",
-  "cntry-yr + rgn-mo FEs.", 
-  "rgn-yr + rgn-mo FEs.", 
-  "rgn-yr + cntry-mo FEs.", 
-  "adm-decade + rgn-mo-decade FEs.", 
-  "cntry trd, rgn-yr + rgn-mo FEs."
+  "yr + mo FEs.", # 1
+  "cntry trd, mo FEs.", #2  
+  "cntry trd, cntry-mo FEs.", #3
+  "cntry trd, int + mo FEs.", #4
+  "cntry trd, int + rgn-mo FEs.", #5 - Main Spec
+  "cntry trd, int + cntry-mo FEs.", #6
+  "cntry trd, year-mo + rgn-mo FEs.", #7
+  "cntry-yr + rgn-mo FEs.", #8
+  "rgn-yr + rgn-mo FEs.",  #9
+  "rgn-yr + cntry-mo FEs.", #10
+  "adm-decade + rgn-mo-decade FEs.", #11
+  "cntry trd, rgn-yr + rgn-mo FEs." #12
 )
 
 # Run all models
@@ -262,7 +270,7 @@ for (m in myforms) {
 }
 
 # Combine into a single stargazer plot 
-mynote = "Column specifications: (1) country, year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends and intervention year FE; (5) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (6) country-specific quad. trends with intervention FE and country by month FE; (7) GBOD region-by-year and region-by-month FE; (8) GBOD region-by-year and country-by-month FE; (9) GBOD region-by-year and region-by-month FE with country-specific linear trends."
+mynote = "Column specifications: (1) year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends, intervention year and month FE; (5) country-specific quad. trends, intervention year FE, GBD region-month FE; (6) country-specific quad. trends with intervention FE and country-month FE; (7) country-specific quad. trends with year-month and GBD region-mont FE; (8) country-year and GBD region-month FE; (9) GBD region-year and regin-month FEs; (10) GBD region-year + country-month FE; (11) ADM1-decade and GBD region-month-decade FE; (12) country-specific quad. trends and GBD region-year and region-month FE."
 dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
 stargazer(modellist,
           title="Quadratic temperature: FE sensitivity", align=TRUE, column.labels = mycollabs,
@@ -271,10 +279,9 @@ stargazer(modellist,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
 ########################################################################
-# Plot temperature response functions for all fixed effects specifications
+## Plot temperature response functions for all fixed effects specifications
 ########################################################################
 
-# Plot temperature response for each model
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 
 figList = list()
@@ -301,7 +308,6 @@ for(m in 1:length(modellist)) {
     )
 }
 
-
 # point estimate and CIs for main spec
 xValsT = genRecenteredXVals_polynomial(plotXtemp,Tref,2)
 mainmod = modellist[[5]]
@@ -315,14 +321,14 @@ length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
 lb = response - length
 ub = response + length
 
-#Plotgin dataframe -- add back in the reference temperature so it's centered at xRef
+#Plotting dataframe -- add back in the reference temperature so it's centered at xRef
 plotData = data.frame(x = xValsT[,1] + Tref, response = response, lb = lb, ub = ub)
 sub = plotData[plotData$x>=10 & plotData$x<=30,]
 maxX = max(sub$x[sub$response==max(sub$response)])
 
 mycollabs = c(
-  "cym", "cXt2m", "cXt2cXm", "cXt2intm", 
-  "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt"
+  "ym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm",  
+  "cXt2intcXm", "cXt2rXmyXm", "rXmcXy", "rXyrXm", "rXycXm", "aXdrXmd", "rXyrXmcXt"
 )
 
 # loop over all other FE models, add to plotting dataframe
@@ -338,8 +344,8 @@ for(mod in 1:length(modellist)){
 
 # reshape
 plotmain = plotData %>% dplyr::select(x,response,lb,ub)
-plotFE = plotData %>% dplyr::select(x,cym:rXyrXmcXt)
-plotFE = plotFE %>% gather(plotFE, response, cym:rXyrXmcXt)  
+plotFE = plotData %>% dplyr::select(x,ym:rXyrXmcXt)
+plotFE = plotFE %>% gather(plotFE, response, ym:rXyrXmcXt)  
 colnames(plotFE) = c("x", "model","response")  
 
 # plot
@@ -369,11 +375,11 @@ g = ggplot()  +
     text = element_text(size = 8),
     plot.title = element_text(size = 8)
   ) 
-# g
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], 
               figList[[4]], g, figList[[6]],
-              figList[[7]], figList[[8]], figList[[9]], nrow=3)
+              figList[[7]], figList[[8]], figList[[9]], 
+              figList[[10]], figList[[11]], figList[[12]], nrow=4)
 p
 
 dir.create(file.path(resdir, "Figures", "Diagnostics","Fixed_effects"), showWarnings = FALSE)
@@ -382,6 +388,6 @@ ggsave(
   path = file.path(resdir, "Figures", "Diagnostics", "Fixed_effects"), 
   plot = p, 
   width = 7, 
-  height = 7
+  height = 9
 )
 
