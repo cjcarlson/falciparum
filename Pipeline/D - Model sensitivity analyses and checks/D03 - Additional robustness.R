@@ -22,7 +22,8 @@ pacman::p_load(
   zoo,
   lubridate,
   cowplot,
-  multcomp
+  multcomp,
+  sf
 )
 
 # source functions for easy plotting and estimation
