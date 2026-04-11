@@ -392,6 +392,132 @@ ggsave(
 )
 
 ############################################################
+# Influence analysis ----
+############################################################
+
+## main model
+betaTmain = mainmod$coefficients[1]
+pvalTmain = summary(mainmod)$coefficients[1,4]
+betaT2main = mainmod$coefficients[2]
+pvalT2main = summary(mainmod)$coefficients[2,4]
+
+## Leave one country out
+cntrs <- unique(complete$country)
+loco = data.frame(country = "", betaT = NA, pvalT = NA, betaT2 = NA, pvalT2 = NA)
+for (c in 1:length(cntrs)) {
+  df <- complete |> dplyr::filter(country!=cntrs[c])
+  mod <- felm(df, formula=cXt2intrXm)
+  mydat = data.frame(country = as.character(cntrs[c]), betaT = mod$coefficients[1], pvalT = summary(mod)$coefficients[1,4], betaT2 = mod$coefficients[2], pvalT2 = summary(mod)$coefficients[2,4])
+  loco = rbind(loco,mydat)
+  rm(df,mod,mydat)
+}
+
+loco <- loco |> dplyr::filter(!is.na(betaT))
+
+# plot
+b1 = ggplot(data=loco) + 
+  geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
+  xlab("linear temp. coeff.") + 
+  theme_classic()
+p1 = ggplot(data=loco) + 
+  geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
+  geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
+  xlab("linear temp. coeff. p-value") + 
+  theme_classic()
+b2 = ggplot(data=loco) + 
+  geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
+  xlab("quadratic temp. coeff.") + 
+  theme_classic()
+p2 = ggplot(data=loco) + 
+  geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
+  geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
+  xlab("quadratic temp. coeff. p-value") + 
+  theme_classic()
+
+grid = plot_grid(b1, p1, b2, p2, nrow=2)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "leave_cntry_out.jpg"), plot = grid, width = 8, height = 8)
+
+
+## Leave one year out
+years <- unique(complete$yearnum)
+loyo = data.frame(year = NA, betaT = NA, pvalT = NA, betaT2 = NA, pvalT2 = NA)
+for (c in 1:length(years)) {
+  df <- complete |> dplyr::filter(yearnum!=years[c])
+  mod <- felm(df, formula=cXt2intrXm)
+  mydat = data.frame(year = as.character(years[c]), betaT = mod$coefficients[1], pvalT = summary(mod)$coefficients[1,4], betaT2 = mod$coefficients[2], pvalT2 = summary(mod)$coefficients[2,4])
+  loyo = rbind(loyo,mydat)
+  rm(df,mod,mydat)
+}
+
+loyo <- loyo |> dplyr::filter(!is.na(betaT))
+
+# plot
+b1 = ggplot(data=loyo) + 
+  geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
+  xlab("linear temp. coeff.") + 
+  theme_classic()
+p1 = ggplot(data=loyo) + 
+  geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
+  geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
+  xlab("linear temp. coeff. p-value") + 
+  theme_classic()
+b2 = ggplot(data=loyo) + 
+  geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
+  xlab("quadratic temp. coeff.") + 
+  theme_classic()
+p2 = ggplot(data=loyo) + 
+  geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
+  geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
+  xlab("quadratic temp. coeff. p-value") + 
+  theme_classic()
+
+grid = plot_grid(b1, p1, b2, p2, nrow=2)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "leave_year_out.jpg"), plot = grid, width = 8, height = 8)
+
+## Leave one month out
+months <- unique(complete$month)
+lomo = data.frame(month = NA, betaT = NA, pvalT = NA, betaT2 = NA, pvalT2 = NA)
+for (c in 1:length(months)) {
+  df <- complete |> dplyr::filter(month!=months[c])
+  mod <- felm(df, formula=cXt2intrXm)
+  mydat = data.frame(month = months[c], betaT = mod$coefficients[1], pvalT = summary(mod)$coefficients[1,4], betaT2 = mod$coefficients[2], pvalT2 = summary(mod)$coefficients[2,4])
+  lomo = rbind(lomo,mydat)
+  rm(df,mod,mydat)
+}
+
+lomo <- lomo |> dplyr::filter(!is.na(betaT))
+
+# plot
+b1 = ggplot(data=lomo) + 
+  geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
+  xlab("linear temp. coeff.") + 
+  theme_classic()
+p1 = ggplot(data=lomo) + 
+  geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
+  geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
+  xlab("linear temp. coeff. p-value") + 
+  theme_classic()
+b2 = ggplot(data=lomo) + 
+  geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
+  geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
+  xlab("quadratic temp. coeff.") + 
+  theme_classic()
+p2 = ggplot(data=lomo) + 
+  geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
+  geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
+  xlab("quadratic temp. coeff. p-value") + 
+  theme_classic()
+
+grid = plot_grid(b1, p1, b2, p2, nrow=2)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "leave_month_out.jpg"), plot = grid, width = 8, height = 8)
+
+
+############################################################
 # Normally distributed errors ----
 ############################################################
 
@@ -413,7 +539,6 @@ p <- ggplot(complete, aes(sample = res)) +
 p
 
 grid = plot_grid(g, p, nrow=1)
-
 ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = grid, width = 9, height = 4)
 
 
