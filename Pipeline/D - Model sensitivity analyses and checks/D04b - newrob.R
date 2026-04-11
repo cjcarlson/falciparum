@@ -214,7 +214,7 @@ conley_tab <- etable(
 conley_tab
 
 ############################################################
-# Sensitivity to spatiotemporal controls ----
+# Sensitivity to spatiotemporal controls (tabular output) ----
 ############################################################
 
 ## Formulas: all fixed effects (main spec = cXt2intrXm)
@@ -261,7 +261,7 @@ mycollabs = c(
   "cntry trd, rgn-yr + rgn-mo FEs." #12
 )
 
-# Run all models
+## Run all models
 modellist = list()
 i=0
 for (m in myforms) {
@@ -269,7 +269,7 @@ for (m in myforms) {
   modellist[[i]] = felm(data = complete, formula = m)
 }
 
-# Combine into a single stargazer plot 
+## Combine into a single stargazer plot 
 mynote = "Column specifications: (1) year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends, intervention year and month FE; (5) country-specific quad. trends, intervention year FE, GBD region-month FE; (6) country-specific quad. trends with intervention FE and country-month FE; (7) country-specific quad. trends with year-month and GBD region-mont FE; (8) country-year and GBD region-month FE; (9) GBD region-year and regin-month FEs; (10) GBD region-year + country-month FE; (11) ADM1-decade and GBD region-month-decade FE; (12) country-specific quad. trends and GBD region-year and region-month FE."
 dir.create(file.path(resdir, "Tables", "sensitivity"), showWarnings = FALSE)
 stargazer(modellist,
@@ -278,9 +278,9 @@ stargazer(modellist,
           out = file.path(resdir, "Tables", "sensitivity","FixedEffects_sensitivity.tex"),  omit.stat=c("f", "ser"), out.header = FALSE, type = "latex", float=F,
           notes.append = TRUE, digits=2,notes.align = "l", notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"))
 
-########################################################################
-## Plot temperature response functions for all fixed effects specifications
-########################################################################
+############################################################
+# Sensitivity to spatiotemporal controls (figure output) ----
+############################################################
 
 plotXtemp = cbind(seq(Tmin,Tmax), seq(Tmin,Tmax)^2)
 
@@ -348,7 +348,7 @@ plotFE = plotData %>% dplyr::select(x,ym:rXyrXmcXt)
 plotFE = plotFE %>% gather(plotFE, response, ym:rXyrXmcXt)  
 colnames(plotFE) = c("x", "model","response")  
 
-# plot
+## plot
 g = ggplot()  +
   geom_hline(yintercept = 0, color="darkgrey",alpha=.5) + 
   geom_ribbon(data = plotmain, # CIs main spec
@@ -390,4 +390,30 @@ ggsave(
   width = 7, 
   height = 9
 )
+
+############################################################
+# Normally distributed errors ----
+############################################################
+
+## histogram of model errors
+complete <- complete |> mutate(res = c(residuals(mainmod)))
+g <- ggplot(data=complete) + 
+  geom_histogram(aes(x=res), color= "seagreen", fill = "seagreen") + 
+  xlab("model residuals") + 
+  theme_classic()
+g
+
+## Q-Q plot
+p <- ggplot(complete, aes(sample = res)) +
+  stat_qq() +
+  stat_qq_line(color = "seagreen") +
+  xlab("normal distribution quantiles") +
+  ylab("model residuals quantiles") +
+  theme_classic()
+p
+
+grid = plot_grid(g, p, nrow=1)
+
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = grid, width = 9, height = 4)
+
 

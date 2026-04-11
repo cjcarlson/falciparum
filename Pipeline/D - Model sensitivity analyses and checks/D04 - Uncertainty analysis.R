@@ -651,18 +651,3 @@ stargazer(
 )
 
 
-########################################################################
-# G. Overdispersion? ----
-########################################################################
-
-# Plot model residuals
-complete <- complete |> mutate(res = c(residuals(mainmod)))
-g <- ggplot(data=complete) + 
-  geom_histogram(aes(x=res), color= "seagreen", fill = "seagreen") + 
-  xlab("model residuals") + 
-  theme_classic()
-g
-
-dir.create(file.path(resdir, "Figures", "Diagnostics","Residuals"), showWarnings = FALSE)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = g, width = 7, height = 7)
-
