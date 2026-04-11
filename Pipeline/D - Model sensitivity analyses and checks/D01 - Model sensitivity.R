@@ -1,5 +1,5 @@
 ################################################################################
-# This script conducts a variety of robustness checks on the main empirical 
+# This script conducts a variety of robustness checks on the main empirical
 # specification linking PfPR2 to drought, flood, and temperature.
 ################################################################################
 # Set up ----
@@ -37,8 +37,8 @@ Tref = 25 # reference temperature - curve gets recentered to 0 here
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence and CRU 
-# temperature and precipitation data aggregated to the first level of 
+# Read in the analysis ready data file with malaria prevalence and CRU
+# temperature and precipitation data aggregated to the first level of
 # Administrative division.
 ################################################################################
 
@@ -52,43 +52,55 @@ complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 # main spec = cXt2intrXm (sourced from `A01 - Configuration.R`)
 ################################################################################
 
-cym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | OBJECTID"))
+cym = as.formula(paste0(
+  common,
+  " | OBJECTID + year + month | 0 | ",
+  clustering
+))
 cXt2m = as.formula(paste0(
   common,
   " + ",
   country_time,
-  " | OBJECTID  + month | 0 | OBJECTID"
+  " | OBJECTID + month | 0 | ",
+  clustering
 ))
 cXt2cXm = as.formula(paste0(
   common,
   " + ",
   country_time,
-  " | OBJECTID + country:month | 0 | OBJECTID"
+  " | OBJECTID + country:month | 0 | ",
+  clustering
 ))
 cXt2intm = as.formula(paste0(
   common,
   " + ",
   country_time,
-  " | OBJECTID  + intervention + month | 0 | OBJECTID"
+  " | OBJECTID + intervention + month | 0 | ",
+  clustering
 ))
 # main (cXt2intrXm) defined in config
 cXt2intcXm = as.formula(paste0(
   common,
   " + I(intervention) + ",
   country_time,
-  " | OBJECTID  + country:month | 0 | OBJECTID"
+  " | OBJECTID + country:month | 0 | ",
+  clustering
 ))
 rXyrXm = as.formula(paste0(
   common,
-  " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"
+  " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | ",
+  clustering
 ))
 rXycXm = as.formula(paste0(
   common,
-  " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"
+  " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | ",
+  clustering
 ))
 rXyrXmcXt = as.formula(paste0(
   common,
-  " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"
+  " + country:monthyr | OBJECTID + as.factor(smllrgn):month + ",
+  "as.factor(smllrgn):year | 0 | ",
+  clustering
 ))
 myforms = c(
   cym,
@@ -101,7 +113,7 @@ myforms = c(
   rXycXm,
   rXyrXmcXt
 )
-#mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
+# mycollabs = c("cym", "cXt2m", "cXt2cXm", "cXt2intm", "cXt2intrXm", "cXt2intcXm", "rXyrXm", "rXycXm", "rXyrXmcXt")
 mycollabs = c(
   "cnty + yr + mo FEs.",
   "cnty trd, mo FEs.",
@@ -352,7 +364,7 @@ ggsave(
 
 ################################################################################
 # Time controls - Regional 2 ----
-# 2. Show that trends appear a) nonlinear; and b) heterogeneous by country 
+# 2. Show that trends appear a) nonlinear; and b) heterogeneous by country
 # within GBOD regions, suggesting country specific quadratic trends are preferred
 ################################################################################
 
@@ -416,22 +428,22 @@ ggsave(
 regcounts <- complete %>% group_by(smllrgn) %>% tally()
 summary(regcounts$n)
 
-# on average, we've got 27 observations per GBOD region per year to identify 
+# on average, we've got 27 observations per GBOD region per year to identify
 # regionXyear FEs
 regyrcounts <- complete %>% group_by(smllrgn, year) %>% tally()
 summary(regyrcounts$n)
 
-# on average, we've got 206 observations per GBOD region per month to identify 
+# on average, we've got 206 observations per GBOD region per month to identify
 # regionXmonth FEs
 regmocounts <- complete %>% group_by(smllrgn, month) %>% tally()
 summary(regmocounts$n)
 
-# on average, we've got 20 observations per country per month to identify 
+# on average, we've got 20 observations per country per month to identify
 # countryXmonth FEs (not great...)
 isomocounts <- complete %>% group_by(country, month) %>% tally()
 summary(isomocounts$n)
 
-# on average, we've got just 6 observations per country per year to identify 
+# on average, we've got just 6 observations per country per year to identify
 # countryXyear FEs (highly insufficient)
 isoyrcounts <- complete %>% group_by(country, year) %>% tally()
 summary(isoyrcounts$n)
@@ -551,10 +563,11 @@ tokeep = c("OBJECTID", "monthyr", "month", "year")
 templags = templags |>
   dplyr::select(tokeep, contains("lag"), contains("lead"))
 
-complete <- complete |> 
-  left_join(templags
-  # by = c("OBJECTID", "monthyr", "month", "year")
-)
+complete <- complete |>
+  left_join(
+    templags
+    # by = c("OBJECTID", "monthyr", "month", "year")
+  )
 
 complete$month = as.factor(complete$month)
 
@@ -781,7 +794,8 @@ for (dd in dlist) {
       common,
       " + I(intervention) + ",
       country_time,
-      " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+      " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+      clustering
     ))
 
     # run regression, store results
@@ -961,7 +975,8 @@ modellist[[2]] = felm(
     droughtvars,
     " + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+    clustering
   ))
 )
 modellist[[3]] = felm(
@@ -973,7 +988,8 @@ modellist[[3]] = felm(
     droughtvars,
     " + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+    clustering
   ))
 )
 modellist[[4]] = felm(
@@ -985,7 +1001,8 @@ modellist[[4]] = felm(
     droughtvars,
     " + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+    clustering
   ))
 )
 # plot
@@ -1055,7 +1072,8 @@ modellist[[1]] = felm(
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+    clustering
   ))
 )
 modellist[[2]] = felm(
@@ -1063,7 +1081,8 @@ modellist[[2]] = felm(
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+    clustering
   ))
 )
 modellist[[3]] = felm(
@@ -1071,7 +1090,8 @@ modellist[[3]] = felm(
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+    clustering
   ))
 )
 modellist[[4]] = felm(
@@ -1079,7 +1099,8 @@ modellist[[4]] = felm(
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + ppt5 + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+    clustering
   ))
 )
 # plot

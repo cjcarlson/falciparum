@@ -86,7 +86,8 @@ cXt2intrXm = as.formula(paste0(
   common,
   " + I(intervention) + ",
   country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+  " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+  clustering
 ))
 mainmod = felm(data = complete, formula = cXt2intrXm)
 
@@ -137,7 +138,8 @@ PrMicro = as.formula(
     droughtvars,
     " + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+    clustering
   )
 )
 
@@ -165,7 +167,8 @@ cXt2intrXmDM = as.formula(
     common,
     " + dominant_METHOD + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+    clustering
   )
 )
 cXt2intrXmSM = as.formula(
@@ -173,7 +176,8 @@ cXt2intrXmSM = as.formula(
     common,
     " + simplified_METHOD + I(intervention) + ",
     country_time,
-    " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+    clustering
   )
 )
 
@@ -268,7 +272,8 @@ cXt2rXm = as.formula(paste0(
   common,
   " + I(intervention) +  ",
   country_time,
-  " | OBJECTID  + as.factor(smllrgn):month | 0 | OBJECTID"
+  " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+  clustering
 ))
 
 pre_data <- subset(complete, post1995 == FALSE)
@@ -444,7 +449,8 @@ cXt2int = as.formula(paste0(
   common,
   " + I(intervention) + ",
   country_time,
-  " | OBJECTID  + as.factor(month) | 0 | OBJECTID"
+  " | OBJECTID  + as.factor(month) | 0 | ",
+  clustering
 ))
 
 modellist = list()
@@ -642,42 +648,54 @@ sub = plotData[plotData$x >= 10 & plotData$x <= 30, ]
 maxX = max(sub$x[sub$response == max(sub$response)])
 
 # point estimates for all other FE checks
-cym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | OBJECTID"))
+cym = as.formula(paste0(
+  common,
+  " | OBJECTID + year + month | 0 | ",
+  clustering
+))
 cXt2m = as.formula(paste0(
   common,
   " + ",
   country_time,
-  " | OBJECTID  + month | 0 | OBJECTID"
+  " | OBJECTID  + month | 0 | ",
+  clustering
 ))
 cXt2cXm = as.formula(paste0(
   common,
   " + ",
   country_time,
-  " | OBJECTID + country:month | 0 | OBJECTID"
+  " | OBJECTID + country:month | 0 | ",
+  clustering
 ))
 cXt2intm = as.formula(paste0(
   common,
   " + ",
   country_time,
-  " | OBJECTID  + intervention + month | 0 | OBJECTID"
+  " | OBJECTID  + intervention + month | 0 | ",
+  clustering
 ))
 cXt2intcXm = as.formula(paste0(
   common,
   " + I(intervention) + ",
   country_time,
-  " | OBJECTID  + country:month | 0 | OBJECTID"
+  " | OBJECTID  + country:month | 0 | ",
+  clustering
 ))
 rXyrXm = as.formula(paste0(
   common,
-  " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"
+  " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | ",
+  clustering
 ))
 rXycXm = as.formula(paste0(
   common,
-  " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | OBJECTID"
+  " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | ",
+  clustering
 ))
 rXyrXmcXt = as.formula(paste0(
   common,
-  " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | OBJECTID"
+  " + country:monthyr | ", 
+  "OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | ",
+  clustering
 ))
 myforms = c(
   cym,

@@ -45,12 +45,13 @@ set.seed(7812)
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence
-# and CRU temperature and precipitation data aggregated to
-# the first level of Administrative division.
+# Read in the analysis ready data file with malaria prevalence and CRU 
+# temperature and precipitation data aggregated to # the first level of 
+# Administrative division.
 ################################################################################
 
 print("Loading clean data")
+
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 ################################################################################
@@ -71,9 +72,9 @@ scram <- complete |>
 cl <- parallel::makeCluster(n_cores)
 doSNOW::registerDoSNOW(cl)
 
-pb <- txtProgressBar(min = 0, max = S, style = 3)
-progress <- function(n) setTxtProgressBar(pb, n)
-opts <- list(progress = progress)
+# pb <- txtProgressBar(min = 0, max = S, style = 3)
+# progress <- function(n) setTxtProgressBar(pb, n)
+# opts <- list(progress = progress)
 
 ################################################################################
 # Process in parallel ----
@@ -82,8 +83,9 @@ opts <- list(progress = progress)
 placebo_out = foreach(
   i = 1:S,
   .combine = rbind,
-  .packages = c("dplyr", "lfe"),
-  .options.snow = opts
+  .packages = c("dplyr", "lfe")
+  # ,
+  # .options.snow = opts
 ) %dopar%
   {
     # i = 1
@@ -131,7 +133,7 @@ placebo_out = foreach(
 # Close cluster ----
 ################################################################################
 
-close(pb)
+# close(pb)
 parallel::stopCluster(cl)
 
 ################################################################################

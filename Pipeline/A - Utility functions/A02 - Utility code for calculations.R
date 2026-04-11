@@ -506,7 +506,7 @@ extract_long <- function(rast, polygons, rast_times, value_name) {
     x = rast,
     y = polygons,
     fun = 'mean',
-    progress = TRUE,
+    progress = FALSE,
     append_cols = "OBJECTID"
   )
   colnames(ex) <- c("OBJECTID", rast_times)
@@ -621,17 +621,20 @@ make_temp_terms <- function(n_lags = 0, n_leads = 0) {
 
 make_lag_form <- function(n_lags = 0, n_leads = 0) {
   temp_terms <- make_temp_terms(n_lags, n_leads)
-  as.formula(paste0(
-    "PfPR2 ~ ",
-    temp_terms,
-    " + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + ",
-    country_time,
-    " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
-  ))
+  as.formula(
+    paste0(
+      "PfPR2 ~ ",
+      temp_terms,
+      " + ",
+      floodvars,
+      " + ",
+      droughtvars,
+      " + I(intervention) + ",
+      country_time,
+      " | OBJECTID + as.factor(smllrgn):month | 0 | ",
+      clustering
+    )
+  )
 }
 
 ################################################################################

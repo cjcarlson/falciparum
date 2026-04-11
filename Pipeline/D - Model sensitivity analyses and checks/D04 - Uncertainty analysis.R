@@ -1,6 +1,6 @@
 ################################################################################
-# This script investigates correlation in the model residuals and assesses 
-# alternative methods of clustering or accounting for spatiotemporal 
+# This script investigates correlation in the model residuals and assesses
+# alternative methods of clustering or accounting for spatiotemporal
 # correlations in errors.
 ################################################################################
 # Set up ----
@@ -617,13 +617,13 @@ stargazer(
 # informed by diagnostics above
 ################################################################################
 
-###### Main spec (ADM1 clustering) ----
+## Main spec (Country-5 year clustering) ----
 
 # plot
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 coefs = summary(mainmod)$coefficients[1:2]
 # plot relative to max of quadratic function
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) 
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 mainfig = plotPolynomialResponse(
   mainmod,
   "temp",
@@ -638,7 +638,7 @@ mainfig = plotPolynomialResponse(
   showYTitle = T
 )
 
-###### country x year clustering (no correlation over years) ----
+## country x year clustering (no correlation over years) ----
 
 complete = complete |>
   group_by(country, year) |>
@@ -648,11 +648,10 @@ complete = complete |>
 # Formula
 cntryyr = as.formula(
   paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr"
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr"
   )
 )
 
@@ -678,16 +677,15 @@ cntryyrfig = plotPolynomialResponse(
   showYTitle = T
 )
 
-###### Country clustering ----
+## Country clustering ----
 
 # Formula
 cntryclus = as.formula(
   paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | country"
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | country"
   )
 )
 
@@ -712,7 +710,7 @@ cntryfig = plotPolynomialResponse(
   showYTitle = T
 )
 
-###### GBOD-year clustering ----
+## GBOD-year clustering ----
 complete = complete |>
   group_by(smllrgn, year) |>
   mutate(smllrgnyr = cur_group_id()) |>
@@ -721,11 +719,10 @@ complete = complete |>
 # Formula
 smllrgnyr = as.formula(
   paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | smllrgnyr"
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | smllrgnyr"
   )
 )
 
@@ -735,7 +732,8 @@ linearHypothesis(smllrgnyrmod, "temp + temp2 = 0")['Pr(>Chisq)']
 
 # Plot
 coefs = summary(smllrgnyrmod)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+# plot relative to max of quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 smllrgnyrfig = plotPolynomialResponse(
   smllrgnyrmod,
   "temp",
@@ -750,18 +748,17 @@ smllrgnyrfig = plotPolynomialResponse(
   showYTitle = T
 )
 
-###### Conley ----
+## Conley ----
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
 
 # Formula
 conleyform = as.formula(
   paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 + as.factor(smllrgn):month | OBJECTID "
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " + as.factor(smllrgn):month | OBJECTID "
   )
 )
 
@@ -769,7 +766,7 @@ conleyform = as.formula(
 conley_dist_1 <- 200
 conley_dist_2 <- 500
 
-conleymod1 = feols(
+conleymod1 = fixest::feols(
   conleyform,
   data = spdf,
   conley(conley_dist_1, distance = "spherical")
@@ -785,7 +782,8 @@ linearHypothesis(conleymod2, "temp + temp2 = 0")['Pr(>Chisq)']
 
 # Plot
 coefs = summary(conleymod1)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+# plot relative to max of quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 conleyfig1 = plotPolynomialResponse(
   conleymod1,
   "temp",
@@ -920,8 +918,7 @@ ggsave(
 # I. Country 5yr vs country 10yr ----
 ################################################################################
 
-
-###### Country x 5-year clustering ----
+## Country x 5-year clustering ----
 complete = complete |>
   mutate(yr5 = floor(yearnum / 5) * 5) |>
   group_by(country, yr5) |>
@@ -931,11 +928,10 @@ complete = complete |>
 # Formula
 cntryyr5 = as.formula(
   paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr5"
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr5"
   )
 )
 
@@ -960,7 +956,7 @@ cntryyr5fig = plotPolynomialResponse(
   showYTitle = T
 )
 
-###### Country x 10-year clustering ----
+## Country x 10-year clustering ----
 complete = complete |>
   mutate(yr10 = floor(yearnum / 10) * 10) |>
   group_by(country, yr10) |>
@@ -970,11 +966,10 @@ complete = complete |>
 # Formula
 cntryyr10 = as.formula(
   paste0(
-    "PfPR2 ~ temp + temp2 + ",
-    floodvars,
-    " + ",
-    droughtvars,
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr10"
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr10"
   )
 )
 

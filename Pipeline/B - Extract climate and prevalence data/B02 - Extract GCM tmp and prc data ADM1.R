@@ -21,7 +21,7 @@ pacman::p_load(
   terra,
   future,
   tidyverse,
-  progressr,
+  # progressr,
   parallelly,
   data.table,
   future.apply,
@@ -50,9 +50,9 @@ n_cores <- future::availableCores()
 # n_cores <- min(length(models), availableCores())
 future::plan(multicore, workers = n_cores)
 
-handlers(handler_progress(
-  format = ":spin :current/:total [:bar] :percent :message"
-))
+# handlers(handler_progress(
+#   format = ":spin :current/:total [:bar] :percent :message"
+# ))
 
 ################################################################################
 # Loop over scenarios ----
@@ -78,8 +78,8 @@ for (scenario in scenarios) {
   # Loop over Models ----
   ##############################################################################
 
-  progressr::with_progress({
-    p <- progressr::progressor(along = models)
+  # progressr::with_progress({
+  #   p <- progressr::progressor(along = models)
 
     future_lapply(
       models,
@@ -146,12 +146,12 @@ for (scenario in scenarios) {
           data.table::fwrite(temp_dt, output_path)
         }
 
-        p(message = sprintf("%s done", model))
+        # p(message = sprintf("%s done", model))
         return(NULL)
       },
       future.seed = NULL
     ) 
-  })
+  # })
   log_msg(sprintf("Finished scenario: %s", scenario))
 }
 future::plan(sequential)

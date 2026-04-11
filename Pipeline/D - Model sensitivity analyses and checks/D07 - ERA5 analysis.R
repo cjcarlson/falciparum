@@ -196,9 +196,9 @@ log_msg("Preparing the compute cluster")
 clus <- parallel::makeCluster(n_cores)
 doSNOW::registerDoSNOW(clus)
 
-pb <- txtProgressBar(max = S, style = 3)
-progress <- function(n) setTxtProgressBar(pb, n)
-opts <- list(progress = progress)
+# pb <- txtProgressBar(max = S, style = 3)
+# progress <- function(n) setTxtProgressBar(pb, n)
+# opts <- list(progress = progress)
 
 ################################################################################
 # Bootstrap estimation ----
@@ -225,8 +225,9 @@ log_msg("Begin the bootstrap models")
 
 result <- foreach(
   i = 1:(S + 1),
-  .packages = c("lfe"),
-  .options.snow = opts
+  .packages = c("lfe")
+  # ,
+  # .options.snow = opts
 ) %dopar%
   {
     if (i == 1) {
@@ -245,7 +246,7 @@ result <- foreach(
 
     list(coefs = out, model = model, n = nrow(era5_prev_data.boot))
   }
-close(pb)
+# close(pb)
 stopCluster(clus)
 
 log_msg("Finish the bootstrap models")

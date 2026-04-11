@@ -15,13 +15,14 @@ if (!require("pacman")) {
 pacman::p_load(
   lfe,
   here,
-  zoo,
+  # zoo,
   MASS,
-  future,
-  tidyverse,
-  lubridate,
-  data.table,
-  future.apply
+  # future,
+  tidyverse
+  # ,
+  # lubridate,
+  # data.table
+  # future.apply
 )
 
 # source functions for easy plotting and estimation

@@ -15,12 +15,12 @@ if (!require("pacman")) {
 pacman::p_load(
   here,
   terra,
-  future,
+  # future,
   tidyverse,
-  progressr,
-  parallelly,
+  # progressr,
+  # parallelly,
   data.table,
-  future.apply,
+  # future.apply,
   exactextractr
 )
 
@@ -112,7 +112,10 @@ rm(precip_dt)
 
 log_msg(paste0("Save data to: ", intermediate_ERA_adm1_fp))
 
-data.table::setcolorder(temp_dt, c("OBJECTID", "year", "month", "temp", "temp2", "ppt"))
+data.table::setcolorder(
+  temp_dt,
+  c("OBJECTID", "year", "month", "temp", "temp2", "ppt")
+)
 
 data.table::fwrite(temp_dt, intermediate_ERA_adm1_fp)
 

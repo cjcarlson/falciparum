@@ -40,11 +40,6 @@ data <- intermediate_CRU_adm1_fp |>
   dplyr::mutate(year = factor(year)) |>
   dplyr::left_join(complete)
 
-
-# data <- file.path(data_dir, "Data", "CRU-Reextraction-Aug2022.csv") |>
-#   read.csv()
-# Keep an eye out for logical data parse issue
-
 # Generate the R0 curves:
 data$predR0 <- sapply(data$temp, r0t)
 
@@ -220,7 +215,8 @@ p
 
 ggsave(
   filename = 'FigureS1.pdf',
-  path = figure_supp_dir,
+  # path = figure_supp_dir,
+  path = here::here("Figures"),
   plot = p,
   height = 10,
   width = 10,
@@ -230,7 +226,8 @@ ggsave(
 
 ggsave(
   filename = 'FigureS1.jpg',
-  path = figure_supp_dir,
+  # path = figure_supp_dir,
+  path = here::here("Figures"),
   plot = p,
   height = 10,
   width = 10
