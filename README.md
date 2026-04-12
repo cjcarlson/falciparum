@@ -114,4 +114,4 @@ The last complete run of this pipeline took 1 hour and 12 minutes on a single HP
 
 ## Use of code and data
 
-Our code can be used, modified, and distributed freely for educational, research, and not-for-profit uses. For all other cases, please contact us. Further details are available in the [license](LICENSE)
+Our code can be used, modified, and distributed freely for educational, research, and not-for-profit uses. For all other cases, please contact us. Further details are available in the [license](LICENSE).
