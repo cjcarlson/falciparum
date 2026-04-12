@@ -33,11 +33,10 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 # Set number of bootstrap simulations.
-S = 1000
+S = 2000
 
 # Set seed for reproducible output
 set.seed(11235)
-# set.seed(42)
 
 ################################################################################
 # Set up logging ----

@@ -21,7 +21,7 @@ pacman::p_load(
   zoo,
   lubridate,
   cowplot,
-  multcomp,
+  multcomp
 )
 
 # source functions for easy plotting and estimation
@@ -292,7 +292,7 @@ templags = climate_data %>%
 # merge back into main dataset
 tokeep = c("OBJECTID", "monthyr", "month", "year")
 templags = templags |>
-  dplyr::select(tokeep, contains("lag"), contains("lead"))
+  dplyr::select(all_of(tokeep), contains("lag"), contains("lead"))
 
 complete <- complete |>
   left_join(

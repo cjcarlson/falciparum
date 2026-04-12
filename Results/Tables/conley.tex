@@ -1,0 +1,48 @@
+
+\begin{table}[htbp]
+   \caption{\label{tab:conley} no title}
+   \centering
+   \begin{tabular}{lcc}
+      \tabularnewline \midrule \midrule
+      Dependent Variable: & \multicolumn{2}{c}{PfPR2}\\
+      Model:           & (1)           & (2)\\  
+      \midrule
+      \emph{Variables}\\
+      temp             & 4.15$^{**}$   & 4.15$^{*}$\\   
+                       & (1.43)        & (1.64)\\   
+      temp2            & -0.083$^{**}$ & -0.083$^{**}$\\   
+                       & (0.027)       & (0.031)\\   
+      flood            & -0.272        & -0.272\\   
+                       & (0.911)       & (1.12)\\   
+      flood.lag        & -0.458        & -0.458\\   
+                       & (0.816)       & (1.03)\\   
+      flood.lag2       & 1.71$^{*}$    & 1.71\\   
+                       & (0.828)       & (1.14)\\   
+      flood.lag3       & 0.959         & 0.959\\   
+                       & (0.859)       & (1.11)\\   
+      drought          & 0.087         & 0.087\\   
+                       & (0.829)       & (1.05)\\   
+      drought.lag      & -1.28         & -1.28\\   
+                       & (0.884)       & (0.893)\\   
+      drought.lag2     & -1.16         & -1.16\\   
+                       & (0.712)       & (0.706)\\   
+      drought.lag3     & 0.193         & 0.193\\   
+                       & (0.677)       & (0.592)\\   
+      I(intervention)1 & -4.80$^{**}$  & -4.80$^{*}$\\   
+                       & (1.81)        & (2.30)\\   
+      I(intervention)2 & -3.35         & -3.35\\   
+                       & (2.07)        & (2.09)\\   
+      \midrule
+      \emph{Fixed-effects}\\
+      OBJECTID         & Yes           & Yes\\  
+      \midrule
+      \emph{Fit statistics}\\
+      Observations     & 9,858         & 9,858\\  
+      R$^2$            & 0.52957       & 0.52957\\  
+      Adjusted R$^2$   & 0.49300       & 0.49300\\  
+      \midrule \midrule
+      \multicolumn{3}{l}{\emph{Signif. Codes: ***: 0.001, **: 0.01, *: 0.05}}\\
+   \end{tabular}
+\end{table}
+
+

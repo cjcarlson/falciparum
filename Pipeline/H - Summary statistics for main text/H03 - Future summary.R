@@ -34,7 +34,7 @@ future_scen_mod_yr_pred <- file.path(
   ) |>
   dplyr::select(scenario, model, year, Pred, run)
 
-cont_results <- process_data(future_scen_mod_yr_pred)
+adm1_results <- calc_future_regional_diff(future_scen_mod_yr_pred)
 
 ################################################################################
 # Future regional delta data ----
@@ -51,23 +51,23 @@ future_scen_mod_yr_reg_pred <- file.path(
   dplyr::select(scenario, model, region, year, Pred, run)
 
 region_results <- names(region_names)[2:5] |>
-  map(~ process_data(future_scen_mod_yr_reg_pred, .x)) |>
-  list_rbind()
+  purrr::map(~ calc_future_regional_diff(future_scen_mod_yr_reg_pred, .x)) |>
+  purrr::list_rbind()
 
 ################################################################################
 # Save table ----
 ################################################################################
 
 # Prepare the data for output
-output_data <- cont_results |>
-  bind_rows(region_results) |>
+output_data <- adm1_results |>
+  dplyr::bind_rows(region_results) |>
   dplyr::select(-n_positive, -n_total) |>
-  pivot_wider(
+  tidyr::pivot_wider(
     names_from = period,
     values_from = c(mean, lower, upper, prop_positive),
     names_sep = "_"
   ) |>
-  select(
+  dplyr::select(
     Region = region,
     Scenario = scenario,
     Estimate_2048_2052 = `mean_2048-2052`,
@@ -79,12 +79,12 @@ output_data <- cont_results |>
     CI_high_2096_2100 = `upper_2096-2100`,
     PropPositive_2096_2100 = `prop_positive_2096-2100`
   ) |>
-  mutate(
-    Region = case_match(Region, !!!region_formulas),
-    Scenario = case_match(Scenario, !!!future_scenario_formulas)
+  dplyr::mutate(
+    Region = dplyr::case_match(Region, !!!region_formulas),
+    Scenario = dplyr::case_match(Scenario, !!!future_scenario_formulas)
   ) |>
-  arrange(factor(Region, levels = unname(region_names))) |>
-  mutate(
+  dplyr::arrange(factor(Region, levels = unname(region_names))) |>
+  dplyr::mutate(
     Estimate_2048_2052 = round(Estimate_2048_2052, 3),
     Estimate_2096_2100 = round(Estimate_2096_2100, 3),
     CI_2048_2052 = sprintf("(%.3f, %.3f)", CI_low_2048_2052, CI_high_2048_2052),
@@ -92,7 +92,7 @@ output_data <- cont_results |>
     PropPositive_2048_2052 = round(PropPositive_2048_2052, 3),
     PropPositive_2096_2100 = round(PropPositive_2096_2100, 3)
   ) |>
-  select(
+  dplyr::select(
     Region,
     Scenario,
     Estimate_2048_2052,
@@ -103,10 +103,18 @@ output_data <- cont_results |>
     PropPositive_2096_2100
   )
 
-readr::write_csv(
-  output_data,
-  file.path(fut_sum_dir, "supp_future_regions_summary.csv")
+writeLines(
+  generate_future_latex(output_data),
+  con = here::here("Results", "Tables", "Future.tex")
 )
+
+cat(generate_future_latex(output_data))
+
+# readr::write_csv(
+#   output_data,
+#   # file.path(fut_sum_dir, "supp_future_regions_summary.csv")
+#   here::here("Results", "Tables", "supp_future_regions_summary.csv")
+# )
 
 ################################################################################
 # Compare ssp126 to ssp245 P+ ----
@@ -243,7 +251,7 @@ boot_diff <- future_scen_mod_yr_obj_pred |>
     lower.diff = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff = quantile(diff, 0.95, na.rm = TRUE)
   ) |>
-  dplyr::left_join(main_diff) |> 
+  dplyr::left_join(main_diff) |>
   dplyr::mutate(
     # OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5500) / 5500

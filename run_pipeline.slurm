@@ -5,7 +5,6 @@
 #SBATCH --partition=savio4_htc
 #SBATCH --nodes=1
 #SBATCH --exclusive
-# SBATCH --ntasks=1
 #SBATCH --time=12:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=cmolitor@berkeley.edu
@@ -106,40 +105,40 @@ run_r_script_old() {
     fi
 }
 
-# ################################################################################
-# # Section B: Extract climate and prevalence data
-# ################################################################################
+################################################################################
+# Section B: Extract climate and prevalence data
+################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION B: Extract climate and prevalence data"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION B: Extract climate and prevalence data"
+echo "################################################################"
 
-# PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
-# run_r_script_old "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
-# run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
-# run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
-# run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
-# run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
-# run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
+PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
+run_r_script_old "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
+run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
+run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
+run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
+run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
+run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
 
-# ################################################################################
-# # Section C: Model estimation
-# ################################################################################
+################################################################################
+# Section C: Model estimation
+################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION C: Model estimation"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION C: Model estimation"
+echo "################################################################"
 
-# PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
-# run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
-# run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
-# run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
+PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
+run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
+run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
+run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
 
-# ################################################################################
-# # Section D: Model sensitivity analyses and checks
-# ################################################################################
+################################################################################
+# Section D: Model sensitivity analyses and checks
+################################################################################
 
 echo ""
 echo "################################################################"
@@ -155,32 +154,32 @@ run_r_script "${PIPELINE_D_DIR}/D05 - High resolution model.R"
 run_r_script "${PIPELINE_D_DIR}/D06 - Urbanization.R"
 run_r_script "${PIPELINE_D_DIR}/D07 - ERA5 analysis.R"
 
-# ################################################################################
-# # Section E: Estimate historical and future prevalence
-# ################################################################################
+################################################################################
+# Section E: Estimate historical and future prevalence
+################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION E: Estimate historical and future prevalence"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION E: Estimate historical and future prevalence"
+echo "################################################################"
 
-# PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
-# run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
+PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
+run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
 
 ################################################################################
 # Section F: Figure generation for main text
 ################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION F: Figure generation for main text"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION F: Figure generation for main text"
+echo "################################################################"
 
-# PIPELINE_F_DIR="${PIPELINE_DIR}/F - Figure generation for main text"
-# run_r_script "${PIPELINE_F_DIR}/F01 - Prev maps and TS.R"
-# run_r_script "${PIPELINE_F_DIR}/F02 - Coeff and TS.R"
-# run_r_script_old "${PIPELINE_F_DIR}/F03 - Hist map, temp, elev, and TS.R"
-# run_r_script_old "${PIPELINE_F_DIR}/F04 - Future map, temp, elev, and TS.R"
+PIPELINE_F_DIR="${PIPELINE_DIR}/F - Figure generation for main text"
+run_r_script "${PIPELINE_F_DIR}/F01 - Prev maps and TS.R"
+run_r_script "${PIPELINE_F_DIR}/F02 - Coeff and TS.R"
+run_r_script_old "${PIPELINE_F_DIR}/F03 - Hist map, temp, elev, and TS.R"
+run_r_script_old "${PIPELINE_F_DIR}/F04 - Future map, temp, elev, and TS.R"
 
 ################################################################################
 # Section G: Figure generation for supplement
@@ -200,20 +199,20 @@ run_r_script "${PIPELINE_G_DIR}/G05 - Projection maps.R"
 run_r_script "${PIPELINE_G_DIR}/G06 - Monthly time series.R"
 run_r_script "${PIPELINE_G_DIR}/G07 - vcov sample.R"
 
-# ################################################################################
-# # Section H: Summary statistics for main text
-# ################################################################################
+################################################################################
+# Section H: Summary statistics for main text
+################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION H: Summary statistics for main text"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION H: Summary statistics for main text"
+echo "################################################################"
 
-# PIPELINE_H_DIR="${PIPELINE_DIR}/H - Summary statistics for main text"
-# run_r_script "${PIPELINE_H_DIR}/H01 - Thermal responses.R"
-# run_r_script "${PIPELINE_H_DIR}/H02 - Historical summary.R"
-# run_r_script "${PIPELINE_H_DIR}/H03 - Future summary.R"
-# run_r_script "${PIPELINE_H_DIR}/H04 - Global warming levels.R"
+PIPELINE_H_DIR="${PIPELINE_DIR}/H - Summary statistics for main text"
+run_r_script "${PIPELINE_H_DIR}/H01 - Thermal responses.R"
+run_r_script "${PIPELINE_H_DIR}/H02 - Historical summary.R"
+run_r_script "${PIPELINE_H_DIR}/H03 - Future summary.R"
+run_r_script "${PIPELINE_H_DIR}/H04 - Global warming levels.R"
 
 ################################################################################
 # Pipeline Complete

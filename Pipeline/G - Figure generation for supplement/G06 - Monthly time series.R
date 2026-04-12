@@ -312,6 +312,8 @@ region_peak_effect <- rgn_mean_diff_df |>
   ) |>
   kable_styling(latex_options = c("hold_position"))
 
+region_peak_effect
+
 
 kableExtra::save_kable(
   region_peak_effect,

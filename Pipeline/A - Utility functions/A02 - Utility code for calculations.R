@@ -229,7 +229,7 @@ analyze_corr <- function(
 ################################################################################
 
 # Function to convert dataframe to LaTeX table
-df_to_latex <- function(df, digits = 2) {
+df_to_latex <- function(df, digits = 2, print = TRUE) {
   # Handle NaN/NA values
   df$mean[is.nan(df$mean)] <- NA
   df$q25[is.nan(df$q25)] <- NA
@@ -245,34 +245,33 @@ df_to_latex <- function(df, digits = 2) {
   df$q25[is.na(df$q25)] <- ""
   df$q75[is.na(df$q75)] <- ""
 
-  # Start LaTeX table
-  cat("\\begin{tabular}{llcccc}\n")
-  cat("    \\toprule\n")
-  cat("    Kind & Group & $\\overline{\\rho}$ & Q25 & Q75 & $N$ \\\\\n")
-  cat("    \\hline\n")
+  # Build lines
+  lines <- character()
+  lines <- c(lines, "\\begin{tabular}{llcccc}")
+  lines <- c(lines, "    \\toprule")
+  lines <- c(lines, "    Kind & Group & $\\overline{\\rho}$ & Q25 & Q75 & $N$ \\\\")
+  lines <- c(lines, "    \\hline")
 
-  # Print each row
   for (i in 1:nrow(df)) {
-    cat(
-      "    ",
-      df$kind[i],
-      " & ",
-      df$group[i],
-      " & ",
-      df$mean[i],
-      " & ",
-      df$q25[i],
-      " & ",
-      df$q75[i],
-      " & ",
-      df$n[i],
-      " \\\\\n",
-      sep = ""
-    )
+    lines <- c(lines, paste0(
+      "    ", df$kind[i],
+      " & ", df$group[i],
+      " & ", df$mean[i],
+      " & ", df$q25[i],
+      " & ", df$q75[i],
+      " & ", df$n[i],
+      " \\\\"
+    ))
   }
 
-  cat("    \\bottomrule\n")
-  cat("\\end{tabular}\n")
+  lines <- c(lines, "    \\bottomrule")
+  lines <- c(lines, "\\end{tabular}")
+
+  result <- paste(lines, collapse = "\n")
+
+  if (print) cat(result, "\n")
+
+  invisible(result)
 }
 
 ################################################################################
@@ -734,31 +733,31 @@ calc_hist_regional_diff <- function(data, region_name = NULL) {
 
 calc_future_regional_diff <- function(data, region_name = NULL) {
   if (!is.null(region_name)) {
-    data <- data |> filter(region == region_name)
+    data <- data |> dplyr::filter(region == region_name)
   }
 
   bm <- data |>
-    filter(year %in% 2015:2020) |>
-    group_by(model, scenario, run) |>
-    summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
+    dplyr::filter(year %in% 2015:2020) |>
+    dplyr::group_by(model, scenario, run) |>
+    dplyr::summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
 
   df <- data |>
-    left_join(bm, by = c("model", "scenario", "run")) |>
-    mutate(Pred = Pred - BetaMean) |>
-    select(-BetaMean)
+    dplyr::left_join(bm, by = c("model", "scenario", "run")) |>
+    dplyr::mutate(Pred = Pred - BetaMean) |>
+    dplyr::select(-BetaMean)
 
-  results <- bind_rows(
+  results <- dplyr::bind_rows(
     df |>
-      filter(year %in% 2048:2052) |>
-      mutate(period = "2048-2052"),
+      dplyr::filter(year %in% 2048:2052) |>
+      dplyr::mutate(period = "2048-2052"),
     df |>
-      filter(year %in% 2096:2100) |>
-      mutate(period = "2096-2100")
+      dplyr::filter(year %in% 2096:2100) |>
+      dplyr::mutate(period = "2096-2100")
   ) |>
-    group_by(run, model, scenario, period) |>
-    summarize(Pred = mean(Pred), .groups = "drop") |>
-    group_by(scenario, period) |>
-    summarize(
+    dplyr::group_by(run, model, scenario, period) |>
+    dplyr::summarize(Pred = mean(Pred), .groups = "drop") |>
+    dplyr::group_by(scenario, period) |>
+    dplyr::summarize(
       mean = mean(Pred),
       lower = quantile(Pred, 0.025),
       upper = quantile(Pred, 0.975),
@@ -769,12 +768,82 @@ calc_future_regional_diff <- function(data, region_name = NULL) {
     )
 
   if (!is.null(region_name)) {
-    results <- results |> mutate(region = region_name)
+    results <- results |> dplyr::mutate(region = region_name)
   } else {
-    results <- results |> mutate(region = "Sub-Saharan Africa (continent-wide)")
+    results <- results |> dplyr::mutate(region = "Sub-Saharan Africa (continent-wide)")
   }
 
   return(results)
+}
+
+################################################################################
+# generate_future_latex ----
+################################################################################
+
+generate_future_latex <- function(df) {
+  header <- r"(\begin{tabular}{|l|l|lll|lll|}
+    \hline
+    \multirow{2}{*}{\textbf{Region}} & \multirow{2}{*}{\textbf{Scenario}} & \multicolumn{3}{c|}{\textbf{2048-2052}} & \multicolumn{3}{c|}{\textbf{2096-2100}} \\
+    \cline{3-8}
+    & & \textbf{Estimate} & \textbf{95\% CI} & \textbf{P$_{+}$} & \textbf{Estimate} & \textbf{95\% CI} & \textbf{P$_{+}$} \\
+    \hline)"
+
+  # Footer
+  footer <- r"(\end{tabular})"
+
+  # Get unique regions in order
+  regions <- unique(df$Region)
+
+  body_lines <- character(0)
+
+  for (reg in regions) {
+    sub <- df |> dplyr::filter(Region == reg)
+    n <- nrow(sub)
+
+    # Format the region label for LaTeX
+    if (grepl("\n", reg)) {
+      parts <- strsplit(reg, "\n")[[1]]
+      region_label <- sprintf(
+        r"(\begin{tabular}[c]{@{}l@{}}%s\\%s\end{tabular})",
+        parts[1],
+        parts[2]
+      )
+    } else {
+      region_label <- reg
+    }
+
+    for (i in seq_len(n)) {
+      row <- sub[i, ]
+
+      # Format numeric values with padding for alignment
+      est1 <- sprintf("%.3f", row$Estimate_2048_2052)
+      est2 <- sprintf("%.3f", row$Estimate_2096_2100)
+      pp1 <- sprintf("%.3f", row$PropPositive_2048_2052)
+      pp2 <- sprintf("%.3f", row$PropPositive_2096_2100)
+
+      if (i == 1) {
+        region_cell <- sprintf("\\multirow{%d}{*}{%s}", n, region_label)
+      } else {
+        region_cell <- ""
+      }
+
+      line <- sprintf(
+        "    %s & %s & %s & %s & %s & %s & %s & %s \\\\",
+        region_cell,
+        row$Scenario,
+        est1,
+        row$CI_2048_2052,
+        pp1,
+        est2,
+        row$CI_2096_2100,
+        pp2
+      )
+      body_lines <- c(body_lines, line)
+    }
+    body_lines <- c(body_lines, "    \\hline")
+  }
+
+  paste(c(header, body_lines, footer), collapse = "\n")
 }
 
 print("Finished loading A01 - Utility code for calculations.R")

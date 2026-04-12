@@ -17,7 +17,7 @@ savio_dir <- '/global/scratch/projects/co_carleton/carleton_colab/projects/'
 ##### location for data and output
 data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
-  user == "Tamma" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
+  user == "tammacarleton" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
   user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication/data'),
   TRUE ~ NA_character_
@@ -28,7 +28,7 @@ print(paste0("data directory set to: ", data_dir))
 ##### location for cloned repo
 repo_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Documents/Github/falciparum',
-  user == "Tamma" ~
+  user == "tammacarleton" ~
     '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum',
   user == "cullen_molitor" ~ '/home/cullen_molitor/falciparum',
   user == "cmolitor" ~ '/global/home/users/cmolitor/falciparum',
@@ -63,7 +63,7 @@ cXt2intrXm <- as.formula(
     common,
     " + I(intervention) + ",
     country_time,
-    "| OBJECTID + as.factor(smllrgn):month | 0 | ",
+    " | OBJECTID + as.factor(smllrgn):month | 0 | ",
     clustering
   )
 )

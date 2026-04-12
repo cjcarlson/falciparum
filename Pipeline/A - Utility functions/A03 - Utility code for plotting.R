@@ -107,21 +107,6 @@ plotPolynomialResponse <- function(
   ### yLim limits y-axis values
   ### showYTitle turns on and off the y-axis label
 
-  # mod = modellist[[2]]
-  # patternForPlotVars = "temp"
-  # xVals = plotXtemp
-  # polyOrder = 2
-  # lag = 1
-  # plotmax = F
-  # cluster = T
-  # xRef = Tref
-  # xLab = expression(paste("Mean temperature (", degree, "C)"))
-  # yLab = "Prevalence (%)"
-  # title = "cumulative (1 mo.)"
-  # yLim = c(-30, 5)
-  # showYTitle = T
-  # ci_level = 0.95
-
   # Handle different model types
   if (inherits(mod, "felm")) {
     beta = mod$coefficients
@@ -221,7 +206,8 @@ plotPolynomialResponse <- function(
         aes(x = x, y = response),
         color = "black",
         alpha = .6,
-        linewidth = .5
+        linewidth = .5,
+        linetype = "dashed"
       ) +
       geom_line(
         data = filter(plotData, group == "Rural"),
