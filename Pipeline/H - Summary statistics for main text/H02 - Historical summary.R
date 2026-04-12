@@ -52,7 +52,7 @@ hist_scen_mod_yr_adm1_pred <- file.path(
 # log_msg("Calculating ADM1 mean difference")
 
 main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
-  dplyr::filter(run == "main", ) |>
+  dplyr::filter(run == "main") |>
   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
   dplyr::mutate(diff = (historical - `hist-nat`)) |>
   dplyr::group_by(OBJECTID) |>

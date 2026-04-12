@@ -82,8 +82,6 @@ Pipeline
     └── H04 - Global warming levels.R
 ```
 
-Along with a structured and sequential pipeline, we provide a SLURM orchestration script that can be used. 
-
 ## Results
 
 The figures and tables from the paper can be found in `Results` folder.
@@ -110,6 +108,10 @@ The Pipeline is now ready to be run at any level a user chooses. It is important
 
 The rest of the code can be run with more recent versions of R. It has most recently been used with R 4.5.2. 
 
+Along with the structured and sequential pipeline, we provide a SLURM orchestration script `run_pipeline.slurm`. This can be used to run each file sequentially on a high performance compute (HPC) cluster node. Parallel processing has been implemented on the script level where needed to speed up overall run time. This script relies on docker containers, which are freely available on Dockerhub including the [r-malaria-cru](https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general) and [rocker/geospatial](https://hub.docker.com/r/rocker/geospatial). 
+
+The last complete run of this pipeline took 1 hour and 12 minutes on a single HPC node running an Intel Xeon Gold 6330 proccessor with 56 cores and 256 GB of RAM. The full data storage requirement is with all input data, intermediate data, and output data is XX GB. 
+
 ## Use of code and data
 
-Our code can be used, modified, and distributed freely for educational, research, and not-for-profit uses. For all other cases, please contact us.
+Our code can be used, modified, and distributed freely for educational, research, and not-for-profit uses. For all other cases, please contact us. Further details are available in the [license](LICENSE)

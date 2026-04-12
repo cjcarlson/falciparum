@@ -249,19 +249,31 @@ df_to_latex <- function(df, digits = 2, print = TRUE) {
   lines <- character()
   lines <- c(lines, "\\begin{tabular}{llcccc}")
   lines <- c(lines, "    \\toprule")
-  lines <- c(lines, "    Kind & Group & $\\overline{\\rho}$ & Q25 & Q75 & $N$ \\\\")
+  lines <- c(
+    lines,
+    "    Kind & Group & $\\overline{\\rho}$ & Q25 & Q75 & $N$ \\\\"
+  )
   lines <- c(lines, "    \\hline")
 
   for (i in 1:nrow(df)) {
-    lines <- c(lines, paste0(
-      "    ", df$kind[i],
-      " & ", df$group[i],
-      " & ", df$mean[i],
-      " & ", df$q25[i],
-      " & ", df$q75[i],
-      " & ", df$n[i],
-      " \\\\"
-    ))
+    lines <- c(
+      lines,
+      paste0(
+        "    ",
+        df$kind[i],
+        " & ",
+        df$group[i],
+        " & ",
+        df$mean[i],
+        " & ",
+        df$q25[i],
+        " & ",
+        df$q75[i],
+        " & ",
+        df$n[i],
+        " \\\\"
+      )
+    )
   }
 
   lines <- c(lines, "    \\bottomrule")
@@ -269,7 +281,9 @@ df_to_latex <- function(df, digits = 2, print = TRUE) {
 
   result <- paste(lines, collapse = "\n")
 
-  if (print) cat(result, "\n")
+  if (print) {
+    cat(result, "\n")
+  }
 
   invisible(result)
 }
@@ -706,16 +720,25 @@ calc_hist_regional_diff <- function(data, region_name = NULL) {
     dplyr::summarize(
       `hist-nat` = mean(`hist-nat`),
       historical = mean(historical)
-    )
+    ) |>
+    dplyr::mutate(diff = historical - `hist-nat`)
 
-  diff <- df2$historical - df2$`hist-nat`
+  # Mean diff from the main run only
+  main_diff <- df2 |>
+    dplyr::filter(run == "main") |>
+    dplyr::pull(diff)
+
+  # CI and proportion positive from bootstrap runs only
+  boot_diffs <- df2 |>
+    dplyr::filter(run != "main") |>
+    dplyr::pull(diff)
 
   results <- tibble::tibble(
-    MeanDifference = mean(diff),
-    ScaledMeanDifference = 100000 * mean(diff) / 100,
-    Quantile_025 = quantile(diff, 0.025),
-    Quantile_975 = quantile(diff, 0.975),
-    ProportionPositive = prop.table(table(diff > 0))["TRUE"]
+    MeanDifference = mean(main_diff),
+    ScaledMeanDifference = 100000 * mean(main_diff) / 100,
+    Quantile_025 = quantile(boot_diffs, 0.025),
+    Quantile_975 = quantile(boot_diffs, 0.975),
+    ProportionPositive = prop.table(table(boot_diffs > 0))["TRUE"]
   ) |>
     dplyr::mutate(dplyr::across(where(is.numeric), ~ round(., 4)))
 
@@ -746,7 +769,7 @@ calc_future_regional_diff <- function(data, region_name = NULL) {
     dplyr::mutate(Pred = Pred - BetaMean) |>
     dplyr::select(-BetaMean)
 
-  results <- dplyr::bind_rows(
+  pred_by_run <- dplyr::bind_rows(
     df |>
       dplyr::filter(year %in% 2048:2052) |>
       dplyr::mutate(period = "2048-2052"),
@@ -755,10 +778,22 @@ calc_future_regional_diff <- function(data, region_name = NULL) {
       dplyr::mutate(period = "2096-2100")
   ) |>
     dplyr::group_by(run, model, scenario, period) |>
-    dplyr::summarize(Pred = mean(Pred), .groups = "drop") |>
+    dplyr::summarize(Pred = mean(Pred), .groups = "drop")
+
+  # Mean from main run only
+  main_stats <- pred_by_run |>
+    dplyr::filter(run == "main") |>
     dplyr::group_by(scenario, period) |>
     dplyr::summarize(
       mean = mean(Pred),
+      .groups = "drop"
+    )
+
+  # CI and proportion positive from bootstrap runs only
+  boot_stats <- pred_by_run |>
+    dplyr::filter(run != "main") |>
+    dplyr::group_by(scenario, period) |>
+    dplyr::summarize(
       lower = quantile(Pred, 0.025),
       upper = quantile(Pred, 0.975),
       prop_positive = mean(Pred > 0),
@@ -767,10 +802,14 @@ calc_future_regional_diff <- function(data, region_name = NULL) {
       .groups = "drop"
     )
 
+  results <- main_stats |>
+    dplyr::left_join(boot_stats, by = c("scenario", "period"))
+
   if (!is.null(region_name)) {
     results <- results |> dplyr::mutate(region = region_name)
   } else {
-    results <- results |> dplyr::mutate(region = "Sub-Saharan Africa (continent-wide)")
+    results <- results |>
+      dplyr::mutate(region = "Sub-Saharan Africa (continent-wide)")
   }
 
   return(results)

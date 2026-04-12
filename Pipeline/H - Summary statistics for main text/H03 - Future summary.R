@@ -215,14 +215,17 @@ diff.df <- rbind(boot.diff.mid.df, boot.diff.end.df) |>
   dplyr::mutate(
     across(
       c(lower_diff, upper_diff, prop_positive_diff, mean_diff),
-      ~ round(.x, 2)
+      ~ round(.x, 3)
     )
   )
 
-readr::write_csv(diff.df, file.path(fut_sum_dir, "future_diff_summary.csv"))
+readr::write_csv(
+  diff.df,
+  here::here("Results", "Tables", "future_regional_diff_summary.csv")
+)
 
 ################################################################################
-# Calculate differences ----
+# Calculate ADM1 differences ----
 ################################################################################
 
 future_scen_mod_yr_obj_pred <- file.path(

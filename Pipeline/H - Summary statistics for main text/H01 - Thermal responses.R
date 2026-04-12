@@ -71,14 +71,21 @@ temps <- plotData |>
 
 print(temps)
 
+main <- temps |>
+  dplyr::filter(model == "main") |>
+  dplyr::pull(x) 
+
 temps <- temps |>
   dplyr::filter(model != "main") |>
-  dplyr::pull(x)
+  dplyr::pull(x) 
+
+
+
 
 print(fivenum(temps))
 
-print(quantile(temps, 0.025))
-print(quantile(temps, 0.975))
+print(paste0("mean: ", main))
+print(paste0("95% CI: ", quantile(temps, 0.025), " - ", quantile(temps, 0.975)))
 
 ################################################################################
 # End of file ----

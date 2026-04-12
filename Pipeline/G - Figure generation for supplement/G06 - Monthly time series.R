@@ -119,7 +119,6 @@ monthly_diff <- ggplot() +
     aes(
       x = month_num,
       y = mean,
-      # color = region,
       group = model
     ),
     alpha = 0.3,
@@ -133,22 +132,18 @@ monthly_diff <- ggplot() +
       y = mean,
       group = region
     ),
-    linewidth = 1.5, # mean trace
+    linewidth = 1.5, 
     colour = "#287DAB"
   ) +
   facet_wrap(~region, ncol = 1) +
   scale_x_continuous(
     breaks = 1:12,
     labels = month.abb,
-    expand = c(0.02, 0) # small left/right padding
+    expand = c(0.02, 0) 
   ) +
-  # scale_y_continuous(
-  #   limits = c(-10, 10)
-  # ) +
   labs(
     x = NULL,
     y = "Change in prevalence (%)",
-    # title = "Avg Monthly difference (2010-2014) between ‘historical’ and ‘hist-nat’ scenarios",
   ) +
   theme_classic() +
   theme(
@@ -157,7 +152,6 @@ monthly_diff <- ggplot() +
     axis.title.x = element_text(vjust = -2),
     plot.margin = unit(c(0.5, 0.5, 1, 1), "cm"),
     legend.position = "none",
-    # legend.position.inside = c(0.13, 0.85),
   )
 
 monthly_diff
@@ -206,9 +200,50 @@ region_results <- bind_rows(global_results, region_results) |>
 
 print(region_results)
 
-output_file <- file.path(hist_sum_dir, "historical_regional_diffs.csv")
+################################################################################
+# Latex table of historic regional diffs ----
+################################################################################
 
-readr::write_csv(region_results, output_file)
+latex_table <- region_results |>
+  dplyr::mutate(
+    Estimate = sprintf("%.4f", ScaledMeanDifference / 1000),
+    CI = sprintf("(%.4f, %.4f)", Quantile_025, Quantile_975),
+    Pplus = sprintf("%.2f", ProportionPositive),
+    # Handle multiline region name for SSA
+    RegionTex = dplyr::if_else(
+      grepl("\n", Region),
+      paste0(
+        "\\begin{tabular}[c]{@{}l@{}}",
+        gsub("\n", "\\\\\\\\", Region),
+        "\\end{tabular}"
+      ),
+      Region
+    )
+  ) |>
+  dplyr::mutate(
+    row = paste0("    ", RegionTex, " & ", Estimate, " & ", CI, " & ", Pplus, " \\\\")
+  )
+
+header <- paste0(
+  "\\begin{tabular}{|l|lll|}\n",
+  "    \\hline\n",
+  "    \\textbf{Region} & \\multicolumn{3}{c|}{\\textbf{Mean Difference}} \\\\\n",
+  "    \\cline{2-4}\n",
+  "    & \\textbf{Estimate} & \\textbf{95\\% CI} & \\textbf{P$_{+}$} \\\\\n",
+  "    \\hline"
+)
+
+body <- paste(
+  paste0(latex_table$row, "\n    \\hline"),
+  collapse = "\n"
+)
+
+footer <- "\\end{tabular}"
+
+tex_out <- paste(header, body, footer, sep = "\n")
+
+output_file <- here::here("Results", "Tables", "historical_regional_diffs.tex")
+writeLines(tex_out, output_file)
 
 cat("Results have been saved to:", output_file, "\n")
 
@@ -217,8 +252,6 @@ cat("Results have been saved to:", output_file, "\n")
 ################################################################################
 
 regional_avg_effect <- region_results |>
-  # here::here("TempFiles", "H04_results_summary.csv") |>
-  # vroom::vroom(show_col_types = FALSE) |>
   dplyr::filter(Region != "Sub-Saharan Africa (continent-wide)") |>
   dplyr::rename(`Average Annual Impact (% points)` = MeanDifference)
 
@@ -317,7 +350,6 @@ region_peak_effect
 
 kableExtra::save_kable(
   region_peak_effect,
-  # file = file.path(hist_sum_dir, "monthly_differences.tex")
   file = here::here("Results", "Tables", "monthly_differences.tex")
 )
 
