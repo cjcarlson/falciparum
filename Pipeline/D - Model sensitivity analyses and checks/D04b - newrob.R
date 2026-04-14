@@ -169,7 +169,7 @@ uncert = plot_grid(
   nrow = 2)
 
 ggsave(
-  filename = "temp_response_difft_SEs.pdf",
+  filename = "Supp_Figure_temp_response_difft_SEs.jpg",
   path = file.path(resdir, "Figures", "Diagnostics", "Residuals"), 
   plot = uncert, 
   width = 20, 
@@ -384,7 +384,7 @@ p
 
 dir.create(file.path(resdir, "Figures", "Diagnostics","Fixed_effects"), showWarnings = FALSE)
 ggsave(
-  filename = "panelFE_FE_sensitivity.pdf",
+  filename = "Supp_Figure_panelFE_FE_sensitivity.pdf",
   path = file.path(resdir, "Figures", "Diagnostics", "Fixed_effects"), 
   plot = p, 
   width = 7, 
@@ -419,22 +419,22 @@ b1loco = ggplot(data=loco) +
   geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("linear temp. coeff.") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 p1loco = ggplot(data=loco) + 
   geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("linear temp. coeff. p-value") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 b2loco = ggplot(data=loco) + 
   geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("quadratic temp. coeff.") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 p2loco = ggplot(data=loco) + 
   geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
   xlab("quadratic temp. coeff. p-value") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 
 ## Leave one year out
 years <- unique(complete$yearnum)
@@ -454,22 +454,22 @@ b1loyo = ggplot(data=loyo) +
   geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("linear temp. coeff.") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 p1loyo = ggplot(data=loyo) + 
   geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("linear temp. coeff. p-value") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 b2loyo = ggplot(data=loyo) + 
   geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("quadratic temp. coeff.") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 p2loyo = ggplot(data=loyo) + 
   geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
   xlab("quadratic temp. coeff. p-value") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 
 ## Leave one month out
 months <- unique(complete$month)
@@ -489,32 +489,54 @@ b1lomo = ggplot(data=lomo) +
   geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("linear temp. coeff.") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 p1lomo = ggplot(data=lomo) + 
   geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("linear temp. coeff. p-value") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 b2lomo = ggplot(data=lomo) + 
   geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("quadratic temp. coeff.") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 p2lomo = ggplot(data=lomo) + 
   geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
   xlab("quadratic temp. coeff. p-value") + 
-  theme_classic()
+  theme_classic(base_size = 10)
 
 # Create a bold label for each pair of rows
-label1 <- ggdraw() + draw_label("Leave one country out", fontface = "bold", x = 0, hjust = 0) +
+label1 <- ggdraw() + draw_label("Leave one country out", fontface = "bold", x = 0, hjust = 0, size = 10) +
+  theme(plot.margin = margin(10, 0, 10, 7))
+
+label2 <- ggdraw() + draw_label("Leave one year out", fontface = "bold", x = 0, hjust = 0, size = 10) +
   theme(plot.margin = margin(0, 0, 10, 7))
 
-label2 <- ggdraw() + draw_label("Leave one year out", fontface = "bold", x = 0, hjust = 0) +
+label3 <- ggdraw() + draw_label("Leave one month out", fontface = "bold", x = 0, hjust = 0, size = 10) +
   theme(plot.margin = margin(0, 0, 10, 7))
 
-label3 <- ggdraw() + draw_label("Leave one month out", fontface = "bold", x = 0, hjust = 0) +
-  theme(plot.margin = margin(0, 0, 10, 7))
+shrink_text <- function(p, size = 8) {
+  p + theme(
+    axis.text  = element_text(size = size),
+    axis.title = element_text(size = size)
+  )
+}
+
+b1loco <- shrink_text(b1loco)
+p1loco <- shrink_text(p1loco)
+b2loco <- shrink_text(b2loco)
+p2loco <- shrink_text(p2loco)
+
+b1loyo <- shrink_text(b1loyo)
+p1loyo <- shrink_text(p1loyo)
+b2loyo <- shrink_text(b2loyo)
+p2loyo <- shrink_text(p2loyo)
+
+b1lomo <- shrink_text(b1lomo)
+p1lomo <- shrink_text(p1lomo)
+b2lomo <- shrink_text(b2lomo)
+p2lomo <- shrink_text(p2lomo)
 
 # Create a 2-column grid for each pair of rows
 row_group1 <- plot_grid(b1loco, p1loco, b2loco, p2loco, nrow = 2)
@@ -522,13 +544,13 @@ row_group2 <- plot_grid(b1loyo, p1loyo, b2loyo, p2loyo, nrow = 2)
 row_group3 <- plot_grid(b1lomo, p1lomo, b2lomo, p2lomo, nrow = 2)
 
 # Stack each label above its corresponding row group
-section1 <- plot_grid(label1, row_group1, ncol = 1, rel_heights = c(0.07, 1))
-section2 <- plot_grid(label2, row_group2, ncol = 1, rel_heights = c(0.07, 1))
-section3 <- plot_grid(label3, row_group3, ncol = 1, rel_heights = c(0.07, 1))
+section1 <- plot_grid(label1, row_group1, ncol = 1, rel_heights = c(0.05, 1))
+section2 <- plot_grid(label2, row_group2, ncol = 1, rel_heights = c(0.05, 1))
+section3 <- plot_grid(label3, row_group3, ncol = 1, rel_heights = c(0.05, 1))
 
 # Stack all three sections vertically
 grid <- plot_grid(section1, section2, section3, ncol = 1)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "influence_analysis.jpg"), plot = grid, width = 6, height = 8)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "Supp_Figure_influence_analysis.jpg"), plot = grid, width = 6, height = 8)
 
 ############################################################
 # Normally distributed errors ----
@@ -538,7 +560,7 @@ ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "influence_anal
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 g <- ggplot(data=complete) + 
   geom_histogram(aes(x=res), color= "seagreen", fill = "seagreen") + 
-  xlab("model residuals") + 
+  xlab("Model residuals") + 
   theme_classic()
 g
 
@@ -546,12 +568,12 @@ g
 p <- ggplot(complete, aes(sample = res)) +
   stat_qq() +
   stat_qq_line(color = "seagreen") +
-  xlab("normal distribution quantiles") +
-  ylab("model residuals quantiles") +
+  xlab("Normal distribution quantiles") +
+  ylab("Model residuals quantiles") +
   theme_classic()
 p
 
 grid = plot_grid(g, p, nrow=1)
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "model_residuals.pdf"), plot = grid, width = 9, height = 4)
+ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "Supp_Figure_model_residuals.jpg"), plot = grid, width = 9, height = 4)
 
 
