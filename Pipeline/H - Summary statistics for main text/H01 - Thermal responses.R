@@ -23,7 +23,7 @@ source(A_utils_plot_fp)
 
 # log_msg("Load model coefficients")
 
-all_mods <- boot_mod_full_fn |>
+all_mods <- coeffs_fn |>
   readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
@@ -71,20 +71,14 @@ temps <- plotData |>
 
 print(temps)
 
-main <- temps |>
-  dplyr::filter(model == "main") |>
-  dplyr::pull(x) 
 
 temps <- temps |>
   dplyr::filter(model != "main") |>
   dplyr::pull(x) 
 
-
-
-
 print(fivenum(temps))
 
-print(paste0("mean: ", main))
+print(paste0("mean: ", mean(temps)))
 print(paste0("95% CI: ", quantile(temps, 0.025), " - ", quantile(temps, 0.975)))
 
 ################################################################################

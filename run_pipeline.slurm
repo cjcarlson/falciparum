@@ -1,7 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=malaria_pipeline
-#SBATCH --account=co_carleton
-#SBATCH --qos=carleton_htc4_normal
+# SBATCH --account=co_carleton
+# SBATCH --qos=carleton_htc4_normal
+#SBATCH --account=fc_carleton2025
+#SBATCH --qos=savio_normal
 #SBATCH --partition=savio4_htc
 #SBATCH --nodes=1
 #SBATCH --exclusive
@@ -105,22 +107,22 @@ run_r_script_old() {
     fi
 }
 
-################################################################################
-# Section B: Extract climate and prevalence data
-################################################################################
+# ################################################################################
+# # Section B: Extract climate and prevalence data
+# ################################################################################
 
-echo ""
-echo "################################################################"
-echo "# SECTION B: Extract climate and prevalence data"
-echo "################################################################"
+# echo ""
+# echo "################################################################"
+# echo "# SECTION B: Extract climate and prevalence data"
+# echo "################################################################"
 
-PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
-run_r_script_old "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
-run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
-run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
-run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
-run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
-run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
+# PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
+# run_r_script_old "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
+# run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
+# run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
+# run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
+# run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
+# run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
 
 ################################################################################
 # Section C: Model estimation
@@ -154,17 +156,17 @@ run_r_script "${PIPELINE_D_DIR}/D05 - High resolution model.R"
 run_r_script "${PIPELINE_D_DIR}/D06 - Urbanization.R"
 run_r_script "${PIPELINE_D_DIR}/D07 - ERA5 analysis.R"
 
-################################################################################
-# Section E: Estimate historical and future prevalence
-################################################################################
+# ################################################################################
+# # Section E: Estimate historical and future prevalence
+# ################################################################################
 
-echo ""
-echo "################################################################"
-echo "# SECTION E: Estimate historical and future prevalence"
-echo "################################################################"
+# echo ""
+# echo "################################################################"
+# echo "# SECTION E: Estimate historical and future prevalence"
+# echo "################################################################"
 
-PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
-run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
+# PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
+# run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
 
 ################################################################################
 # Section F: Figure generation for main text

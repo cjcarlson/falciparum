@@ -36,41 +36,27 @@ source(A_utils_plot_fp)
 # Hist delta data ----
 ################################################################################
 
-# log_msg("Loading historical_cru_pred_sum_scen_mod_yr_obj.feather")
+# log_msg("Loading historical_vcov_pred_sum_scen_mod_yr_obj.feather")
 
-hist_scen_mod_yr_adm1_pred <- file.path(
+boots_2010_2014 <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr_obj.feather"
+  "historical_vcov_pred_sum_scen_mod_yr_obj.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(
     model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
   ) |>
   dplyr::select(scenario, model, year, OBJECTID, Pred, run) |>
-  dplyr::filter(year == 2014)
-
-# log_msg("Calculating ADM1 mean difference")
-
-main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
-  dplyr::filter(run == "main") |>
-  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
-  dplyr::mutate(diff = (historical - `hist-nat`)) |>
-  dplyr::group_by(OBJECTID) |>
-  dplyr::summarize(mean.diff = mean(diff))
-
-# log_msg("Calculating ADM1 confidence interval")
-
-boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
-  dplyr::filter(run != "main") |>
+  dplyr::filter(run != "main", year == 2014) |>
   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
   dplyr::mutate(diff = (historical - `hist-nat`), ) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
+    mean.diff = mean(diff),
     runs.diff = sum(diff > 0),
     lower.diff = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff = quantile(diff, 0.95, na.rm = TRUE),
   ) |>
-  dplyr::left_join(main_2010_2014) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5000) / 5000

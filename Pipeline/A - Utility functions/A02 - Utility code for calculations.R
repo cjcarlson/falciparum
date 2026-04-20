@@ -225,6 +225,27 @@ analyze_corr <- function(
 }
 
 ################################################################################
+# count_pairwise_obs ----
+################################################################################
+
+count_pairwise_obs <- function(data) {
+  data_matrix <- as.matrix(data)
+  n_vars <- ncol(data_matrix)
+  obs_count_matrix <- matrix(0, nrow = n_vars, ncol = n_vars)
+
+  for (i in 1:n_vars) {
+    for (j in 1:n_vars) {
+      complete_pairs <- sum(!is.na(data_matrix[, i]) & !is.na(data_matrix[, j]))
+      obs_count_matrix[i, j] <- complete_pairs
+    }
+  }
+
+  rownames(obs_count_matrix) <- colnames(data_matrix)
+  colnames(obs_count_matrix) <- colnames(data_matrix)
+  return(obs_count_matrix)
+}
+
+################################################################################
 # df_to_latex ----
 ################################################################################
 
@@ -289,51 +310,23 @@ df_to_latex <- function(df, digits = 2, print = TRUE) {
 }
 
 ################################################################################
-# count_pairwise_obs ----
+# build_colnames ----
 ################################################################################
 
-count_pairwise_obs <- function(data) {
-  data_matrix <- as.matrix(data)
-  n_vars <- ncol(data_matrix)
-  obs_count_matrix <- matrix(0, nrow = n_vars, ncol = n_vars)
-
-  for (i in 1:n_vars) {
-    for (j in 1:n_vars) {
-      complete_pairs <- sum(!is.na(data_matrix[, i]) & !is.na(data_matrix[, j]))
-      obs_count_matrix[i, j] <- complete_pairs
-    }
-  }
-
-  rownames(obs_count_matrix) <- colnames(data_matrix)
-  colnames(obs_count_matrix) <- colnames(data_matrix)
-  return(obs_count_matrix)
-}
-
-################################################################################
-# run_corr_specs ----
-################################################################################
-
-# Helper: reduce boilerplate for repeated analyze_corr calls.
-# Each spec is list(selection_expr, name). Shared args are bound once.
-run_corr_specs <- function(
-  kind,
-  corrVec,
-  specs,
-  obsCountVec,
-  T_min,
-  weighting
+build_colnames <- function(
+  timestep_idx,
+  var_prefix,
+  max_power,
+  start_year = 1901L
 ) {
-  bind_rows(lapply(specs, function(s) {
-    analyze_corr(
-      kind,
-      corrVec,
-      s[[1]],
-      s[[2]],
-      obsCountVec,
-      T_min,
-      weighting = weighting
-    )
-  }))
+  month_str <- month.abb[(timestep_idx - 1L) %% 12L + 1L]
+  year_int <- ((timestep_idx - 1L) - (timestep_idx - 1L) %% 12L) /
+    12L +
+    start_year
+
+  powers <- seq_len(max_power)
+  suffixes <- ifelse(powers == 1L, var_prefix, paste0(var_prefix, powers))
+  paste(month_str, year_int, suffixes, sep = ".")
 }
 
 ################################################################################
@@ -352,26 +345,6 @@ extract_spatial_means <- function(velox_raster, spatial_polygons) {
       na.rm = TRUE
     )
   )
-}
-
-################################################################################
-# build_colnames ----
-################################################################################
-
-build_colnames <- function(
-  timestep_idx,
-  var_prefix,
-  max_power,
-  start_year = 1901L
-) {
-  month_str <- month.abb[(timestep_idx - 1L) %% 12L + 1L]
-  year_int <- ((timestep_idx - 1L) - (timestep_idx - 1L) %% 12L) /
-    12L +
-    start_year
-
-  powers <- seq_len(max_power)
-  suffixes <- ifelse(powers == 1L, var_prefix, paste0(var_prefix, powers))
-  paste(month_str, year_int, suffixes, sep = ".")
 }
 
 ################################################################################

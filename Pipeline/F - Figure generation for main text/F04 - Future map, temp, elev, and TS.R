@@ -1,6 +1,12 @@
 ################################################################################
-# This script plots Figure 4, Projected future changes in malaria prevalence 
-# driven by climate change from 2015 to 2100. 
+# This script plots Figure 4, Projected future changes in malaria prevalence
+# driven by climate change from 2015 to 2100.
+# apptainer exec --cleanenv --contain \
+#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
+#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
+#   --pwd /global/home/users/cmolitor/falciparum \
+#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/r-malaria-cru_4.2.3.sif Rscript \
+#   "Pipeline/F - Figure generation for main text/F04 - Future map, temp, elev, and TS.R"
 ################################################################################
 # Set up ----
 ################################################################################
@@ -42,11 +48,11 @@ log_msg("Starting script `F04 - Future map, temp, elev, and TS.R`")
 # Middle scenario at end of century
 ################################################################################
 
-log_msg("Loading future_cru_pred_sum_scen_mod_yr_obj.feather")
+log_msg("Loading future_vcov_pred_sum_scen_mod_yr_obj.feather")
 
 future_scen_mod_yr_adm1_pred <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr_obj.feather"
+  "future_vcov_pred_sum_scen_mod_yr_obj.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(
@@ -57,13 +63,13 @@ future_scen_mod_yr_adm1_pred <- file.path(
 
 log_msg("Calculating ADM1 mean difference")
 
-main_end_of_century <- future_scen_mod_yr_adm1_pred |>
-  dplyr::filter(run == "main") |>
-  tidyr::pivot_wider(names_from = year, values_from = Pred) |>
-  dplyr::mutate(diff = (`2100` - `2015`)) |>
-  dplyr::select(-c(`2100`, `2050`, `2015`, scenario)) |>
-  dplyr::group_by(OBJECTID) |>
-  dplyr::summarize(mean.diff = mean(diff))
+# main_end_of_century <- future_scen_mod_yr_adm1_pred |>
+#   dplyr::filter(run == "main") |>
+#   tidyr::pivot_wider(names_from = year, values_from = Pred) |>
+#   dplyr::mutate(diff = (`2100` - `2015`)) |>
+#   dplyr::select(-c(`2100`, `2050`, `2015`, scenario)) |>
+#   dplyr::group_by(OBJECTID) |>
+#   dplyr::summarize(mean.diff = mean(diff))
 
 log_msg("Calculating ADM1 confidence interval")
 
@@ -74,13 +80,14 @@ boots_end_of_century <- future_scen_mod_yr_adm1_pred |>
   dplyr::select(-c(`2100`, `2050`, `2015`, scenario)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
+    mean.diff = mean(diff),
     runs.diff = sum(diff > 0),
     lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
     lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
   ) |>
-  dplyr::left_join(main_end_of_century) |>
+  # dplyr::left_join(main_end_of_century) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5500) / 5500
@@ -100,7 +107,7 @@ log_msg("Plot the future map")
 
 colors <- scales::colour_ramp(
   colors = c(red = "#AC202F", purple = "#740280", blue = "#2265A3")
-)((0:7) / 7) |> 
+)((0:7) / 7) |>
   rev()
 
 map.rcp45.2100 <- ggplot(sfcont) +
@@ -170,7 +177,7 @@ df <- boots_end_of_century |>
   dplyr::mutate(
     sign = as.numeric(lower.diff.90 > 0) + -1 * as.numeric(upper.diff.90 < 0),
     sign = factor(sign)
-  ) 
+  )
 
 # After creating your df dataframe, split it into two based on significance
 df_non_sig <- df |> dplyr::filter(sign == 0)
@@ -333,7 +340,7 @@ log_msg("load the regional time series data")
 
 data.to.graph <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr_reg.feather"
+  "future_vcov_pred_sum_scen_mod_yr_reg.feather"
 ) |>
   arrow::read_feather() |>
   baseline_adjust_summarize(
@@ -350,7 +357,7 @@ data.to.graph <- file.path(
     # LOOKING CLOSELY. this is a way of hard coding the CI's to still plot
     # thanks to how ggplot does CI's this is for plotting purposes ONLY and text
     # stats give full CI's
-    lower = pmax(lower, -4.3),
+    lower = pmax(lower, -4.5),
     upper = pmin(upper, 2.1)
   ) |>
   dplyr::filter(year > 2015)
@@ -365,7 +372,6 @@ regional_ts_plot <- ggplot(
   data = data.to.graph,
   mapping = aes(x = year, group = scenario, color = scenario, fill = scenario)
 ) +
-  geom_line(mapping = aes(y = median), lwd = 1.25) +
   geom_ribbon(
     mapping = aes(ymin = lower, ymax = upper, colour = scenario),
     fill = NA,
@@ -377,6 +383,7 @@ regional_ts_plot <- ggplot(
     color = NA,
     alpha = 0.1
   ) +
+  geom_line(mapping = aes(y = mean), lwd = 1.25) +
   scale_color_manual(
     values = c("#4d5f8e", "#C582B2", "#325756"),
     labels = c(
@@ -427,7 +434,9 @@ ggsave(
   units = "in"
 )
 
-log_msg("Script `F04 - Future map, temp, elev, and TS.R` completed successfully")
+log_msg(
+  "Script `F04 - Future map, temp, elev, and TS.R` completed successfully"
+)
 
 ################################################################################
 # End of file ----

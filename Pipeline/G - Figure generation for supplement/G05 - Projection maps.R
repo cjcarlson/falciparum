@@ -28,14 +28,13 @@ source(A_utils_plot_fp)
 # Load and process future scenarios ----
 ################################################################################
 
-# log_msg("Loading future_cru_pred_sum_scen_mod_yr_obj.feather")
-
 future_scen_mod_yr_adm1_pred <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr_obj.feather"
+  "future_vcov_pred_sum_scen_mod_yr_obj.feather"
 ) |>
   arrow::read_feather() |>
-  dplyr::select(scenario, model, year, OBJECTID, Pred, run)
+  dplyr::group_by(scenario, model, year, OBJECTID) |> 
+  dplyr::summarise(Pred = mean(Pred, na.rm = TRUE))
 
 cont <- ADM1_fp |>
   sf::read_sf() |>

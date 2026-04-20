@@ -53,7 +53,10 @@ complete <- analysis_ready_CRU_adm1_fp |>
 
 log_msg("Load model coefficients")
 
-all_mods <- boot_mod_full_fn |>
+# all_mods <- boot_mod_full_fn |>  
+#   readr::read_csv(show_col_types = FALSE)
+
+all_mods <- coeffs_fn |>
   readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
@@ -82,7 +85,6 @@ for (mod in seq_len(nrow(all_mods))) {
     x = xValsT[, 1] + Tref,
     model = sub$model,
     response = boot_response
-    # n = sub$n
   )
 
   if (mod %% 100 == 0) {
@@ -138,11 +140,17 @@ temp_plot <- ggplot() +
     alpha = .1
   ) +
   geom_line(
-    data = subset(plotData, model == "main"),
-    mapping = aes(x = x, y = response),
+    data = percentile_data,
+    mapping = aes(x = x, y = mean),
     color = "black",
     linewidth = .5
   ) +
+  # geom_line(
+  #   data = subset(plotData, model == "main"),
+  #   mapping = aes(x = x, y = response),
+  #   color = "black",
+  #   linewidth = .5
+  # ) +
   geom_line(
     data = percentile_data,
     mapping = aes(x = x, y = lower_bound),
@@ -484,10 +492,11 @@ intervention_plot <- ggplot() +
     plot.margin = unit(c(0.0, 0.0, 1, 0.2), units = "cm")
   ) +
   scale_y_continuous(
-    limits = min_max,
+    # limits = min_max,
     expand = expansion(mult = c(0.01, 0.01)),
     breaks = seq(-6, 6, by = 2)
-  )
+  ) +
+coord_cartesian(ylim = min_max)
 
 intervention_plot
 
@@ -499,20 +508,20 @@ log_msg("Load and prepare historical projections")
 
 historical_pred <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr.feather"
+  "historical_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
   arrow::read_feather()
 
-hist_main <- historical_pred[run == "main"] |>
-  baseline_adjust_summarize(
-    variable = "Pred",
-    baseline_group = c("model", "scenario", "run"),
-    adjusted_group = c("scenario", "year"),
-    baseline_years = 1900:1930,
-    confidence_level = 0.90
-  ) |>
-  dplyr::filter(year > 1901) |>
-  dplyr::select(-c(upper, lower))
+# hist_main <- historical_pred[run == "main"] |>
+#   baseline_adjust_summarize(
+#     variable = "Pred",
+#     baseline_group = c("model", "scenario", "run"),
+#     adjusted_group = c("scenario", "year"),
+#     baseline_years = 1900:1930,
+#     confidence_level = 0.90
+#   ) |>
+#   dplyr::filter(year > 1901) |>
+#   dplyr::select(-c(upper, lower))
 
 hist_boot <- historical_pred[run != "main"] |>
   baseline_adjust_summarize(
@@ -522,9 +531,10 @@ hist_boot <- historical_pred[run != "main"] |>
     baseline_years = 1900:1930,
     confidence_level = 0.90
   ) |>
-  dplyr::filter(year > 1901) |>
-  dplyr::select(-c(median, mean)) |>
-  dplyr::left_join(hist_main)
+  dplyr::filter(year > 1901) 
+# |>
+  # dplyr::select(-c(median, mean)) |>
+  # dplyr::left_join(hist_main)
 
 ################################################################################
 # Future time series data ----
@@ -534,20 +544,20 @@ log_msg("Load and prepare future projections")
 
 future_pred <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr.feather"
+  "future_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
   arrow::read_feather()
 
-future_main <- future_pred[run == "main"] |>
-  baseline_adjust_summarize(
-    variable = "Pred",
-    baseline_group = c("model", "scenario", "run"),
-    adjusted_group = c("scenario", "year"),
-    baseline_years = 2015:2020,
-    confidence_level = 0.90
-  ) |>
-  dplyr::filter(year > 2016) |>
-  dplyr::select(-c(upper, lower))
+# future_main <- future_pred[run == "main"] |>
+#   baseline_adjust_summarize(
+#     variable = "Pred",
+#     baseline_group = c("model", "scenario", "run"),
+#     adjusted_group = c("scenario", "year"),
+#     baseline_years = 2015:2020,
+#     confidence_level = 0.90
+#   ) |>
+#   dplyr::filter(year > 2016) |>
+#   dplyr::select(-c(upper, lower))
 
 future_boot <- future_pred[run != "main"] |>
   baseline_adjust_summarize(
@@ -557,9 +567,10 @@ future_boot <- future_pred[run != "main"] |>
     baseline_years = 2015:2020,
     confidence_level = 0.90
   ) |>
-  dplyr::filter(year > 2016) |>
-  dplyr::select(-c(median, mean)) |>
-  dplyr::left_join(future_main)
+  dplyr::filter(year > 2016) 
+# |>
+  # dplyr::select(-c(median, mean)) |>
+  # dplyr::left_join(future_main)
 
 base_mean <- hist_boot |>
   dplyr::filter(scenario == 'historical', year %in% c(2010:2014)) |>
@@ -606,7 +617,6 @@ yearly_ts_plot <- graph.data |>
   scale_color_manual(values = scenario_colors, labels = scenario_labels) +
   scale_fill_manual(values = scenario_colors, labels = scenario_labels) +
   geom_vline(xintercept = 2014.5, linetype = 'dashed') +
-  geom_line(mapping = aes(x = year, y = mean), lwd = 1.3) +
   geom_ribbon(
     mapping = aes(ymin = lower, ymax = upper, colour = scenario),
     fill = NA,
@@ -618,6 +628,7 @@ yearly_ts_plot <- graph.data |>
     color = NA,
     alpha = 0.1
   ) +
+  geom_line(mapping = aes(x = year, y = mean), lwd = 1.3) +
   labs(x = 'Year', y = 'Prevalence (%)', fill = NA, color = NA) +
   scale_x_continuous(
     breaks = seq(1900, 2100, by = 50),

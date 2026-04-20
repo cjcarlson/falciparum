@@ -98,7 +98,8 @@ stargazer(
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "inter"),
-  out = file.path(table_diag_dir, "ERA5_cXt2intrXm.tex"),
+  # out = file.path(table_era5_dir, "ERA5_cXt2intrXm.tex"),
+  out = here::here("Results", "Tables", "ERA5_cXt2intrXm.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -175,7 +176,7 @@ stargazer(
   align = TRUE,
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "inter"),
-  out = file.path(table_diag_dir, "ERA5_CRU_comp.tex"),
+  out = file.path(table_era5_dir, "ERA5_CRU_comp.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -269,8 +270,6 @@ boots <- do.call(
   })
 )
 
-# saveRDS(boots, file = boot_mod_full_fn)
-
 readr::write_csv(boots, file = boot_mod_full_ERA5_fn)
 
 ################################################################################
@@ -291,9 +290,6 @@ all_mods <- boot_mod_full_ERA5_fn |>
 main <- all_mods |>
   dplyr::filter(model == "main")
 
-bootstraps <- all_mods |>
-  dplyr::filter(model != "main")
-
 ################################################################################
 # Temperature response data ----
 ################################################################################
@@ -309,17 +305,6 @@ int = 0.1
 plotXtemp = cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
 xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
 
-# point estimate
-b <- as.matrix(c(main$temp, main$temp2))
-response <- as.matrix(xValsT) %*% b
-
-plotData <- data.frame(
-  x = xValsT[, 1] + Tref,
-  model = "main",
-  response = as.numeric(response),
-  n = length(era5_prev_data$OBJECTID)
-)
-
 # collect bootstrap results as a list, then row-bind once
 boot_list <- vector("list", nrow(all_mods))
 
@@ -331,21 +316,22 @@ for (mod in seq_len(nrow(all_mods))) {
   boot_list[[mod]] <- data.frame(
     x = xValsT[, 1] + Tref,
     model = sub$model,
-    response = boot_response,
-    n = sub$n
+    response = boot_response
   )
 
   if (mod %% 100 == 0) {
-    log_msg(paste0("--------- DONE WITH ITERATION ", mod, " of 1000 --------"))
+    print(paste0("--------- DONE WITH ITERATION ", mod, " of 1000 --------"))
   }
 }
 
-plotData <- rbind(plotData, do.call(rbind, boot_list))
+plotData <- data.table::rbindlist(boot_list)
 
 percentile_data <- plotData |>
   dplyr::filter(model != "main") |>
   dplyr::group_by(x) |>
   dplyr::summarize(
+    median = median(response),
+    mean = mean(response),
     lower_bound = quantile(response, 0 + ((1 - conf_level) / 2)),
     upper_bound = quantile(response, 1 - ((1 - conf_level) / 2))
   )
@@ -386,11 +372,17 @@ g <- ggplot() +
     alpha = .1
   ) +
   geom_line(
-    data = subset(plotData, model == "main"),
-    mapping = aes(x = x, y = response),
+    data = percentile_data,
+    mapping = aes(x = x, y = mean),
     color = "black",
     linewidth = .5
   ) +
+  # geom_line(
+  #   data = subset(plotData, model == "main"),
+  #   mapping = aes(x = x, y = response),
+  #   color = "black",
+  #   linewidth = .5
+  # ) +
   geom_line(
     data = percentile_data,
     aes(x = x, y = lower_bound),

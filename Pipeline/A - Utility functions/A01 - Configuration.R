@@ -43,6 +43,9 @@ print(paste0("repository directory set to: ", repo_dir))
 # Set clustering year range (country-yr groups)
 ################################################################################
 
+# use bootstraps (TRUE) or vcov resampling (FALSE)
+to_boot <- FALSE
+
 # yr_bin_size <- 10
 yr_bin_size <- 5
 
@@ -319,6 +322,12 @@ vcov_sample_mod_full_fn <- file.path(
   "vcov_sample_cXt2intrXm.csv"
 )
 
+if (to_boot) {
+  coeffs_fn <- boot_mod_full_fn
+} else {
+  coeffs_fn <- vcov_sample_mod_full_fn
+}
+
 scramble_time_fp <- file.path(model_rand_dir, "scramble_time_placebo.rds")
 
 ################################################################################
@@ -327,15 +336,15 @@ scramble_time_fp <- file.path(model_rand_dir, "scramble_time_placebo.rds")
 
 table_dir <- file.path(results_dir, "tables")
 table_main_dir <- file.path(table_dir, "main")
-table_diag_dir <- file.path(table_dir, "diagnostics")
+table_era5_dir <- file.path(table_dir, "era5")
 table_sens_dir <- file.path(table_dir, "sensitivity")
-table_diag_res_dir <- file.path(table_diag_dir, "residuals")
+table_res_dir <- file.path(table_dir, "residuals")
 
 dir.create(table_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(table_main_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(table_diag_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(table_era5_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(table_sens_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(table_diag_res_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(table_res_dir, showWarnings = FALSE, recursive = TRUE)
 
 table_star_cutoffs <- c(0.05, 0.01, 0.001)
 
@@ -366,21 +375,31 @@ part2 <- "\nAAAAAAAAA####\n"
 part3 <- paste(replicate(80, "DDDDDDDDDDDDD\n"), collapse = "")
 fig_3_4_layout <- paste(part1, part2, part3, sep = "")
 
-scenario_colors <- c(
+hist_scenario_colors <- c(
   "hist-nat" = "grey50",
-  "historical" = "#287DAB",
+  "historical" = "#287DAB"
+)
+
+hist_scenario_labels <- c(
+  'Historical counterfactual',
+  'Historical climate'
+)
+
+fut_scenario_colors <- c(
   "ssp126" = "#4d5f8e",
   "ssp245" = "#C582B2",
   "ssp585" = "#325756"
 )
 
-scenario_labels <- c(
-  'Historical counterfactual',
-  'Historical climate',
+fut_scenario_labels <- c(
   'Future climate (SSP1-RCP2.6)',
   'Future climate (SSP2-RCP4.5)',
   'Future climate (SSP5-RCP8.5)'
 )
+
+scenario_colors <- c(hist_scenario_colors, fut_scenario_colors)
+
+scenario_labels <- c(hist_scenario_labels, fut_scenario_labels)
 
 scenarios <- c(
   "hist-nat",

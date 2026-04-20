@@ -34,7 +34,7 @@ source(A_utils_plot_fp)
 
 hist_scen_mod_yr_adm1_pred <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr_mon_reg.feather"
+  "historical_vcov_pred_sum_scen_mod_yr_mon_reg.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(
@@ -47,6 +47,7 @@ hist_scen_mod_yr_adm1_pred <- file.path(
 ################################################################################
 
 diff_df <- hist_scen_mod_yr_adm1_pred |>
+  dplyr::filter(year >= 2010) |> 
   tidyr::pivot_wider(
     id_cols = c(month, year, model, region, run),
     names_from = scenario,
@@ -62,51 +63,29 @@ diff_df <- hist_scen_mod_yr_adm1_pred |>
 # Regional mean monthly diff ----
 ################################################################################
 
-main_rgn_mean_diff_df <- diff_df |>
-  dplyr::filter(run == "main") |>
+rgn_mean_diff_df <- diff_df |>
+  dplyr::filter(run != "main") |>
   dplyr::group_by(region, month_num) |>
   dplyr::summarize(
     mean = mean(diff, na.rm = TRUE),
     median = median(diff, na.rm = TRUE),
-  )
-
-boot_rgn_mean_diff_df <- diff_df |>
-  dplyr::filter(run != "main") |>
-  dplyr::group_by(region, month_num) |>
-  dplyr::summarize(
     upper = quantile(diff, 0.95, na.rm = TRUE),
     lower = quantile(diff, 0.05, na.rm = TRUE)
   )
-
-rgn_mean_diff_df <- dplyr::left_join(
-  main_rgn_mean_diff_df,
-  boot_rgn_mean_diff_df
-)
 
 ################################################################################
 # Regional model mean monthly diff ----
 ################################################################################
 
-main_rgn_mod_mean_diff_df <- diff_df |>
-  dplyr::filter(run == "main") |>
-  dplyr::group_by(region, model, month_num) |>
-  dplyr::summarize(
-    mean = mean(diff, na.rm = TRUE),
-    median = median(diff, na.rm = TRUE)
-  )
-
-boot_rgn_mod_mean_diff_df <- diff_df |>
+rgn_mod_mean_diff_df <- diff_df |>
   dplyr::filter(run != "main") |>
   dplyr::group_by(region, model, month_num) |>
   dplyr::summarize(
+    mean = mean(diff, na.rm = TRUE),
+    median = median(diff, na.rm = TRUE),
     upper = quantile(diff, 0.95, na.rm = TRUE),
     lower = quantile(diff, 0.05, na.rm = TRUE)
   )
-
-rgn_mod_mean_diff_df <- dplyr::left_join(
-  main_rgn_mod_mean_diff_df,
-  boot_rgn_mod_mean_diff_df
-)
 
 ################################################################################
 # Monthly diff plot ----
@@ -118,6 +97,7 @@ monthly_diff <- ggplot() +
     data = rgn_mod_mean_diff_df,
     aes(
       x = month_num,
+      # y = median,
       y = mean,
       group = model
     ),
@@ -129,6 +109,7 @@ monthly_diff <- ggplot() +
     data = rgn_mean_diff_df,
     aes(
       x = month_num,
+      # y = median,
       y = mean,
       group = region
     ),
@@ -173,7 +154,7 @@ ggplot2::ggsave(
 
 hist_scen_mod_yr <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr.feather"
+  "historical_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
   arrow::read_feather() |>
   data.table::as.data.table()
@@ -186,7 +167,7 @@ global_results <- calc_hist_regional_diff(hist_scen_mod_yr)
 
 hist_scen_mod_yr_reg <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr_reg.feather"
+  "historical_vcov_pred_sum_scen_mod_yr_reg.feather"
 ) |>
   arrow::read_feather() |>
   data.table::as.data.table()
@@ -195,8 +176,8 @@ region_results <- names(region_names)[2:5] |>
   purrr::map(~ calc_hist_regional_diff(hist_scen_mod_yr_reg, .x)) |>
   purrr::list_rbind()
 
-region_results <- bind_rows(global_results, region_results) |>
-  dplyr::mutate(Region = case_match(Region, !!!region_formulas))
+region_results <- dplyr::bind_rows(global_results, region_results) |>
+  dplyr::mutate(Region = dplyr::case_match(Region, !!!region_formulas))
 
 print(region_results)
 
@@ -209,7 +190,6 @@ latex_table <- region_results |>
     Estimate = sprintf("%.4f", ScaledMeanDifference / 1000),
     CI = sprintf("(%.4f, %.4f)", Quantile_025, Quantile_975),
     Pplus = sprintf("%.2f", ProportionPositive),
-    # Handle multiline region name for SSA
     RegionTex = dplyr::if_else(
       grepl("\n", Region),
       paste0(
@@ -315,7 +295,7 @@ region_peak_effect <- rgn_mean_diff_df |>
     Quantile_025,
     Quantile_975
   ) |>
-  transmute(
+  dplyr::transmute(
     Region,
     `Month of Peak Impact`,
     `Impact Size (\\% points)` = sprintf(
@@ -346,7 +326,6 @@ region_peak_effect <- rgn_mean_diff_df |>
   kable_styling(latex_options = c("hold_position"))
 
 region_peak_effect
-
 
 kableExtra::save_kable(
   region_peak_effect,

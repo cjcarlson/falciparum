@@ -22,11 +22,11 @@ source(A_utils_plot_fp)
 # Future delta data ----
 ################################################################################
 
-# log_msg("Loading historical_cru_pred_sum_scen_mod_yr_obj.feather")
+# log_msg("Loading historical_vcov_pred_sum_scen_mod_yr_obj.feather")
 
 future_scen_mod_yr_pred <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr.feather"
+  "future_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(
@@ -42,7 +42,7 @@ adm1_results <- calc_future_regional_diff(future_scen_mod_yr_pred)
 
 future_scen_mod_yr_reg_pred <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr_reg.feather"
+  "future_vcov_pred_sum_scen_mod_yr_reg.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(
@@ -147,64 +147,51 @@ results <- bind_rows(
 # Mid century ----
 ################################################################################
 
-diff.mid.df <- results |>
+boot.diff.mid.df <- results |>
   dplyr::filter(
     scenario %in% c("ssp126", "ssp245"),
-    period == "2048-2052"
+    period == "2048-2052",
+    run != "main"
   ) |>
+  dplyr::filter() |>
   tidyr::pivot_wider(
     id_cols = c(run, model, region, period),
     names_from = scenario,
     values_from = Pred
   ) |>
-  dplyr::mutate(diff = ssp245 - ssp126)
-
-main.diff.mid.df <- diff.mid.df |>
-  dplyr::filter(run == "main") |>
-  dplyr::group_by(region, period) |>
-  dplyr::summarise(mean_diff = mean(diff), )
-
-boot.diff.mid.df <- diff.mid.df |>
-  dplyr::filter(run != "main") |>
+  dplyr::mutate(diff = ssp245 - ssp126) |>
   dplyr::group_by(region, period) |>
   dplyr::summarise(
+    mean_diff = mean(diff),
     lower_diff = quantile(diff, 0.025),
     upper_diff = quantile(diff, 0.975),
     prop_positive_diff = mean(diff > 0)
   ) |>
-  dplyr::left_join(main.diff.mid.df) |>
   dplyr::mutate(scenario_diff = "ssp245 - ssp126")
 
 ################################################################################
 # End of century ----
 ################################################################################
 
-diff.end.df <- results |>
+boot.diff.end.df <- results |>
   dplyr::filter(
     scenario %in% c("ssp126", "ssp245"),
-    period == "2096-2100"
+    period == "2096-2100",
+    run != "main"
   ) |>
   tidyr::pivot_wider(
     id_cols = c(model, region, run, period),
     names_from = scenario,
     values_from = Pred
   ) |>
-  dplyr::mutate(diff = ssp245 - ssp126)
-
-main.diff.end.df <- diff.end.df |>
-  dplyr::filter(run == "main") |>
-  dplyr::group_by(region, period) |>
-  dplyr::summarise(mean_diff = mean(diff), )
-
-boot.diff.end.df <- diff.end.df |>
-  dplyr::filter(run != "main") |>
+  dplyr::mutate(diff = ssp245 - ssp126) |>
   dplyr::group_by(region, period) |>
   dplyr::summarise(
+    mean_diff = mean(diff),
     lower_diff = quantile(diff, 0.025),
     upper_diff = quantile(diff, 0.975),
     prop_positive_diff = mean(diff > 0)
   ) |>
-  dplyr::left_join(main.diff.end.df) |>
   dplyr::mutate(scenario_diff = "ssp245 - ssp126")
 
 ################################################################################
@@ -228,37 +215,26 @@ readr::write_csv(
 # Calculate ADM1 differences ----
 ################################################################################
 
-future_scen_mod_yr_obj_pred <- file.path(
+boot_diff <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr_obj.feather"
+  "future_vcov_pred_sum_scen_mod_yr_obj.feather"
 ) |>
   arrow::read_feather() |>
-  dplyr::filter(scenario == "ssp585") |>
+  dplyr::filter(run != "main", scenario == "ssp585") |>
   tidyr::pivot_wider(
     id_cols = c(scenario, model, OBJECTID, run),
     names_from = year,
     values_from = Pred
   ) |>
-  dplyr::mutate(diff = (`2100` - `2015`))
-
-main_diff <- future_scen_mod_yr_obj_pred |>
-  dplyr::filter(run == "main") |>
-  dplyr::group_by(OBJECTID) |>
-  dplyr::summarize(mean.diff = mean(diff))
-
-boot_diff <- future_scen_mod_yr_obj_pred |>
-  dplyr::filter(run != "main") |>
+  dplyr::mutate(diff = (`2100` - `2015`)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
+    mean.diff = mean(diff),
     runs.diff = sum(diff > 0),
     lower.diff = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff = quantile(diff, 0.95, na.rm = TRUE)
   ) |>
-  dplyr::left_join(main_diff) |>
-  dplyr::mutate(
-    # OBJECTID = factor(OBJECTID),
-    moe = 1 - abs(runs.diff - 5500) / 5500
-  )
+  dplyr::mutate(moe = 1 - abs(runs.diff - 5500) / 5500)
 
 ################################################################################
 # Join to elev and ADM1 data ----

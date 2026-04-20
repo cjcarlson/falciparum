@@ -245,7 +245,7 @@ ggsave(
 ################################################################################
 # Data imbalance: responses on temporal subsamples ----
 ################################################################################
-
+ 
 complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
 g = ggplot(complete) +
   geom_histogram(aes(x = yearnum), color = "seagreen", fill = "seagreen") +
@@ -253,11 +253,11 @@ g = ggplot(complete) +
   ylab("count of observations") +
   theme_classic()
 g
-
+ 
 # obs by group
 complete = complete |> mutate(post1995 = (yearnum >= 1995))
 complete %>% count(post1995)
-
+ 
 # formula (different intervention dummies for each temporal subsample)
 cXt2rXm = as.formula(paste0(
   common,
@@ -266,20 +266,20 @@ cXt2rXm = as.formula(paste0(
   " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
   clustering
 ))
-
+ 
 pre_data <- subset(complete, post1995 == FALSE)
 pos_data <- subset(complete, post1995 == TRUE)
-
+ 
 pre1995 = felm(data = pre_data, formula = cXt2rXm)
 post1995 = felm(data = pos_data, formula = cXt2rXm)
-
+ 
 # plot temperature responses
 modellist = list(pre1995, post1995)
 mycollabs = c(
   "Early sample (1901-1994)",
   "Late sample (1995-2016)"
 )
-
+ 
 percentiles_list = list()
 pre_post <- c(F, T)
 for (i in 1:length(pre_post)) {
@@ -293,7 +293,7 @@ for (i in 1:length(pre_post)) {
     n = length(pre_post_data)
   )
 }
-
+ 
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 figList = list()
 for (m in 1:length(modellist)) {
@@ -309,7 +309,7 @@ for (m in 1:length(modellist)) {
     xLab = expression(paste("Mean temperature (", degree, "C)")),
     yLab = "Prevalence (%)",
     title = mycollabs[m],
-    yLim = c(-30, 10),
+    yLim = c(-35, 10),
     showYTitle = T,
     plotmax_x = 2,
     plotmax_y = 5
@@ -335,86 +335,52 @@ for (m in 1:length(modellist)) {
       parse = TRUE
     )
 }
-
-h_pre <- ggplot(data = pre_data, aes(x = temp)) +
-  geom_histogram(
-    fill = "#8B3A4A",
-    alpha = 1,
-    bins = 30,
-    width = 0.7,
-    colour = "black"
-  ) +
-  theme_classic() +
-  labs(x = expression(paste("Mean temperature (", degree, "C)")), y = NULL) +
-  geom_vline(
-    xintercept = percentiles_list[[1]]$p01,
-    colour = "grey39",
-    linetype = "dashed"
-  ) +
-  geom_vline(
-    xintercept = percentiles_list[[1]]$p99,
-    colour = "grey39",
-    linetype = "dashed"
-  ) +
-  xlim(Tmin - .0001, Tmax) +
-  geom_vline(xintercept = 22, colour = "grey39") +
-  theme(
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank(),
-    plot.margin = unit(c(-2.5, 1, 0, 1), "cm"),
-  )
-
-h_post <- ggplot(data = pos_data, aes(x = temp)) +
-  geom_histogram(
-    fill = "#8B3A4A",
-    alpha = 1,
-    bins = 30,
-    width = 0.7,
-    colour = "black"
-  ) +
-  theme_classic() +
-  labs(x = expression(paste("Mean temperature (", degree, "C)")), y = NULL) +
-  xlim(Tmin - .0001, Tmax) +
-  geom_vline(xintercept = 25, colour = "grey39") +
-  geom_vline(
-    xintercept = percentiles_list[[2]]$p01,
-    colour = "grey39",
-    linetype = "dashed"
-  ) +
-  geom_vline(
-    xintercept = percentiles_list[[2]]$p99,
-    colour = "grey39",
-    linetype = "dashed"
-  ) +
-  theme(
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank(),
-    plot.margin = unit(c(-2.5, 1, 0, 1), "cm"),
-  )
-
-p = plot_grid(
-  figList[[1]] +
+ 
+# Create histogram grobs for each subsample (F02-style inset approach)
+hist_data_list <- list(pre_data, pos_data)
+yLim_split <- c(-37, 10)
+hist_ymin <- yLim_split[1]       # bottom of the response plot y-axis
+hist_ymax <- hist_ymin + 5       # height of the histogram band
+ 
+for (m in 1:length(hist_data_list)) {
+  # Build a void histogram matching the x-axis of the response plot
+  hist_inset <- ggplot() +
+    geom_histogram(
+      data = hist_data_list[[m]],
+      mapping = aes(x = temp),
+      fill = "#8B3A4A",
+      alpha = 1,
+      bins = 30,
+      colour = "black"
+    ) +
+    theme_void() +
+    scale_x_continuous(
+      limits = c(Tmin, Tmax),
+      expand = expansion(mult = c(0.0, 0.0))
+    )
+ 
+  # Convert to grob
+  hist_grob <- ggplotGrob(hist_inset)
+ 
+  # Add grob inset to each response figure
+  figList[[m]] <- figList[[m]] +
+    annotation_custom(
+      grob = hist_grob,
+      xmin = Tmin,
+      xmax = Tmax,
+      ymin = hist_ymin,
+      ymax = hist_ymax
+    ) +
+    labs(x = expression(paste("Mean temperature (", degree, "C)"))) +
     theme(
-      axis.text.x = element_blank(),
-      axis.line.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.title.x = element_blank()
-    ),
-  figList[[2]] +
-    theme(
-      axis.text.x = element_blank(),
-      axis.line.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.title.x = element_blank()
-    ),
-  h_pre,
-  h_post,
-  nrow = 2,
-  align = "v",
-  rel_heights = c(15, 1)
-)
+      axis.title.x = element_text(vjust = -0.5),
+      plot.title.position = "plot"
+    )
+}
+ 
+p <- plot_grid(figList[[1]], figList[[2]], nrow = 1)
 p
-
+ 
 ggsave(
   filename = "Supp_Figure_split_sample_1995.jpg",
   path = here::here("Results", "Figures"),

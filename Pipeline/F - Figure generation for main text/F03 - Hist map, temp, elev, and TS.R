@@ -1,6 +1,12 @@
 ################################################################################
 # This script plots Figure 3, Historical changes in malaria prevalence
 # attributable to anthropogenic climate change from 1901 to 2014.
+# apptainer exec --cleanenv --contain \
+#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
+#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
+#   --pwd /global/home/users/cmolitor/falciparum \
+#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/r-malaria-cru_4.2.3.sif \
+#   Rscript "Pipeline/F - Figure generation for main text/F03 - Hist map, temp, elev, and TS.R"
 ################################################################################
 # Set up ----
 ################################################################################
@@ -41,11 +47,11 @@ log_msg("Starting script `F03 - Hist map, temp, elev, and TS.R`")
 # Hist delta map data ----
 ################################################################################
 
-log_msg("Loading historical_cru_pred_sum_scen_mod_yr_obj.feather")
+log_msg("Loading historical_vcov_pred_sum_scen_mod_yr_obj.feather")
 
 hist_scen_mod_yr_adm1_pred <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr_obj.feather"
+  "historical_vcov_pred_sum_scen_mod_yr_obj.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(
@@ -56,12 +62,12 @@ hist_scen_mod_yr_adm1_pred <- file.path(
 
 log_msg("Calculating ADM1 mean difference")
 
-main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
-  dplyr::filter(run == "main",) |>
-  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
-  dplyr::mutate(diff = (historical - `hist-nat`)) |>
-  dplyr::group_by(OBJECTID) |>
-  dplyr::summarize(mean.diff = mean(diff))
+# main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
+#   dplyr::filter(run == "main",) |>
+#   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
+#   dplyr::mutate(diff = (historical - `hist-nat`)) |>
+#   dplyr::group_by(OBJECTID) |>
+#   dplyr::summarize(mean.diff = mean(diff))
 
 log_msg("Calculating ADM1 confidence interval")
 
@@ -71,13 +77,14 @@ boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
   dplyr::mutate(diff = (historical - `hist-nat`), ) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
+    mean.diff = mean(diff),
     runs.diff = sum(diff > 0),
     lower.diff.90 = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff.90 = quantile(diff, 0.95, na.rm = TRUE),
     lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
   ) |>
-  dplyr::left_join(main_2010_2014) |>
+  # dplyr::left_join(main_2010_2014) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5000) / 5000
@@ -311,21 +318,21 @@ log_msg("load the regional time series data")
 
 historical_pred <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr_reg.feather"
+  "historical_vcov_pred_sum_scen_mod_yr_reg.feather"
 ) |>
   arrow::read_feather() |>
   data.table::as.data.table()
 
-hist_main <- historical_pred[run == "main"] |>
-  baseline_adjust_summarize(
-    variable = "Pred",
-    baseline_group = c("model", "scenario", "region", "run"),
-    adjusted_group = c("scenario", "region", "year"),
-    baseline_years = 1900:1930,
-    confidence_level = 0.90
-  ) |>
-  dplyr::filter(year > 1901) |>
-  dplyr::select(-c(upper, lower))
+# hist_main <- historical_pred[run == "main"] |>
+#   baseline_adjust_summarize(
+#     variable = "Pred",
+#     baseline_group = c("model", "scenario", "region", "run"),
+#     adjusted_group = c("scenario", "region", "year"),
+#     baseline_years = 1900:1930,
+#     confidence_level = 0.90
+#   ) |>
+#   dplyr::filter(year > 1901) |>
+#   dplyr::select(-c(upper, lower))
 
 hist_boot <- historical_pred[run != "main"] |>
   baseline_adjust_summarize(
@@ -336,8 +343,8 @@ hist_boot <- historical_pred[run != "main"] |>
     confidence_level = 0.90
   ) |>
   dplyr::filter(year > 1901) |>
-  dplyr::select(-c(median, mean)) |>
-  dplyr::left_join(hist_main) |>
+  # dplyr::select(-c(median, mean)) |>
+  # dplyr::left_join(hist_main) |>
   dplyr::mutate(
     scenario = factor(scenario, levels = names(historical_scenario_names))
   ) |>
@@ -357,7 +364,6 @@ regional_ts_plot <- ggplot(
   data = hist_boot,
   aes(x = year, group = scenario, color = scenario, fill = scenario)
 ) +
-  geom_line(aes(y = mean), lwd = 1.25) +
   geom_ribbon(
     aes(ymin = lower, ymax = upper, colour = scenario),
     fill = NA,
@@ -369,6 +375,7 @@ regional_ts_plot <- ggplot(
     color = NA,
     alpha = 0.1
   ) +
+  geom_line(aes(y = mean), lwd = 1.25) +
   theme_classic() +
   geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) +
   facet_wrap(region ~ ., nrow = 1) +

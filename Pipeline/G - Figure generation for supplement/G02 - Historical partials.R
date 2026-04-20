@@ -31,15 +31,12 @@ source(A_utils_plot_fp)
 
 # log_msg("Load and prepare historical projections")
 
-historical_pred <- file.path(
+hist_boot <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr.feather"
+  "historical_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
-  arrow::read_feather()
-
-hist_main <- historical_pred[run == "main"]
-
-hist_boot <- historical_pred[run != "main"]
+  arrow::read_feather() |>
+  dplyr::filter(run != "main")
 
 variables <- list(
   list(name = "Pred", label = "Prevalence (%)"),
@@ -53,17 +50,6 @@ plots <- list()
 for (i in seq_along(variables)) {
   var <- variables[[i]]
 
-  main <- baseline_adjust_summarize(
-    df = hist_main,
-    variable = var$name,
-    baseline_group = c("model", "scenario", "run"),
-    adjusted_group = c("scenario", "year"),
-    baseline_years = 1900:1930,
-    confidence_level = 0.90
-  ) |>
-    dplyr::filter(year > 1901) |>
-    dplyr::select(-c(upper, lower))
-
   boot <- baseline_adjust_summarize(
     df = hist_boot,
     variable = var$name,
@@ -72,16 +58,15 @@ for (i in seq_along(variables)) {
     baseline_years = 1900:1930,
     confidence_level = 0.90
   ) |>
-    dplyr::filter(year > 1901) |>
-    dplyr::select(-c(median, mean))
-
-  data <- dplyr::left_join(boot, main)
+    dplyr::filter(year > 1901)
 
   plots[[i]] <- partials_plot(
-    data,
+    boot,
     var$label,
     i == 1,
-    legend_position = c(0.15, 0.16)
+    legend_position = c(0.15, 0.16),
+    scen_colors = hist_scenario_colors,
+    scen_labels = hist_scenario_labels
   )
 }
 

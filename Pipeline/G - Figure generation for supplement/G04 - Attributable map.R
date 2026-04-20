@@ -1,5 +1,5 @@
 ############################################################
-# This script makes 
+# This script makes
 ############################################################
 # Set up ----
 ############################################################
@@ -29,47 +29,26 @@ source(A_utils_calc_fp)
 # Hist delta map data ----
 ################################################################################
 
-# log_msg("Loading historical_cru_pred_sum_scen_mod_yr_obj.feather")
-
-hist_scen_mod_yr_adm1_pred <- file.path(
+boots_2010_2014 <- file.path(
   hist_sum_dir,
-  "historical_cru_pred_sum_scen_mod_yr_obj.feather"
+  "historical_vcov_pred_sum_scen_mod_yr_obj.feather"
 ) |>
   arrow::read_feather() |>
-  dplyr::mutate(
-    model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
-  ) |>
+  dplyr::filter(run != "main", year == 2014) |>
   dplyr::select(scenario, model, year, OBJECTID, Pred, run) |>
-  dplyr::filter(year == 2014)
-
-# log_msg("Calculating ADM1 mean difference")
-
-main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
-  dplyr::filter(run == "main", ) |>
-  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
-  dplyr::mutate(diff = (historical - `hist-nat`)) |>
-  dplyr::group_by(OBJECTID) |>
-  dplyr::summarize(mean.diff = mean(diff))
-
-# log_msg("Calculating ADM1 confidence interval")
-
-boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
-  dplyr::filter(run != "main") |>
   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
   dplyr::mutate(diff = (historical - `hist-nat`), ) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(
+    mean.diff = mean(diff),
     runs.diff = sum(diff > 0),
     lower.diff = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff = quantile(diff, 0.95, na.rm = TRUE),
   ) |>
-  dplyr::left_join(main_2010_2014) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5000) / 5000
   )
-
-# log_msg("Add summarized data to ADM1 map data")
 
 cont <- ADM1_fp |>
   sf::read_sf() |>
@@ -78,7 +57,10 @@ cont <- ADM1_fp |>
 g1 <- ggplot(cont) +
   geom_sf(aes(fill = mean.diff), color = "gray30", size = 0.05) +
   coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
-  scale_fill_continuous_divergingx(palette = "Geyser", na.value = "white") +
+  colorspace::scale_fill_continuous_divergingx(
+    palette = "Geyser",
+    na.value = "white"
+  ) +
   labs(fill = "Change (%)") +
   theme_void() +
   theme(
@@ -87,8 +69,10 @@ g1 <- ggplot(cont) +
   )
 
 cont <- cont |>
-  mutate(sign = as.numeric(lower.diff > 0) + -1 * as.numeric(upper.diff < 0)) |>
-  mutate(sign = factor(sign))
+  dplyr::mutate(
+    sign = as.numeric(lower.diff > 0) + -1 * as.numeric(upper.diff < 0)
+  ) |>
+  dplyr::mutate(sign = factor(sign))
 
 g2 <- ggplot(cont) +
   geom_sf(aes(fill = sign), color = "gray30", size = 0.05) +
@@ -117,18 +101,21 @@ cont <- cont |>
   mutate(sign = as.factor(sign))
 
 top <- cont |>
-  select(sign) |>
-  filter(sign == 1) |>
-  st_make_valid() |>
-  st_union() |>
-  st_make_valid() |>
-  st_union()
+  dplyr::select(sign) |>
+  dplyr::filter(sign == 1) |>
+  sf::st_make_valid() |>
+  sf::st_union() |>
+  sf::st_make_valid() |>
+  sf::st_union()
 
 supp_2 <- ggplot(cont) +
   geom_sf(aes(fill = mean.diff), color = 'grey70', size = 0.05) +
   coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
   theme_void() +
-  scale_fill_continuous_divergingx(palette = "Geyser", na.value = "white") +
+  colorspace::scale_fill_continuous_divergingx(
+    palette = "Geyser",
+    na.value = "white"
+  ) +
   labs(fill = "Prevalence (%)") +
   geom_sf(data = top, color = 'black', size = 0.25, fill = NA) +
   theme(

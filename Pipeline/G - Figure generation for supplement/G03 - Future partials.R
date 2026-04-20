@@ -29,15 +29,12 @@ source(A_utils_plot_fp)
 
 # log_msg("Load and prepare future projections")
 
-future_pred <- file.path(
+future_boot <- file.path(
   fut_sum_dir,
-  "future_cru_pred_sum_scen_mod_yr.feather"
+  "future_vcov_pred_sum_scen_mod_yr.feather"
 ) |>
-  arrow::read_feather()
-
-future_main <- future_pred[run == "main"]
-
-future_boot <- future_pred[run != "main"]
+  arrow::read_feather() |>
+  dplyr::filter(run != "main")
 
 ################################################################################
 # Create partial time series plots ----
@@ -55,16 +52,6 @@ plots <- list()
 for (i in seq_along(variables)) {
   var <- variables[[i]]
 
-  main <- baseline_adjust_summarize(
-    df = future_main,
-    variable = var$name,
-    baseline_group = c("model", "scenario", "run"),
-    adjusted_group = c("scenario", "year"),
-    baseline_years = 2015:2020,
-    confidence_level = 0.90
-  ) |>
-    dplyr::select(-c(upper, lower))
-
   boot <- baseline_adjust_summarize(
     df = future_boot,
     variable = var$name,
@@ -73,16 +60,15 @@ for (i in seq_along(variables)) {
     baseline_years = 2015:2020,
     confidence_level = 0.90
   ) |>
-    dplyr::select(-c(median, mean))
-
-  data <- dplyr::left_join(main, boot) |>
     dplyr::filter(year > 2016)
 
   plots[[i]] <- partials_plot(
-    data,
+    boot,
     var$label,
     i == 1,
-    legend_position = c(0.175, 0.22)
+    legend_position = c(0.175, 0.22),
+    scen_colors = fut_scenario_colors,
+    scen_labels = fut_scenario_labels
   )
 }
 

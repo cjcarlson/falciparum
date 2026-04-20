@@ -89,7 +89,7 @@ df = data.frame(
   stat = c("F stat", "p value"),
   value = c(summary(resCntry)$P.fstat[5], summary(resCntry)$P.fstat[1])
 )
-write.csv(df, file.path(table_diag_res_dir, "residuals_country_Fstat.csv"))
+write.csv(df, file.path(table_res_dir, "residuals_country_Fstat.csv"))
 
 ################################################################################
 # B: Correlation across ADM1s within a GBOD region (same year-month) ----
@@ -122,7 +122,7 @@ df = data.frame(
   stat = c("F stat", "p value"),
   value = c(summary(resGBOD)$P.fstat[5], summary(resGBOD)$P.fstat[1])
 )
-write.csv(df, file.path(table_diag_res_dir, "residuals_GBOD_Fstat.csv"))
+write.csv(df, file.path(table_res_dir, "residuals_GBOD_Fstat.csv"))
 
 ################################################################################
 # C: Correlation across months (same location) ----
@@ -157,11 +157,12 @@ df = data.frame(
   stat = c("F stat", "p value"),
   value = c(summary(resMonth)$P.fstat[5], summary(resMonth)$P.fstat[1])
 )
-write.csv(df, file.path(table_diag_res_dir, "residuals_Month_Fstat.csv"))
+write.csv(df, file.path(table_res_dir, "residuals_Month_Fstat.csv"))
 
 # combine all boxplots
 box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels = "auto")
 box
+
 ggsave(
   filename = "residuals_ALL_boxplot.jpg",
   path = figure_res_dir,
@@ -173,9 +174,10 @@ ggsave(
 # combine all pval hists
 hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels = "auto")
 hists
+
 ggsave(
   filename = "pvals_ALL_correlations.jpg",
-  path = table_diag_res_dir,
+  path = figure_res_dir,
   plot = hists,
   width = 5,
   height = 5
@@ -186,8 +188,7 @@ ggsave(
 ################################################################################
 
 ##### Temporal Correlation Matrix ----
-residual_wide_yr_mn <- 
-  complete |> 
+residual_wide_yr_mn <- complete |> 
   dplyr::select(OBJECTID,monthyr,res) |> 
   arrange(monthyr) |> 
   pivot_wider(names_from=monthyr, values_from=res) |> 
@@ -203,8 +204,7 @@ count_matrix_yr_mn <- residual_wide_yr_mn |>
   count_pairwise_obs()
 
 ##### Spatial Correlation Matrix ----
-residual_wide_location <- 
-  complete |> 
+residual_wide_location <- complete |> 
   dplyr::mutate(
     short_region = case_match(
       smllrgn,
@@ -334,69 +334,32 @@ weighting <- FALSE
 
 corrData <- bind_rows(
   ##### temporal correlations ----
-  analyze_corr("temporal", corrVecYear, TRUE, "all", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, timeDiff == 1, "1", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, timeDiff == 2, "2", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, timeDiff == 3, "3", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 4, "4", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 5, "5", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 6, "6", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 7, "7", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 8, "8", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 9, "9", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 10, "10", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 11, "11", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 12, "12", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, month_col == month_row & year_col != year_row, "same month, diff year", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & yearDiff == 1, "same month, 1 yr later", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & yearDiff == 2, "same month, 2 yrs later", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & yearDiff == 3, "same month, 3 yrs later", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & abs(yearDiff) == 1, "same month, ±1 yr", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & abs(yearDiff) == 2, "same month, ±2 yrs", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & abs(yearDiff) <= 2, "same month, within ±2 yrs", obsCountVecYearMon, T_min, weighting = weighting),
+  analyze_corr("temporal", corrVecYear, TRUE, "all", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, timeDiff == 1, "1", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, timeDiff == 2, "2", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, timeDiff == 3, "3", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, abs(yearDiff) <= 5, "within 5 years", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, abs(yearDiff) > 5, "> 5 years", obsCountVecYearMon),
   ##### Basic spatial patterns ----
-  analyze_corr("spatial", corrVecGid1, TRUE, "all", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 == rowGid0, "same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0, "different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg == rowReg, "same region", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg != rowReg, "different region", obsCountVecGid1, T_min, weighting = weighting),
-  ##### thresholds (less than) ----
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e5, "< 100km", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e5, "< 200km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5, "< 500km", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e6, "< 1000km", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e6, "< 2000km", obsCountVecGid1, T_min, weighting = weighting),
-  ##### + country interactions (less than) ----
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 != rowGid0, "< 100km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 != rowGid0, "< 200km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "< 500km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 != rowGid0, "< 1000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e6 & colGid0 != rowGid0, "< 2000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 == rowGid0, "< 100km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 == rowGid0, "< 200km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 == rowGid0, "< 500km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 == rowGid0, "< 1000km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e6 & colGid0 == rowGid0, "< 2000km and same country", obsCountVecGid1, T_min, weighting = weighting),
+  analyze_corr("spatial", corrVecGid1, TRUE, "all", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 == rowGid0, "same country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0, "different country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg == rowReg, "same region", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg != rowReg, "different region", obsCountVecGid1),
+  # ##### thresholds (less than) ----
+  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5, "< 500km", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "< 500km and different country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 == rowGid0, "< 500km and same country", obsCountVecGid1),
   ##### thresholds (greater than) ----
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e5, "> 100km", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e5, "> 200km", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5, "> 500km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6, "> 1000km", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e6, "> 2000km", obsCountVecGid1, T_min, weighting = weighting),
-  ##### + country interactions (greater than) ----
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e5 & colGid0 != rowGid0, "> 100km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e5 & colGid0 != rowGid0, "> 200km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 != rowGid0, "> 500km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6 & colGid0 != rowGid0, "> 1000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e6 & colGid0 != rowGid0, "> 2000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e5 & colGid0 == rowGid0, "> 100km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e5 & colGid0 == rowGid0, "> 200km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 == rowGid0, "> 500km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6 & colGid0 == rowGid0, "> 1000km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  # analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e6 & colGid0 == rowGid0, "> 2000km and same country", obsCountVecGid1, T_min, weighting = weighting),
-)
+  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6, "> 1000km", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 != rowGid0, "> 500km and different country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 == rowGid0, "> 500km and same country", obsCountVecGid1)
+) |> 
+  dplyr::select(kind, group, mean, q25, q75, n)
 
-tex <- df_to_latex(dplyr::select(corrData, kind, group, mean, q25, q75, n))
+corrData
+
+tex <- df_to_latex(corrData)
 
 writeLines(
   tex,
@@ -438,7 +401,7 @@ vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
 vars
 ggsave(
   filename = "variogram_2panel.jpg",
-  path = table_diag_res_dir,
+  path = figure_res_dir,
   plot = vars,
   width = 9,
   height = 5,
@@ -590,7 +553,7 @@ stargazer(
   notes.align = "l",
   notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
   out = file.path(
-    table_diag_res_dir,
+    table_res_dir,
     "serial_correlation_in_model_residuals.tex"
   ),
   star.cutoffs = table_star_cutoffs

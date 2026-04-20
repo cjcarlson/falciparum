@@ -185,50 +185,57 @@ plotPolynomialResponse <- function(
       response = c(resp_rur, resp_urb),
       lb = c(lb_rur, lb_urb),
       ub = c(ub_rur, ub_urb),
-      group = rep(c("Rural", "Urban"), each = n)
+      group = factor(
+        rep(c("Rural", "Urban"), each = n),
+        levels = c("Rural", "Urban")
+      )
     )
-    g <- ggplot() +
+    g <- ggplot(plotData, aes(x = x)) +
       geom_hline(yintercept = 0, color = "grey88", linewidth = .4) +
       geom_ribbon(
         data = filter(plotData, group == "Urban"),
-        aes(x, ymin = lb, ymax = ub),
-        fill = "grey50",
-        alpha = .4
+        aes(ymin = lb, ymax = ub, fill = group),
+        alpha = .5
       ) +
       geom_ribbon(
         data = filter(plotData, group == "Rural"),
-        aes(x, ymin = lb, ymax = ub),
-        fill = "#C1657C",
-        alpha = .6
+        aes(ymin = lb, ymax = ub, fill = group),
+        alpha = .5
       ) +
       geom_line(
-        data = filter(plotData, group == "Urban"),
-        aes(x = x, y = response),
+        aes(y = response, linetype = group),
         color = "black",
-        alpha = .6,
-        linewidth = .5,
-        linetype = "dashed"
-      ) +
-      geom_line(
-        data = filter(plotData, group == "Rural"),
-        aes(x = x, y = response),
-        color = "black",
-        alpha = 1,
         linewidth = .5
+      ) +
+      scale_fill_manual(
+        values = c("Rural" = "#C1657C", "Urban" = "grey50"),
+        breaks = c("Rural", "Urban"),
+        name = NULL
+      ) +
+      scale_linetype_manual(
+        values = c("Rural" = "solid", "Urban" = "dashed"),
+        breaks = c("Rural", "Urban"),
+        name = NULL
+      ) +
+      guides(
+        fill = guide_legend(
+          override.aes = list(linetype = c("solid", "dashed"))
+        ),
+        linetype = guide_legend(
+          override.aes = list(fill = c("#C1657C", "grey50"), alpha = 0.5)
+        )
       ) +
       labs(
         x = expression(paste("Mean temperature (", degree, "C)")),
         y = "Prevalence (%)",
-        title = NULL,
-        color = "",
-        linetype = "",
-        fill = ""
+        title = NULL
       ) +
       coord_cartesian(ylim = c(-30, 10)) +
       theme_classic() +
       theme(
         plot.title = element_text(size = 10),
         legend.position = "bottom",
+        legend.box = "horizontal",
         text = element_text(size = 8)
       )
   } else {
@@ -308,212 +315,6 @@ plotPolynomialResponse <- function(
         size = 3
       )
   }
-
-  return(g)
-}
-
-################################################################################
-# plotPolynomialResponseSimple ----
-################################################################################
-
-plotPolynomialResponseSimple = function(
-  coefs,
-  xVals,
-  polyOrder,
-  plotmax = F,
-  xRef = 0,
-  xLab,
-  yLab,
-  title = "title",
-  yLim = c(-1, 1),
-  showYTitle = T
-) {
-  ### same as plotPolynomialResponse(), but input is not a model
-  ### but the actual set of coefficients, and no SE are plotted
-  ### temporary function until I can figure out how to get the
-  ### right SEs on the cumulative effects
-
-  beta = coefs ##See if this works
-
-  # Recenter Xs so predictions are relative to the reference T
-  xValsT = genRecenteredXVals_polynomial(xVals, xRef, polyOrder)
-
-  b = as.matrix(beta)
-
-  response = as.matrix(xValsT) %*% b #Prediction
-
-  #Plot -- add back in the reference temperature so it's centered at xRef
-  plotData = data.frame(x = xValsT[, 1] + xRef, response = response)
-
-  # plot maximum if desired
-  maxX = max(plotData$x[plotData$response == max(plotData$response)])
-
-  if (sum(is.na(yLim)) > 0) {
-    g = ggplot(data = plotData) +
-      geom_hline(yintercept = 0, color = "grey88") +
-      geom_line(mapping = aes(x = x, y = response), color = "black") +
-      theme_classic() +
-      labs(x = xLab, y = yLab) +
-      ggtitle(title)
-  } else {
-    g = ggplot(data = plotData) +
-      geom_hline(yintercept = 0, color = "grey88") +
-      geom_line(mapping = aes(x = x, y = response), color = "black") +
-      theme_classic() +
-      labs(x = xLab, y = yLab) +
-      coord_cartesian(ylim = yLim) +
-      ggtitle(title)
-  }
-  if (!showYTitle) {
-    g = g + theme(axis.title.y = element_blank())
-  }
-  if (plotmax == T) {
-    g = g +
-      geom_vline(
-        mapping = aes(xintercept = maxX),
-        linetype = "solid",
-        color = "grey39"
-      ) +
-      annotate(
-        geom = "text",
-        x = maxX + 2.5,
-        y = 15,
-        label = paste0(maxX, " C"),
-        color = "grey39"
-      )
-  }
-  return(g)
-}
-
-################################################################################
-# plotLinearLags ----
-################################################################################
-
-# Plot linear responses that are lagged
-plotLinearLags = function(
-  mod,
-  patternForPlotVars,
-  cluster = T,
-  laglength = 3,
-  xLab,
-  yLab,
-  title = "title",
-  yLim = c(-1, 1)
-) {
-  beta = mod$coefficients
-  vars = rownames(beta)
-  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
-  b = as.matrix(beta[rownames(beta) %in% plotVars])
-
-  if (cluster == T) {
-    vcov = getVcov(mod$clustervcv, plotVars)
-  } else {
-    vcov = getVcov(mod$vcv, plotVars)
-  }
-
-  response = 1 * b #Prediction -- here, all responses are linear!
-  length = 1.96 * sqrt(diag(vcov))
-  lb = response - length
-  ub = response + length
-
-  # Plot
-  plotData = data.frame(
-    lag = 0:laglength,
-    response = response,
-    lb = lb,
-    ub = ub
-  )
-  if (plotVars[1] == "drought") {
-    mycolor = "#C99776"
-  } else if (plotVars[1] == "flood") {
-    mycolor = "#43A7BA"
-  } else {
-    mycolor = "black"
-  }
-
-  g = ggplot(data = plotData, aes(x = lag)) +
-    geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
-    geom_point(aes(y = response), color = mycolor, size = 2) +
-    geom_errorbar(aes(ymin = lb, ymax = ub), color = mycolor, width = .1) +
-    theme_classic() +
-    labs(x = "Lag", y = "Coefficient") +
-    coord_cartesian(ylim = yLim) +
-    ggtitle(title) +
-    theme(plot.title = element_text(size = 8), text = element_text(size = 8))
-
-  return(g)
-}
-
-################################################################################
-# plotLinearLags_urban ----
-################################################################################
-
-plotLinearLags_urban = function(
-  mod,
-  patternForPlotVars,
-  cluster = T,
-  laglength = 3,
-  xLab,
-  yLab,
-  title = "title",
-  yLim = c(-1, 1)
-) {
-  beta = mod$coefficients
-  vars = rownames(beta)
-  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
-  b = as.matrix(beta[rownames(beta) %in% plotVars])
-
-  if (cluster == T) {
-    vcov = getVcov(mod$clustervcv, plotVars)
-  } else {
-    vcov = getVcov(mod$vcv, plotVars)
-  }
-
-  response = 1 * b #Prediction -- here, all responses are linear!
-  length = 1.96 * sqrt(diag(vcov))
-  lb = response - length
-  ub = response + length
-
-  group <- ifelse(startsWith(plotVars, "urban_dummy"), "Urban", "Rural")
-
-  # Plot
-  plotData = data.frame(
-    lag = 0:laglength,
-    response = response,
-    lb = lb,
-    ub = ub,
-    group = factor(group, levels = c("Rural", "Urban"))
-  )
-  if (plotVars[1] == "drought") {
-    mycolor = "#C99776"
-  } else if (plotVars[1] == "flood") {
-    mycolor = "#43A7BA"
-  } else {
-    mycolor = "black"
-  }
-
-  g = ggplot(data = plotData, aes(x = lag, color = group)) +
-    geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
-    geom_point(
-      aes(y = response),
-      size = 2,
-      position = position_dodge(width = .5)
-    ) +
-    geom_errorbar(
-      aes(ymin = lb, ymax = ub),
-      width = .2,
-      position = position_dodge(width = .5)
-    ) +
-    scale_color_manual(values = c("#C1657C", "grey50")) +
-    theme_classic() +
-    labs(x = xLab, y = yLab, color = NULL) +
-    coord_cartesian(ylim = yLim) +
-    ggtitle(title) +
-    theme(
-      plot.title = element_text(size = 8),
-      text = element_text(size = 8),
-      legend.position = "bottom"
-    )
 
   return(g)
 }
@@ -652,143 +453,221 @@ plotPolynomialResponse_2_mod = function(
   }
 
   # Create the plot
-  if (is.null(mod2)) {
-    # Single model plot (original behavior)
-    if (sum(is.na(yLim)) > 0) {
-      g = ggplot(data = plotData) +
-        geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(
-          aes(x, ymin = lb, ymax = ub),
-          alpha = 0.4,
-          fill = fillcolor
-        ) +
-        geom_line(
-          mapping = aes(x = x, y = response),
-          color = "black",
-          linewidth = 1
-        ) +
-        theme_classic() +
-        labs(x = xLab, y = yLab) +
-        ggtitle(title)
-    } else {
-      g = ggplot(data = plotData) +
-        geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(
-          aes(x, ymin = lb, ymax = ub),
-          alpha = 0.4,
-          fill = fillcolor
-        ) +
-        geom_line(
-          mapping = aes(x = x, y = response),
-          color = "black",
-          linewidth = 1
-        ) +
-        theme_classic() +
-        labs(x = xLab, y = yLab) +
-        coord_cartesian(ylim = yLim) +
-        ggtitle(title)
-    }
-
-    if (plotmax == T) {
-      g = g +
-        geom_vline(
-          mapping = aes(xintercept = maxX1),
-          linetype = "solid",
-          color = "grey39"
-        ) +
-        annotate(
-          geom = "text",
-          x = maxX1 + 3,
-          y = 5,
-          label = paste0(maxX1, " C"),
-          color = "grey39"
-        )
-    }
+  if (sum(is.na(yLim)) > 0) {
+    g = ggplot(data = plotData) +
+      geom_hline(yintercept = 0, color = "grey88") +
+      geom_ribbon(
+        aes(
+          x,
+          ymin = lb,
+          ymax = ub,
+          fill = factor(model, levels = c(model1_name, model2_name))
+        ),
+        alpha = 0.4
+      ) +
+      geom_line(
+        aes(
+          x = x,
+          y = response,
+          color = factor(model, levels = c(model1_name, model2_name))
+        ),
+        linewidth = 1
+      ) +
+      theme_classic() +
+      labs(x = xLab, y = yLab) +
+      ggtitle(title) +
+      scale_fill_manual(values = c(fillcolor, fillcolor2)) +
+      scale_color_manual(values = c("black", "black")) +
+      theme(legend.position = "bottom", legend.title = element_blank())
   } else {
-    # Two model plot
-    if (sum(is.na(yLim)) > 0) {
-      g = ggplot(data = plotData) +
-        geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(
-          aes(
-            x,
-            ymin = lb,
-            ymax = ub,
-            fill = factor(model, levels = c(model1_name, model2_name))
-          ),
-          alpha = 0.4
-        ) +
-        geom_line(
-          aes(
-            x = x,
-            y = response,
-            color = factor(model, levels = c(model1_name, model2_name))
-          ),
-          linewidth = 1
-        ) +
-        theme_classic() +
-        labs(x = xLab, y = yLab) +
-        ggtitle(title) +
-        scale_fill_manual(values = c(fillcolor, fillcolor2)) +
-        scale_color_manual(values = c("black", "black")) +
-        theme(legend.position = "bottom", legend.title = element_blank())
-    } else {
-      g = ggplot(data = plotData) +
-        geom_hline(yintercept = 0, color = "grey88") +
-        geom_ribbon(
-          aes(
-            x,
-            ymin = lb,
-            ymax = ub,
-            fill = factor(model, levels = c(model1_name, model2_name))
-          ),
-          alpha = 0.4
-        ) +
-        geom_line(
-          aes(
-            x = x,
-            y = response,
-            color = factor(model, levels = c(model1_name, model2_name)),
-            linetype = factor(model, levels = c(model1_name, model2_name))
-          ),
-          linewidth = 0.5
-        ) +
-        theme_classic() +
-        labs(x = xLab, y = yLab) +
-        coord_cartesian(ylim = yLim) +
-        ggtitle(title) +
-        scale_fill_manual(values = c(fillcolor, fillcolor2)) +
-        scale_color_manual(values = c("black", "black")) +
-        scale_linetype_manual(values = c("solid", "dashed")) +
-        theme(legend.position = "bottom", legend.title = element_blank())
-    }
+    g = ggplot(data = plotData) +
+      geom_hline(yintercept = 0, color = "grey88") +
+      geom_ribbon(
+        aes(
+          x,
+          ymin = lb,
+          ymax = ub,
+          fill = factor(model, levels = c(model1_name, model2_name))
+        ),
+        alpha = 0.4
+      ) +
+      geom_line(
+        aes(
+          x = x,
+          y = response,
+          color = factor(model, levels = c(model1_name, model2_name)),
+          linetype = factor(model, levels = c(model1_name, model2_name))
+        ),
+        linewidth = 0.5
+      ) +
+      theme_classic() +
+      labs(x = xLab, y = yLab) +
+      coord_cartesian(ylim = yLim) +
+      ggtitle(title) +
+      scale_fill_manual(values = c(fillcolor, fillcolor2)) +
+      scale_color_manual(values = c("black", "black")) +
+      scale_linetype_manual(values = c("solid", "dashed")) +
+      theme(legend.position = "bottom", legend.title = element_blank())
+  }
 
-    if (plotmax == T) {
-      g = g +
-        geom_vline(xintercept = maxX1, linetype = "solid", color = "black") +
-        geom_vline(xintercept = maxX2, linetype = "dashed", color = "black") +
-        annotate(
-          geom = "text",
-          x = maxX1 - x_adjust,
-          y = 5,
-          label = paste0(maxX1, " C"),
-          color = "grey39",
-          size = 3
-        ) +
-        annotate(
-          geom = "text",
-          x = maxX2 + x_adjust,
-          y = 5,
-          label = paste0(maxX2, " C "),
-          color = "grey39",
-          size = 3
-        )
-    }
+  if (plotmax == T) {
+    g = g +
+      geom_vline(xintercept = maxX1, linetype = "solid", color = "black") +
+      geom_vline(xintercept = maxX2, linetype = "dashed", color = "black") +
+      annotate(
+        geom = "text",
+        x = maxX1 - x_adjust,
+        y = 5,
+        label = paste0(maxX1, " C"),
+        color = "grey39",
+        size = 3
+      ) +
+      annotate(
+        geom = "text",
+        x = maxX2 + x_adjust,
+        y = 5,
+        label = paste0(maxX2, " C "),
+        color = "grey39",
+        size = 3
+      )
   }
 
   if (!showYTitle) {
     g = g + theme(axis.title.y = element_blank())
   }
+
+  return(g)
+}
+
+################################################################################
+# plotLinearLags ----
+################################################################################
+
+# Plot linear responses that are lagged
+plotLinearLags = function(
+  mod,
+  patternForPlotVars,
+  cluster = T,
+  laglength = 3,
+  xLab,
+  yLab,
+  title = "title",
+  yLim = c(-1, 1)
+) {
+  beta = mod$coefficients
+  vars = rownames(beta)
+  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
+  b = as.matrix(beta[rownames(beta) %in% plotVars])
+
+  if (cluster == T) {
+    vcov = getVcov(mod$clustervcv, plotVars)
+  } else {
+    vcov = getVcov(mod$vcv, plotVars)
+  }
+
+  response = 1 * b #Prediction -- here, all responses are linear!
+  length = 1.96 * sqrt(diag(vcov))
+  lb = response - length
+  ub = response + length
+
+  # Plot
+  plotData = data.frame(
+    lag = 0:laglength,
+    response = response,
+    lb = lb,
+    ub = ub
+  )
+  if (plotVars[1] == "drought") {
+    mycolor = "#C99776"
+  } else if (plotVars[1] == "flood") {
+    mycolor = "#43A7BA"
+  } else {
+    mycolor = "black"
+  }
+
+  g = ggplot(data = plotData, aes(x = lag)) +
+    geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
+    geom_point(aes(y = response), color = mycolor, size = 2) +
+    geom_errorbar(aes(ymin = lb, ymax = ub), color = mycolor, width = .1) +
+    theme_classic() +
+    labs(x = "Lag", y = "Coefficient") +
+    coord_cartesian(ylim = yLim) +
+    ggtitle(title) +
+    theme(plot.title = element_text(size = 8), text = element_text(size = 8))
+
+  return(g)
+}
+
+################################################################################
+# plotLinearLags_urban ----
+################################################################################
+
+plotLinearLags_urban = function(
+  mod,
+  patternForPlotVars,
+  cluster = T,
+  laglength = 3,
+  xLab,
+  yLab,
+  title = "title",
+  yLim = c(-1, 1)
+) {
+  beta = mod$coefficients
+  vars = rownames(beta)
+  plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
+  b = as.matrix(beta[rownames(beta) %in% plotVars])
+
+  if (cluster == T) {
+    vcov = getVcov(mod$clustervcv, plotVars)
+  } else {
+    vcov = getVcov(mod$vcv, plotVars)
+  }
+
+  response = 1 * b #Prediction -- here, all responses are linear!
+  length = 1.96 * sqrt(diag(vcov))
+  lb = response - length
+  ub = response + length
+
+  group <- ifelse(startsWith(plotVars, "urban_dummy"), "Urban", "Rural")
+
+  # Plot
+  plotData = data.frame(
+    lag = 0:laglength,
+    response = response,
+    lb = lb,
+    ub = ub,
+    group = factor(group, levels = c("Rural", "Urban"))
+  )
+  if (plotVars[1] == "drought") {
+    mycolor = "#C99776"
+  } else if (plotVars[1] == "flood") {
+    mycolor = "#43A7BA"
+  } else {
+    mycolor = "black"
+  }
+
+  g = ggplot(data = plotData, aes(x = lag, color = group)) +
+    geom_hline(yintercept = 0, linewidth = .5, color = "grey") +
+    geom_point(
+      aes(y = response),
+      size = 2,
+      position = position_dodge(width = .5)
+    ) +
+    geom_errorbar(
+      aes(ymin = lb, ymax = ub),
+      width = .2,
+      position = position_dodge(width = .5)
+    ) +
+    scale_color_manual(values = c("#C1657C", "grey50")) +
+    theme_classic() +
+    labs(x = xLab, y = yLab, color = NULL) +
+    coord_cartesian(ylim = yLim) +
+    ggtitle(title) +
+    theme(
+      plot.title = element_text(size = 8),
+      text = element_text(size = 8),
+      legend.position = "bottom"
+    )
 
   return(g)
 }
@@ -940,7 +819,9 @@ partials_plot <- function(
   data,
   y_label,
   show_legend = FALSE,
-  legend_position = c(0.14, 0.875)
+  legend_position = c(0.14, 0.875),
+  scen_colors = hist_scenario_colors,
+  scen_labels = hist_scenario_labels
 ) {
   p <- ggplot(
     data,
@@ -949,9 +830,8 @@ partials_plot <- function(
     theme_bw() +
     geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) +
 
-    scale_color_manual(values = scenario_colors, labels = scenario_labels) +
-    scale_fill_manual(values = scenario_colors, labels = scenario_labels) +
-    geom_line(aes(x = year, y = mean), lwd = 1.3) +
+    scale_color_manual(values = scen_colors, labels = scen_labels) +
+    scale_fill_manual(values = scen_colors, labels = scen_labels) +
     geom_ribbon(
       aes(ymin = lower, ymax = upper, colour = scenario),
       fill = NA,
@@ -963,6 +843,7 @@ partials_plot <- function(
       color = NA,
       alpha = 0.1
     ) +
+    geom_line(aes(x = year, y = mean), lwd = 1.3) +
     labs(x = NULL, y = y_label, color = NULL, fill = NULL)
   theme(
     axis.title.x = element_text(vjust = -3),
@@ -990,7 +871,7 @@ partials_plot <- function(
 
 create_future_slice_map_data <- function(df, scenario, year) {
   slice_map <- df |>
-    dplyr::filter(run == "main", scenario == !!scenario) |>
+    dplyr::filter(scenario == !!scenario) |>
     tidyr::pivot_wider(names_from = year, values_from = Pred) |>
     dplyr::mutate(diff = (!!sym(year) - `2015`)) |>
     dplyr::group_by(OBJECTID) |>

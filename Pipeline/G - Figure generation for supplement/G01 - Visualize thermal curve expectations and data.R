@@ -167,13 +167,16 @@ g3
 #######################################################################
 
 # upload bootstraps
-boots <- boot_mod_full_fn |>
+boots <- coeffs_fn |>
   readr::read_csv() |>
   dplyr::filter(model != "main")
 
 boots <- boots |> dplyr::mutate(peakT = optT(temp, temp2))
 
 meanpeak <- mean(boots$peakT)
+
+quantile(boots$peakT, 0.025)
+quantile(boots$peakT, 0.975)
 
 g4 <- ggplot(data = boots) +
   geom_histogram(
@@ -194,7 +197,7 @@ g4 <- ggplot(data = boots) +
     linetype = 'longdash'
   ) +
   theme_bw() +
-  scale_x_continuous(limits = c(17, 30))
+  scale_x_continuous(limits = c(20, 30))
 g4
 
 

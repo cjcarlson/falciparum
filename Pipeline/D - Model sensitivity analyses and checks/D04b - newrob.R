@@ -27,7 +27,8 @@ pacman::p_load(
   multcomp,
   stargazer,
   tidyverse,
-  lubridate
+  lubridate,
+  conleyreg
 )
 
 # source functions for easy plotting and estimation

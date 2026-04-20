@@ -1,9 +1,9 @@
 ################################################################################
-# This script estimates the main empirical specification linking PfPR2 to 
+# This script estimates the main empirical specification linking PfPR2 to
 # drought, flood, and temperature via block bootstrap.
 #
-# CLUSTERING / BOOTSTRAP BLOCK: Resampling is done at the country × N-year level 
-# (set yr_bin_size in config), matching the clustering used for analytical 
+# CLUSTERING / BOOTSTRAP BLOCK: Resampling is done at the country × N-year level
+# (set yr_bin_size in config), matching the clustering used for analytical
 # standard errors.
 ################################################################################
 # Set up ----
@@ -33,7 +33,7 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 # Set number of bootstrap simulations.
-S = 2000
+S = 1000
 
 # Set seed for reproducible output
 set.seed(11235)
@@ -68,11 +68,6 @@ n_cores = min(50, future::availableCores())
 clus <- parallel::makeCluster(n_cores)
 doSNOW::registerDoSNOW(clus)
 
-# Make progress bar
-# pb <- txtProgressBar(max = S, style = 3)
-# progress <- function(n) setTxtProgressBar(pb, n)
-# opts <- list(progress = progress)
-
 ################################################################################
 # Bootstrap estimation ----
 # Sampling by country × N-year cluster
@@ -96,11 +91,7 @@ column_names <- c(
 
 log_msg("Begin the bootstrap models")
 
-result <- foreach(
-  i = 1:(S + 1),
-  .packages = c("lfe")
-  # , .options.snow = opts
-) %dopar%
+result <- foreach(i = 1:(S + 1), .packages = c("lfe")) %dopar%
   {
     if (i == 1) {
       complete.boot <- complete
@@ -118,7 +109,6 @@ result <- foreach(
 
     list(coefs = out, model = model, n = nrow(complete.boot))
   }
-# close(pb)
 stopCluster(clus)
 
 log_msg("Finish the bootstrap models")

@@ -47,7 +47,8 @@ print("Loading analysis ready data")
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 ########################################################################
-# Assessing temporal controls: At what spatial scale do we need to address long-run trends?
+# Assessing temporal controls: At what spatial scale do we need to address 
+# long-run trends?
 ########################################################################
 
 complete$datestr = paste0(
@@ -63,9 +64,8 @@ complete$yhat = NA
 
 ################################################################################
 # Time controls - Regional 1 ----
-# 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease
-# region, suggesting at least some spatially varying temporal controls
-# are merited
+# 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease region, 
+# suggesting at least some spatially varying temporal controls are merited
 ################################################################################
 
 rlist = unique(complete$smllrgn)
@@ -445,7 +445,7 @@ p3 = plotPolynomialResponse(
   plotXtemp,
   polyOrder = 2,
   lag = 3,
-  plotmax = T,
+  plotmax = F,
   cluster = F,
   xRef = Tref,
   xLab = expression(paste("Mean temperature (", degree, "C)")),
@@ -514,27 +514,8 @@ for (dd in dlist) {
     newdf = newdf %>% dplyr::arrange(OBJECTID, monthyr)
     newdf$month = as.factor(newdf$month)
 
-    # list of variables indicating drought and flood
-    floodvars = paste(
-      colnames(complete)[grep("flood", colnames(complete))],
-      collapse = " + "
-    )
-    droughtvars = paste(
-      colnames(complete)[grep("drought", colnames(complete))],
-      collapse = " + "
-    )
-
-    # regression formula (main spec)
-    mymod = as.formula(paste0(
-      common,
-      " + I(intervention) + ",
-      country_time,
-      " | OBJECTID + as.factor(smllrgn):month | 0 | ",
-      clustering
-    ))
-
     # run regression, store results
-    modellist[[i]] = felm(data = newdf, formula = mymod)
+    modellist[[i]] = felm(data = newdf, formula = cXt2intrXm)
     modellabs[[i]] = paste0("drought:", dd, " flood:", ff)
 
     print(paste0(
