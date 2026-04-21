@@ -418,22 +418,22 @@ loco <- loco |> dplyr::filter(!is.na(betaT))
 b1loco = ggplot(data=loco) + 
   geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff.") + 
+  xlab("Linear temp. coeff.") + ylab("Count") +
   theme_classic(base_size = 10)
 p1loco = ggplot(data=loco) + 
   geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff. p-value") + 
+  xlab("Linear temp. coeff. p-value") + ylab("Count") +
   theme_classic(base_size = 10)
 b2loco = ggplot(data=loco) + 
   geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff.") + 
+  xlab("Quadratic temp. coeff.") + ylab("Count") +
   theme_classic(base_size = 10)
 p2loco = ggplot(data=loco) + 
   geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff. p-value") + 
+  xlab("Quadratic temp. coeff. p-value") + ylab("Count") +
   theme_classic(base_size = 10)
 
 ## Leave one year out
@@ -453,22 +453,22 @@ loyo <- loyo |> dplyr::filter(!is.na(betaT))
 b1loyo = ggplot(data=loyo) + 
   geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff.") + 
+  xlab("Linear temp. coeff.") + ylab("Count") +
   theme_classic(base_size = 10)
 p1loyo = ggplot(data=loyo) + 
   geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff. p-value") + 
+  xlab("Linear temp. coeff. p-value") + ylab("Count") +
   theme_classic(base_size = 10)
 b2loyo = ggplot(data=loyo) + 
   geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff.") + 
+  xlab("Quadratic temp. coeff.") + ylab("Count") +
   theme_classic(base_size = 10)
 p2loyo = ggplot(data=loyo) + 
   geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff. p-value") + 
+  xlab("Quadratic temp. coeff. p-value") + ylab("Count") +
   theme_classic(base_size = 10)
 
 ## Leave one month out
@@ -488,22 +488,22 @@ lomo <- lomo |> dplyr::filter(!is.na(betaT))
 b1lomo = ggplot(data=lomo) + 
   geom_histogram(aes(x=betaT), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff.") + 
+  xlab("Linear temp. coeff.") + ylab("Count") +
   theme_classic(base_size = 10)
 p1lomo = ggplot(data=lomo) + 
   geom_histogram(aes(x=pvalT), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff. p-value") + 
-  theme_classic(base_size = 10)
+  xlab("Linear temp. coeff. p-value") + ylab("Count") +
+  theme_classic(base_size = 10) 
 b2lomo = ggplot(data=lomo) + 
   geom_histogram(aes(x=betaT2), color= "seagreen", fill = "seagreen") + 
   geom_vline(xintercept=betaT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff.") + 
+  xlab("Quadratic temp. coeff.") + ylab("Count") +
   theme_classic(base_size = 10)
 p2lomo = ggplot(data=lomo) + 
   geom_histogram(aes(x=pvalT2), bins = 30, color= "wheat2", fill = "wheat2") + 
   geom_vline(xintercept=pvalT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff. p-value") + 
+  xlab("Quadratic temp. coeff. p-value") + ylab("Count") +
   theme_classic(base_size = 10)
 
 # Create a bold label for each pair of rows
@@ -560,7 +560,7 @@ ggsave(file.path(resdir, "Figures", "Diagnostics", "Main_model", "Supp_Figure_in
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 g <- ggplot(data=complete) + 
   geom_histogram(aes(x=res), color= "seagreen", fill = "seagreen") + 
-  xlab("Model residuals") + 
+  xlab("Model residuals") + ylab("Count") +
   theme_classic()
 g
 
