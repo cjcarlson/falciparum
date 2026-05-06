@@ -139,7 +139,7 @@ stargazer(
   Micromod,
   title = "Microscopy method test",
   align = TRUE,
-  keep = c("temp", "flood", "drought"),
+  keep = c("temp", "flood", "drought", "int"),
   out = file.path(table_sens_dir, "Microscopy_sample_sensitivity.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
@@ -188,14 +188,16 @@ for (m in myforms) {
 
 mynote = "Column specifications: (1) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (2) same as (1), but with additional controls for diagnostic method: Microscopy, Microcscopy/PCR Confirmed, PCR, RDT, RDT/PCR Confirmed, and RDT/SLIDE Confirmed; (3) same as (2) but using simplified diagnostic method control set: Microscopy, PCR, RDT."
 
-stargazer(
+tex <- stargazer(
   modellist,
   title = "Sensitivity to controlling for diagnostic method",
   align = TRUE,
   column.labels = mycollabs,
-  keep = c("temp", "flood", "drought", "METHOD"),
+  covariate.labels = my_covariate_labels,
+  dep.var.labels = "$Pf$PR$_{2-10}$",
+  keep = c("temp", "flood", "drought", "int", "METHOD"),
   # out = file.path(table_sens_dir, "Diagnostic_method.tex"),
-  out = here::here("Results", "Tables", "Diagnostic_method.tex"),
+  # out = here::here("Results", "Tables", "Diagnostic_method.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -206,6 +208,8 @@ stargazer(
   notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
   star.cutoffs = table_star_cutoffs
 )
+
+writeLines(tex, here::here("Results", "Tables", "Diagnostic_method.tex"))
 
 ####### Plot temperature responses #######
 

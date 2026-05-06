@@ -63,8 +63,10 @@ adm1form = as.formula(
   )
 )
 adm1mod = felm(data = complete, formula = adm1form)
-coefs = summary(adm1mod)$coefficients[1:2] # only need to compute this and the next line once, all specs have same coeffs but different CIs
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+# only need to compute this and the next line once, all specs have same coeffs but different CIs
+coefs = summary(adm1mod)$coefficients[1:2]
+# plot relative to max of Quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) 
 adm1fig = plotPolynomialResponse(
   adm1mod,
   "temp",
@@ -274,7 +276,7 @@ conleyfig1 = plotPolynomialResponse(
 )
 
 coefs = summary(conleymod2)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of Quadratic function
 conleyfig2 = plotPolynomialResponse(
   conleymod2,
   "temp",
@@ -334,13 +336,16 @@ mycollabs = c(
 )
 
 mynote = "Column specifications: (1) standard errors clustered at ADM1 level; (2) standard errors clustered at country level; (3) standard errors clustered at year level; (4) standard errors clustered at country-year level; (5) standard errors clustered at country-5-year level (main specification); (6) standard errors clustered at country-decade level; (7) standard errors estimated following Conley (2008) using 200km cutoff; (6) standard errors estimated following Conley (2008) using a 500km cutoff."
-stargazer(
+
+tex <- stargazer(
   modellist,
   title = "Quadratic temperature: standard error sensitivity",
   align = TRUE,
   column.labels = mycollabs,
+  covariate.labels = my_covariate_labels,
+  dep.var.labels = "$Pf$PR$_{2-10}$",
   keep = c("temp", "flood", "drought", "intervention"),
-  out = here::here("Results", "Tables", "uncertainty.tex"),
+  # out = here::here("Results", "Tables", "uncertainty.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -352,6 +357,8 @@ stargazer(
   star.cutoffs = table_star_cutoffs
 )
 
+writeLines(tex, here::here("Results", "Tables", "uncertainty.tex"))
+
 conley_tab <- fixest::etable(
   conleymod1,
   conleymod2,
@@ -361,7 +368,7 @@ conley_tab <- fixest::etable(
   digits = 3,
   label = "tab:conley",
   file = here::here("Results", "Tables", "conley.tex"),
-  signif.code = c("***"=0.001, "**"=0.01, "*"=0.05)
+  signif.code = c("***" = 0.001, "**" = 0.01, "*" = 0.05)
 )
 
 conley_tab
@@ -473,13 +480,15 @@ for (m in myforms) {
 ## Combine into a single stargazer plot
 mynote = "Column specifications: (1) year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends, intervention year and month FE; (5) country-specific quad. trends, intervention year FE, GBD region-month FE; (6) country-specific quad. trends with intervention FE and country-month FE; (7) country-specific quad. trends with year-month and GBD region-mont FE; (8) country-year and GBD region-month FE; (9) GBD region-year and regin-month FEs; (10) GBD region-year + country-month FE; (11) ADM1-decade and GBD region-month-decade FE; (12) country-specific quad. trends and GBD region-year and region-month FE."
 
-stargazer(
+tex <- stargazer(
   modellist,
   title = "Quadratic temperature: FE sensitivity",
   align = TRUE,
   column.labels = mycollabs,
+  covariate.labels = my_covariate_labels,
+  dep.var.labels = "$Pf$PR$_{2-10}$",
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
-  out = here::here("Results", "Tables", "FixedEffects_sensitivity.tex"),
+  # out = here::here("Results", "Tables", "FixedEffects_sensitivity.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -490,6 +499,8 @@ stargazer(
   notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
   star.cutoffs = table_star_cutoffs
 )
+
+writeLines(tex, here::here("Results", "Tables", "FixedEffects_sensitivity.tex"))
 
 ############################################################
 # Sensitivity to spatiotemporal controls (figure output) ----
@@ -721,22 +732,25 @@ for (c in 1:length(cntrs)) {
 loco <- loco |> dplyr::filter(!is.na(betaT))
 
 # plot ----
-b1 = ggplot(data = loco) +
+b1loco = ggplot(data = loco) +
   geom_histogram(aes(x = betaT), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff.") +
+  xlab("Linear temp. coeff.") +
+  ylab("Count") +
   theme_classic()
-p1 = ggplot(data = loco) +
+p1loco = ggplot(data = loco) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff. p-value") +
+  xlab("Linear temp. coeff. p-value") +
+  ylab("Count") +
   theme_classic()
-b2 = ggplot(data = loco) +
+b2loco = ggplot(data = loco) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff.") +
+  xlab("Quadratic temp. coeff.") +
+  ylab("Count") +
   theme_classic()
-p2 = ggplot(data = loco) +
+p2loco = ggplot(data = loco) +
   geom_histogram(
     aes(x = pvalT2),
     bins = 30,
@@ -744,18 +758,9 @@ p2 = ggplot(data = loco) +
     fill = "wheat2"
   ) +
   geom_vline(xintercept = pvalT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff. p-value") +
+  xlab("Quadratic temp. coeff. p-value") +
+  ylab("Count") +
   theme_classic()
-
-loco_grid = plot_grid(b1, p1, b2, p2, nrow = 2)
-
-ggsave(
-  filename = "leave_cntry_out.jpg",
-  path = here::here("Results", "Figures"),
-  plot = loco_grid,
-  width = 8,
-  height = 8
-)
 
 ## Leave one year out ----
 years <- unique(complete$yearnum)
@@ -777,22 +782,25 @@ for (c in 1:length(years)) {
 loyo <- loyo |> dplyr::filter(!is.na(betaT))
 
 # plot
-b1 = ggplot(data = loyo) +
+b1loyo = ggplot(data = loyo) +
   geom_histogram(aes(x = betaT), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff.") +
+  xlab("Linear temp. coeff.") +
+  ylab("Count") +
   theme_classic()
-p1 = ggplot(data = loyo) +
+p1loyo = ggplot(data = loyo) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff. p-value") +
+  xlab("Linear temp. coeff. p-value") +
+  ylab("Count") +
   theme_classic()
-b2 = ggplot(data = loyo) +
+b2loyo = ggplot(data = loyo) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff.") +
+  xlab("Quadratic temp. coeff.") +
+  ylab("Count") +
   theme_classic()
-p2 = ggplot(data = loyo) +
+p2loyo = ggplot(data = loyo) +
   geom_histogram(
     aes(x = pvalT2),
     bins = 30,
@@ -800,18 +808,9 @@ p2 = ggplot(data = loyo) +
     fill = "wheat2"
   ) +
   geom_vline(xintercept = pvalT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff. p-value") +
+  xlab("Quadratic temp. coeff. p-value") +
+  ylab("Count") +
   theme_classic()
-
-loyo_grid = plot_grid(b1, p1, b2, p2, nrow = 2)
-
-ggsave(
-  filename = "leave_year_out.jpg",
-  path = here::here("Results", "Figures"),
-  plot = loyo_grid,
-  width = 8,
-  height = 8
-)
 
 ## Leave one month out ----
 months <- unique(complete$month)
@@ -833,22 +832,25 @@ for (c in 1:length(months)) {
 lomo <- lomo |> dplyr::filter(!is.na(betaT))
 
 # plot
-b1 = ggplot(data = lomo) +
+b1lomo = ggplot(data = lomo) +
   geom_histogram(aes(x = betaT), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff.") +
+  xlab("Linear temp. coeff.") +
+  ylab("Count") +
   theme_classic()
-p1 = ggplot(data = lomo) +
+p1lomo = ggplot(data = lomo) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
-  xlab("linear temp. coeff. p-value") +
+  xlab("Linear temp. coeff. p-value") +
+  ylab("Count") +
   theme_classic()
-b2 = ggplot(data = lomo) +
+b2lomo = ggplot(data = lomo) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff.") +
+  xlab("Quadratic temp. coeff.") +
+  ylab("Count") +
   theme_classic()
-p2 = ggplot(data = lomo) +
+p2lomo = ggplot(data = lomo) +
   geom_histogram(
     aes(x = pvalT2),
     bins = 30,
@@ -856,20 +858,83 @@ p2 = ggplot(data = lomo) +
     fill = "wheat2"
   ) +
   geom_vline(xintercept = pvalT2main, color = "darkgrey", linetype = "dashed") +
-  xlab("quadratic temp. coeff. p-value") +
+  xlab("Quadratic temp. coeff. p-value") +
+  ylab("Count") +
   theme_classic()
 
-lomo_grid = plot_grid(b1, p1, b2, p2, nrow = 2)
+# Create a bold label for each pair of rows
+label1 <- ggdraw() +
+  draw_label(
+    "Leave one country out",
+    fontface = "bold",
+    x = 0,
+    hjust = 0,
+    size = 10
+  ) +
+  theme(plot.margin = margin(10, 0, 10, 7))
 
+label2 <- ggdraw() +
+  draw_label(
+    "Leave one year out",
+    fontface = "bold",
+    x = 0,
+    hjust = 0,
+    size = 10
+  ) +
+  theme(plot.margin = margin(0, 0, 10, 7))
+
+label3 <- ggdraw() +
+  draw_label(
+    "Leave one month out",
+    fontface = "bold",
+    x = 0,
+    hjust = 0,
+    size = 10
+  ) +
+  theme(plot.margin = margin(0, 0, 10, 7))
+
+shrink_text <- function(p, size = 8) {
+  p +
+    theme(
+      axis.text = element_text(size = size),
+      axis.title = element_text(size = size)
+    )
+}
+
+b1loco <- shrink_text(b1loco)
+p1loco <- shrink_text(p1loco)
+b2loco <- shrink_text(b2loco)
+p2loco <- shrink_text(p2loco)
+
+b1loyo <- shrink_text(b1loyo)
+p1loyo <- shrink_text(p1loyo)
+b2loyo <- shrink_text(b2loyo)
+p2loyo <- shrink_text(p2loyo)
+
+b1lomo <- shrink_text(b1lomo)
+p1lomo <- shrink_text(p1lomo)
+b2lomo <- shrink_text(b2lomo)
+p2lomo <- shrink_text(p2lomo)
+
+# Create a 2-column grid for each pair of rows
+row_group1 <- plot_grid(b1loco, p1loco, b2loco, p2loco, nrow = 2)
+row_group2 <- plot_grid(b1loyo, p1loyo, b2loyo, p2loyo, nrow = 2)
+row_group3 <- plot_grid(b1lomo, p1lomo, b2lomo, p2lomo, nrow = 2)
+
+# Stack each label above its corresponding row group
+section1 <- plot_grid(label1, row_group1, ncol = 1, rel_heights = c(0.05, 1))
+section2 <- plot_grid(label2, row_group2, ncol = 1, rel_heights = c(0.05, 1))
+section3 <- plot_grid(label3, row_group3, ncol = 1, rel_heights = c(0.05, 1))
+
+# Stack all three sections vertically
+grid <- plot_grid(section1, section2, section3, ncol = 1)
 ggsave(
-  filename = "leave_month_out.jpg",
+  filename = "Supp_Figure_influence_analysis.jpg",
   path = here::here("Results", "Figures"),
-  plot = lomo_grid,
-  width = 8,
+  plot = grid,
+  width = 6,
   height = 8
 )
-
-# loco_grid / loyo_grid / lomo_grid
 
 ############################################################
 # Normally distributed errors ----
@@ -879,7 +944,8 @@ ggsave(
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 g <- ggplot(data = complete) +
   geom_histogram(aes(x = res), color = "seagreen", fill = "seagreen") +
-  xlab("model residuals") +
+  xlab("Model residuals") +
+  ylab("Count") +
   theme_classic()
 g
 
@@ -887,20 +953,25 @@ g
 p <- ggplot(complete, aes(sample = res)) +
   stat_qq() +
   stat_qq_line(color = "seagreen") +
-  xlab("normal distribution quantiles") +
-  ylab("model residuals quantiles") +
+  xlab("Normal distribution quantiles") +
+  ylab("Model residuals quantiles") +
   theme_classic()
 p
 
 grid = plot_grid(g, p, nrow = 1)
 ggsave(
-  filename = "model_residuals.jpg",
-  # path = here::here("Results", "Figures"),
-  path = figure_res_dir,
+  filename = "Supp_Figure_model_residuals.jpg",
+  path = here::here("Results", "Figures"),
+  # path = figure_res_dir,
   plot = grid,
   width = 9,
   height = 4
 )
 
 
-
+# apptainer exec \
+#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
+#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
+#   --pwd /global/home/users/cmolitor/falciparum \
+#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/rocker-geospatial.sif \
+#   Rscript "Pipeline/D - Model sensitivity analyses and checks/D04b - newrob.R"

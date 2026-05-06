@@ -330,141 +330,6 @@ build_colnames <- function(
 }
 
 ################################################################################
-# extract_spatial_means ----
-################################################################################
-
-extract_spatial_means <- function(velox_raster, spatial_polygons) {
-  unlist(
-    lapply(
-      velox_raster$extract(
-        spatial_polygons,
-        fun = function(x) mean(x, na.rm = TRUE),
-        small = TRUE
-      ),
-      mean,
-      na.rm = TRUE
-    )
-  )
-}
-
-################################################################################
-# .process_timestep ----
-################################################################################
-
-.process_timestep <- function(timestep_idx) {
-  base_raster <- swirl(raster::raster(.climate_array[,, timestep_idx]))
-
-  n_regions <- nrow(.admin_regions@data)
-  result <- numeric(n_regions * .max_power)
-
-  for (power_k in seq_len(.max_power)) {
-    powered_raster <- if (power_k == 1L) base_raster else base_raster^power_k
-    velox_obj <- velox::velox(powered_raster)
-    offset <- (power_k - 1L) * n_regions
-    result[offset + seq_len(n_regions)] <- extract_spatial_means(
-      velox_obj,
-      .admin_regions
-    )
-  }
-
-  result
-}
-
-################################################################################
-# extract_cru_variable ----
-################################################################################
-
-extract_cru_variable <- function(
-  nc_filepath,
-  nc_varname,
-  admin_sp,
-  var_prefix,
-  max_power = 5L,
-  start_year = 1901L,
-  N_CORES = 10
-) {
-  nc_conn <- ncdf4::nc_open(nc_filepath)
-  climate_array <- ncdf4::ncvar_get(nc_conn, nc_varname)
-  longitudes <- ncdf4::ncvar_get(nc_conn, "lon")
-  ncdf4::nc_close(nc_conn)
-
-  if (dim(climate_array)[1] == length(longitudes)) {
-    message(sprintf(
-      "[%s] Input format as expected for CRU (lat,lon); will rotate to (lon,lat)",
-      nc_varname
-    ))
-  } else {
-    stop(sprintf(
-      "[%s] Input format not as expected for CRU; stopping.",
-      nc_varname
-    ))
-  }
-
-  n_timesteps <- dim(climate_array)[3]
-  n_regions <- nrow(admin_sp@data)
-
-  .GlobalEnv$.climate_array <- climate_array
-  .GlobalEnv$.admin_regions <- admin_sp
-  .GlobalEnv$.max_power <- max_power
-
-  on.exit(
-    {
-      rm(.climate_array, .admin_regions, .max_power, envir = .GlobalEnv)
-    },
-    add = TRUE
-  )
-
-  message(sprintf(
-    "Starting parallel extraction [%s]: %d timesteps x %d powers across %d cores",
-    var_prefix,
-    n_timesteps,
-    max_power,
-    N_CORES
-  ))
-
-  t0 <- proc.time()
-
-  results_list <- future.apply::future_lapply(
-    seq_len(n_timesteps),
-    .process_timestep,
-    future.seed = FALSE,
-    future.scheduling = 2.0
-  )
-
-  elapsed <- (proc.time() - t0)["elapsed"]
-  message(sprintf(
-    "[%s] Extraction complete in %.1f seconds (%.1f min)",
-    var_prefix,
-    elapsed,
-    elapsed / 60
-  ))
-
-  results_mat <- do.call(rbind, results_list)
-
-  all_colnames <- unlist(lapply(
-    seq_len(n_timesteps),
-    build_colnames,
-    var_prefix = var_prefix,
-    max_power = max_power,
-    start_year = start_year
-  ))
-
-  for (timestep_idx in seq_len(n_timesteps)) {
-    col_offset <- (timestep_idx - 1L) * max_power
-    for (power_k in seq_len(max_power)) {
-      col_name <- all_colnames[col_offset + power_k]
-      region_offset <- (power_k - 1L) * n_regions
-      admin_sp@data[[col_name]] <- results_mat[
-        timestep_idx,
-        region_offset + seq_len(n_regions)
-      ]
-    }
-  }
-
-  admin_sp
-}
-
-################################################################################
 # make_filename ----
 ################################################################################
 
@@ -483,39 +348,43 @@ make_filename <- function(clim, model, scenario, grid, date_range) {
 }
 
 ################################################################################
-# extract_long ----
+# extract_clim_data_polygons ----
 ################################################################################
 
 # Helper: extract, pivot to long, return data.table with one value column
-extract_long <- function(rast, polygons, rast_times, value_name) {
+extract_clim_data_polygons <- function(rast, polygons, rast_times, value_name, power = 1) {
+  if (!is.null(power) && power != 1) {
+    rast <- rast^power
+  }
   ex <- exactextractr::exact_extract(
     x = rast,
     y = polygons,
-    fun = 'mean',
+    fun = 'weighted_mean',
     progress = FALSE,
-    append_cols = "OBJECTID"
+    append_cols = "OBJECTID",
+    weights = "area"
   )
   colnames(ex) <- c("OBJECTID", rast_times)
 
-  dt <- as.data.table(ex)
-  dt <- melt(
+  dt <- data.table::as.data.table(ex)
+  dt <- data.table::melt(
     dt,
     id.vars = "OBJECTID",
     variable.name = "date",
     value.name = value_name
   )
-  dt[, c("year", "month") := tstrsplit(date, "-", keep = 1:2)]
+  dt[, c("year", "month") := data.table::tstrsplit(date, "-", keep = 1:2)]
   dt[, month := month.abb[as.integer(month)]]
   dt[, date := NULL]
   dt
 }
 
 ################################################################################
-# process_clim_powers_points ----
+# extract_clim_data_points ----
 ################################################################################
 
 # Function to process each power for point data
-process_clim_powers_points <- function(
+extract_clim_data_points <- function(
   power, # power = 1
   clim_data, # clim_data = tmp
   points_sf, # points_sf = prev_df
@@ -680,13 +549,11 @@ calc_hist_regional_diff <- function(data, region_name = NULL) {
     dplyr::group_by(model, scenario, run) |>
     dplyr::summarize(BetaMean = mean(Pred, na.rm = TRUE))
 
-  df <- data |>
+  boot_diffs <- data |>
     dplyr::left_join(bm) |>
     dplyr::mutate(Pred = Pred - BetaMean) |>
-    dplyr::select(-BetaMean)
-
-  df2 <- df |>
-    dplyr::filter(year %in% 2010:2014) |>
+    dplyr::select(-BetaMean) |>
+    dplyr::filter(year %in% 2010:2014, run != "main") |>
     dplyr::select(model, run, year, Pred, scenario) |>
     tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
     dplyr::group_by(model, run) |>
@@ -694,21 +561,12 @@ calc_hist_regional_diff <- function(data, region_name = NULL) {
       `hist-nat` = mean(`hist-nat`),
       historical = mean(historical)
     ) |>
-    dplyr::mutate(diff = historical - `hist-nat`)
-
-  # Mean diff from the main run only
-  main_diff <- df2 |>
-    dplyr::filter(run == "main") |>
-    dplyr::pull(diff)
-
-  # CI and proportion positive from bootstrap runs only
-  boot_diffs <- df2 |>
-    dplyr::filter(run != "main") |>
+    dplyr::mutate(diff = historical - `hist-nat`)  |>
     dplyr::pull(diff)
 
   results <- tibble::tibble(
-    MeanDifference = mean(main_diff),
-    ScaledMeanDifference = 100000 * mean(main_diff) / 100,
+    MeanDifference = mean(boot_diffs),
+    ScaledMeanDifference = 100000 * mean(boot_diffs) / 100,
     Quantile_025 = quantile(boot_diffs, 0.025),
     Quantile_975 = quantile(boot_diffs, 0.975),
     ProportionPositive = prop.table(table(boot_diffs > 0))["TRUE"]
@@ -740,7 +598,8 @@ calc_future_regional_diff <- function(data, region_name = NULL) {
   df <- data |>
     dplyr::left_join(bm, by = c("model", "scenario", "run")) |>
     dplyr::mutate(Pred = Pred - BetaMean) |>
-    dplyr::select(-BetaMean)
+    dplyr::select(-BetaMean) |>
+    dplyr::filter(run != "main")
 
   pred_by_run <- dplyr::bind_rows(
     df |>
@@ -753,20 +612,10 @@ calc_future_regional_diff <- function(data, region_name = NULL) {
     dplyr::group_by(run, model, scenario, period) |>
     dplyr::summarize(Pred = mean(Pred), .groups = "drop")
 
-  # Mean from main run only
-  main_stats <- pred_by_run |>
-    dplyr::filter(run == "main") |>
+  results <- pred_by_run |>
     dplyr::group_by(scenario, period) |>
     dplyr::summarize(
       mean = mean(Pred),
-      .groups = "drop"
-    )
-
-  # CI and proportion positive from bootstrap runs only
-  boot_stats <- pred_by_run |>
-    dplyr::filter(run != "main") |>
-    dplyr::group_by(scenario, period) |>
-    dplyr::summarize(
       lower = quantile(Pred, 0.025),
       upper = quantile(Pred, 0.975),
       prop_positive = mean(Pred > 0),
@@ -775,11 +624,8 @@ calc_future_regional_diff <- function(data, region_name = NULL) {
       .groups = "drop"
     )
 
-  results <- main_stats |>
-    dplyr::left_join(boot_stats, by = c("scenario", "period"))
-
   if (!is.null(region_name)) {
-    results <- results |> dplyr::mutate(region = region_name)
+    results <- dplyr::mutate(results, region = region_name)
   } else {
     results <- results |>
       dplyr::mutate(region = "Sub-Saharan Africa (continent-wide)")

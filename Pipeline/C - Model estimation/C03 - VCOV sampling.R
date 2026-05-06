@@ -39,9 +39,9 @@ set.seed(11235)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "C03_vcov_sample.log")
+# log_msg <- create_logger(file.path(logs_dir, "C03_vcov_sample.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `C03 - VCOV sampling.R`")
 

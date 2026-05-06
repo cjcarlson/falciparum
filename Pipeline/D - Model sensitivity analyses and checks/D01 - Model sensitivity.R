@@ -262,7 +262,9 @@ ggsave(
 ################################################################################
 
 climate_data <- intermediate_CRU_adm1_fp |>
-  readr::read_csv(show_col_types = FALSE) |>
+  arrow::read_feather() |> 
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
+  # readr::read_csv(show_col_types = FALSE) |>
   tidyr::unite("monthyr", month:year, sep = ' ', remove = FALSE) |>
   dplyr::mutate(
     monthyr = as.Date(as.yearmon(monthyr)),
@@ -295,7 +297,7 @@ templags = templags |>
   dplyr::select(all_of(tokeep), contains("lag"), contains("lead"))
 
 complete <- complete |>
-  left_join(
+  dplyr::left_join(
     templags
     # by = c("OBJECTID", "monthyr", "month", "year")
   )

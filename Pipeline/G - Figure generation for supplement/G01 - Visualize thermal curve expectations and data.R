@@ -36,7 +36,9 @@ print("Loading clean data")
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 data <- intermediate_CRU_adm1_fp |>
-  readr::read_csv() |>
+  arrow::read_feather() |> 
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
+  # readr::read_csv() |>
   dplyr::mutate(year = factor(year)) |>
   dplyr::left_join(complete)
 
@@ -168,10 +170,16 @@ g3
 
 # upload bootstraps
 boots <- coeffs_fn |>
-  readr::read_csv() |>
-  dplyr::filter(model != "main")
+  readr::read_csv() |> 
+  dplyr::mutate(peakT = optT(temp, temp2))
 
-boots <- boots |> dplyr::mutate(peakT = optT(temp, temp2))
+main <-  boots|>
+  dplyr::filter(model == "main")
+
+# opt = -main$temp / (2 * main$temp2)
+
+boots <- boots |>
+  dplyr::filter(model != "main")
 
 meanpeak <- mean(boots$peakT)
 

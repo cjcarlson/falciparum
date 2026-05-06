@@ -1,9 +1,9 @@
-region,period,lower_diff,upper_diff,prop_positive_diff,mean_diff,scenario_diff
-Sub-Saharan Africa (Central),2048-2052,-0.294,0.254,0.56,0.009,ssp245 - ssp126
-Sub-Saharan Africa (East),2048-2052,-0.278,0.31,0.55,0.015,ssp245 - ssp126
-Sub-Saharan Africa (Southern),2048-2052,-0.193,0.592,0.759,0.178,ssp245 - ssp126
-Sub-Saharan Africa (West),2048-2052,-0.587,-0.034,0.01,-0.246,ssp245 - ssp126
-Sub-Saharan Africa (Central),2096-2100,-0.869,0.384,0.282,-0.182,ssp245 - ssp126
-Sub-Saharan Africa (East),2096-2100,-0.57,0.574,0.522,0.018,ssp245 - ssp126
-Sub-Saharan Africa (Southern),2096-2100,-0.419,1.364,0.849,0.479,ssp245 - ssp126
-Sub-Saharan Africa (West),2096-2100,-2.103,-0.319,0.001,-1.059,ssp245 - ssp126
+region,period,mean_diff,lower_diff,upper_diff,prop_positive_diff,scenario_diff
+Sub-Saharan Africa (Central),2048-2052,0.009,-0.311,0.288,0.546,ssp245 - ssp126
+Sub-Saharan Africa (East),2048-2052,0.012,-0.314,0.356,0.532,ssp245 - ssp126
+Sub-Saharan Africa (Southern),2048-2052,0.184,-0.194,0.635,0.751,ssp245 - ssp126
+Sub-Saharan Africa (West),2048-2052,-0.265,-0.623,-0.05,0.007,ssp245 - ssp126
+Sub-Saharan Africa (Central),2096-2100,-0.192,-0.898,0.415,0.278,ssp245 - ssp126
+Sub-Saharan Africa (East),2096-2100,0.018,-0.563,0.597,0.517,ssp245 - ssp126
+Sub-Saharan Africa (Southern),2096-2100,0.497,-0.394,1.414,0.858,ssp245 - ssp126
+Sub-Saharan Africa (West),2096-2100,-1.129,-2.218,-0.364,0,ssp245 - ssp126

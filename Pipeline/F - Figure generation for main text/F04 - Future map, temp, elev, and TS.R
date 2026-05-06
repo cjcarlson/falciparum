@@ -37,9 +37,9 @@ source(A_utils_plot_fp)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "F04_future_map_temp_el_ts.log")
+# log_msg <- create_logger(file.path(logs_dir, "F04_future_map_temp_el_ts.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `F04 - Future map, temp, elev, and TS.R`")
 
@@ -61,17 +61,7 @@ future_scen_mod_yr_adm1_pred <- file.path(
   dplyr::select(scenario, model, year, OBJECTID, Pred, run) |>
   dplyr::filter(scenario == "ssp245")
 
-log_msg("Calculating ADM1 mean difference")
-
-# main_end_of_century <- future_scen_mod_yr_adm1_pred |>
-#   dplyr::filter(run == "main") |>
-#   tidyr::pivot_wider(names_from = year, values_from = Pred) |>
-#   dplyr::mutate(diff = (`2100` - `2015`)) |>
-#   dplyr::select(-c(`2100`, `2050`, `2015`, scenario)) |>
-#   dplyr::group_by(OBJECTID) |>
-#   dplyr::summarize(mean.diff = mean(diff))
-
-log_msg("Calculating ADM1 confidence interval")
+log_msg("Calculating ADM1 mean difference and confidence interval")
 
 boots_end_of_century <- future_scen_mod_yr_adm1_pred |>
   dplyr::filter(run != "main") |>
@@ -87,7 +77,6 @@ boots_end_of_century <- future_scen_mod_yr_adm1_pred |>
     lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
   ) |>
-  # dplyr::left_join(main_end_of_century) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5500) / 5500
@@ -160,7 +149,9 @@ elev <- elevation_fp |>
   dplyr::mutate(OBJECTID = as.factor(OBJECTID))
 
 tmean <- intermediate_CRU_adm1_fp |>
-  readr::read_csv(show_col_types = FALSE) |>
+  arrow::read_feather() |> 
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
+  # readr::read_csv(show_col_types = FALSE) |>
   dplyr::filter(year %in% c(1901:1930)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(t = mean(temp, na.rm = TRUE)) |>
@@ -357,7 +348,7 @@ data.to.graph <- file.path(
     # LOOKING CLOSELY. this is a way of hard coding the CI's to still plot
     # thanks to how ggplot does CI's this is for plotting purposes ONLY and text
     # stats give full CI's
-    lower = pmax(lower, -4.5),
+    lower = pmax(lower, -4.9),
     upper = pmin(upper, 2.1)
   ) |>
   dplyr::filter(year > 2015)

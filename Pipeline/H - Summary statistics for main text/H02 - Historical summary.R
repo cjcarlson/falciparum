@@ -1,5 +1,5 @@
 ############################################################
-# This script makes all 
+# This script makes all
 ############################################################
 # Set up ----
 ############################################################
@@ -27,16 +27,14 @@ source(A_utils_plot_fp)
 ### Check Historical Predictions that can be attributed to climate change
 ### Greater Rift Valley countries
 # grv_countries <- c(
-#   "Burundi", "Djibouti", "Eritrea", "Ethiopia", "Kenya", "Malawi", 
-#   "Mozambique", "Rwanda", "Somalia", "South Sudan", "Sudan", "Tanzania", 
+#   "Burundi", "Djibouti", "Eritrea", "Ethiopia", "Kenya", "Malawi",
+#   "Mozambique", "Rwanda", "Somalia", "South Sudan", "Sudan", "Tanzania",
 #   "Uganda", "Zambia", "Zimbabwe"
 # )
 
 ################################################################################
 # Hist delta data ----
 ################################################################################
-
-# log_msg("Loading historical_vcov_pred_sum_scen_mod_yr_obj.feather")
 
 boots_2010_2014 <- file.path(
   hist_sum_dir,
@@ -56,6 +54,7 @@ boots_2010_2014 <- file.path(
     runs.diff = sum(diff > 0),
     lower.diff = quantile(diff, 0.05, na.rm = TRUE),
     upper.diff = quantile(diff, 0.95, na.rm = TRUE),
+    prop_positive_diff = mean(diff > 0)
   ) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
@@ -83,7 +82,8 @@ sfcont <- ADM1_fp |>
     elevmin,
     elevmn,
     elevmax,
-    mean.diff
+    mean.diff,
+    prop_positive_diff
   ) |>
   tidyr::drop_na()
 

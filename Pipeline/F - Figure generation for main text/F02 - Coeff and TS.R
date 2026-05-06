@@ -32,9 +32,9 @@ source(A_utils_plot_fp)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "F02_coeff_and_ts.log")
+# log_msg <- create_logger(file.path(logs_dir, "F02_coeff_and_ts.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `F02 - Coeff and TS.R`")
 
@@ -52,9 +52,6 @@ complete <- analysis_ready_CRU_adm1_fp |>
 ################################################################################
 
 log_msg("Load model coefficients")
-
-# all_mods <- boot_mod_full_fn |>  
-#   readr::read_csv(show_col_types = FALSE)
 
 all_mods <- coeffs_fn |>
   readr::read_csv(show_col_types = FALSE)
@@ -145,12 +142,6 @@ temp_plot <- ggplot() +
     color = "black",
     linewidth = .5
   ) +
-  # geom_line(
-  #   data = subset(plotData, model == "main"),
-  #   mapping = aes(x = x, y = response),
-  #   color = "black",
-  #   linewidth = .5
-  # ) +
   geom_line(
     data = percentile_data,
     mapping = aes(x = x, y = lower_bound),
@@ -512,17 +503,6 @@ historical_pred <- file.path(
 ) |>
   arrow::read_feather()
 
-# hist_main <- historical_pred[run == "main"] |>
-#   baseline_adjust_summarize(
-#     variable = "Pred",
-#     baseline_group = c("model", "scenario", "run"),
-#     adjusted_group = c("scenario", "year"),
-#     baseline_years = 1900:1930,
-#     confidence_level = 0.90
-#   ) |>
-#   dplyr::filter(year > 1901) |>
-#   dplyr::select(-c(upper, lower))
-
 hist_boot <- historical_pred[run != "main"] |>
   baseline_adjust_summarize(
     variable = "Pred",
@@ -532,9 +512,6 @@ hist_boot <- historical_pred[run != "main"] |>
     confidence_level = 0.90
   ) |>
   dplyr::filter(year > 1901) 
-# |>
-  # dplyr::select(-c(median, mean)) |>
-  # dplyr::left_join(hist_main)
 
 ################################################################################
 # Future time series data ----
@@ -548,17 +525,6 @@ future_pred <- file.path(
 ) |>
   arrow::read_feather()
 
-# future_main <- future_pred[run == "main"] |>
-#   baseline_adjust_summarize(
-#     variable = "Pred",
-#     baseline_group = c("model", "scenario", "run"),
-#     adjusted_group = c("scenario", "year"),
-#     baseline_years = 2015:2020,
-#     confidence_level = 0.90
-#   ) |>
-#   dplyr::filter(year > 2016) |>
-#   dplyr::select(-c(upper, lower))
-
 future_boot <- future_pred[run != "main"] |>
   baseline_adjust_summarize(
     variable = "Pred",
@@ -568,9 +534,6 @@ future_boot <- future_pred[run != "main"] |>
     confidence_level = 0.90
   ) |>
   dplyr::filter(year > 2016) 
-# |>
-  # dplyr::select(-c(median, mean)) |>
-  # dplyr::left_join(future_main)
 
 base_mean <- hist_boot |>
   dplyr::filter(scenario == 'historical', year %in% c(2010:2014)) |>
@@ -600,7 +563,7 @@ graph.data <- hist_boot |>
   # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
   # to how ggplot does CI's this is for plotting purposes ONLY and text stats
   # give full CI's
-  dplyr::mutate(lower = pmax(lower, -2.0))
+  dplyr::mutate(lower = pmax(lower, -2.2))
 
 ################################################################################
 # Global time series plot ----
@@ -656,6 +619,8 @@ top_row <- (temp_w_hist_plot + flood_plot + drought_plot + intervention_plot) +
   plot_layout(ncol = 4, widths = c(5, 5, 5, 2))
 
 f2 <- top_row / yearly_ts_plot + plot_annotation(tag_levels = 'A')
+
+f2
 
 ggsave(
   filename = "Figure2_coeffs_and_TS.jpg",

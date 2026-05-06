@@ -12,17 +12,7 @@ if (!require("pacman")) {
   install.packages("pacman")
 }
 
-pacman::p_load(
-  here,
-  terra,
-  # future,
-  tidyverse,
-  # progressr,
-  # parallelly,
-  data.table,
-  # future.apply,
-  exactextractr
-)
+pacman::p_load(sf, here, terra, tidyverse, data.table, exactextractr)
 
 # Source configuration and utility functions
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
@@ -34,7 +24,9 @@ overwrite <- TRUE
 # Logging ----
 ################################################################################
 
-log_msg <- create_logger(file.path(logs_dir, "B05_extract_ERA5_ADM1.log"))
+# log_msg <- create_logger(file.path(logs_dir, "B05_extract_ERA5_ADM1.log"))
+
+log_msg <- create_logger()
 
 log_msg("Starting script `B05 - Extract ERA5 tmp and prc data ADM1.R`")
 
@@ -44,80 +36,94 @@ log_msg("Starting script `B05 - Extract ERA5 tmp and prc data ADM1.R`")
 
 log_msg("Loading administrative data")
 
-cont <- sf::read_sf(ADM1_fp)
+admin_regions <- sf::read_sf(ADM1_fp)
+
+################################################################################
+# Temperature data ----
+################################################################################
+
+log_msg("Load temperature data")
+
+temp_rast <- era5_temp_fp |>
+  terra::rast() |>
+  terra::crop(terra::ext(admin_regions))
+
+temp_rast = temp_rast - 273.15
+
+time_names = as.character(terra::time(temp_rast))
+
+names(temp_rast) <- time_names
 
 ################################################################################
 # Extract temperature ----
 ################################################################################
 
-log_msg("Load temperature data")
-
-temp_rast <- temp_fp |>
-  terra::rast() |>
-  terra::crop(terra::ext(cont))
-
-temp_rast = temp_rast - 273.15
-
-rast_times = as.character(terra::time(temp_rast))
-
-names(temp_rast) <- rast_times
-
 log_msg("Extract temperature data")
 
-temp_dt <- extract_long(
-  rast = temp_rast,
-  polygons = cont,
-  rast_times = rast_times,
-  value_name = "temp"
+temp_extract_list <- purrr::map(1:2, \(p) {
+  extract_clim_data_polygons(
+    rast = temp_rast,
+    polygons = admin_regions,
+    rast_times = time_names,
+    value_name = paste0("temp", if (p == 1) "" else p),
+    power = p
+  )
+})
+
+temp_df <- purrr::reduce(
+  temp_extract_list,
+  \(x, y) merge(x, y, by = c("OBJECTID", "year", "month"), all.x = TRUE)
 )
 
-log_msg("Extract temperature squared data")
+################################################################################
+# Precipitation data ----
+################################################################################
 
-temp2_dt <- extract_long(
-  rast = temp_rast * temp_rast,
-  polygons = cont,
-  rast_times = rast_times,
-  value_name = "temp2"
+log_msg("Load precipitation data")
+
+precip_rast <- era5_prec_fp |>
+  terra::rast() |>
+  terra::crop(terra::ext(admin_regions))
+
+terra::time(precip_rast) <- seq(
+  as.Date("1940-01-01"),
+  by = "month",
+  length.out = terra::nlyr(precip_rast)
 )
-temp_dt[, temp2 := temp2_dt$temp2]
-rm(temp2_dt)
+
+rast_times <- as.character(terra::time(precip_rast))
+names(precip_rast) <- rast_times
 
 ################################################################################
 # Extract precipitation ----
 ################################################################################
 
-log_msg("Load temperature data")
-
-precip_rast <- prec_fp |>
-  terra::rast() |>
-  terra::crop(terra::ext(cont))
-
-rast_times <- as.character(terra::time(precip_rast))
-names(precip_rast) <- rast_times
-
 log_msg("Extract precipitation data")
 
-precip_dt <- extract_long(
+pre_df <- extract_clim_data_polygons(
   rast = precip_rast,
-  polygons = cont,
-  rast_times = names(precip_rast) <- rast_times,
+  polygons = admin_regions,
+  rast_times = rast_times,
   value_name = "ppt"
 )
-temp_dt[, ppt := precip_dt$ppt]
-rm(precip_dt)
+
+# temp_df[, ppt := precip_dt$ppt]
+# rm(precip_dt)
 
 ################################################################################
 # Save intermediate climate data ----
 ################################################################################
 
-log_msg(paste0("Save data to: ", intermediate_ERA_adm1_fp))
-
-data.table::setcolorder(
-  temp_dt,
-  c("OBJECTID", "year", "month", "temp", "temp2", "ppt")
+climate_df <- merge(
+  temp_df,
+  pre_df,
+  by = c("OBJECTID", "year", "month"),
+  all = FALSE
 )
 
-data.table::fwrite(temp_dt, intermediate_ERA_adm1_fp)
+log_msg(paste0("Save data to: ", intermediate_ERA_adm1_fp))
+
+arrow::write_feather(climate_df, intermediate_ERA_adm1_fp)
 
 log_msg(
   "Script `B05 - Extract ERA5 tmp and prc data ADM1.R` completed successfully"

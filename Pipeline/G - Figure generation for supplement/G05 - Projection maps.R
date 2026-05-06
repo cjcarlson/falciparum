@@ -58,6 +58,10 @@ for (scenario in scenarios) {
 # Plot each future scenario ----
 ################################################################################
 
+all_columns <- paste0("mean.diff.", rep(years, length(scenarios)), 
+                      rep(substr(scenarios, 4, 6), each = length(years)))
+global_limits <- range(sapply(all_columns, function(col) cont[[col]]), na.rm = TRUE)
+
 limits <- c(-5, 2.5)
 
 plots <- list()

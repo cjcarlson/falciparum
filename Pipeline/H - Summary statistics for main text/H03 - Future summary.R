@@ -22,8 +22,6 @@ source(A_utils_plot_fp)
 # Future delta data ----
 ################################################################################
 
-# log_msg("Loading historical_vcov_pred_sum_scen_mod_yr_obj.feather")
-
 future_scen_mod_yr_pred <- file.path(
   fut_sum_dir,
   "future_vcov_pred_sum_scen_mod_yr.feather"
@@ -232,7 +230,8 @@ boot_diff <- file.path(
     mean.diff = mean(diff),
     runs.diff = sum(diff > 0),
     lower.diff = quantile(diff, 0.05, na.rm = TRUE),
-    upper.diff = quantile(diff, 0.95, na.rm = TRUE)
+    upper.diff = quantile(diff, 0.95, na.rm = TRUE),
+    prop_positive_diff = mean(diff > 0)
   ) |>
   dplyr::mutate(moe = 1 - abs(runs.diff - 5500) / 5500)
 

@@ -25,9 +25,9 @@ sf::sf_use_s2(FALSE)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "B04_join_prev_cru.log")
+# log_msg <- create_logger(file.path(logs_dir, "B04_join_prev_cru.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `B04 - Join prev and CRU data.R`")
 
@@ -77,7 +77,9 @@ log_msg(sprintf("  Loaded ADM1 units: %d regions", nrow(cont)))
 log_msg("  Loading intermediate climate data (ADM1)")
 
 climate_data <- intermediate_CRU_adm1_fp |>
-  readr::read_csv(show_col_types = FALSE)
+  arrow::read_feather() |> 
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year))
+  # readr::read_csv(show_col_types = FALSE)
 
 log_msg(sprintf("  Climate data loaded: %d rows", nrow(climate_data)))
 
@@ -217,8 +219,8 @@ complete <- complete |> arrange(OBJECTID, monthyr)
 log_msg("  Saving precipitation percentiles to file")
 complete |>
   dplyr::select(OBJECTID, ppt_pctile0.1, ppt_pctile0.9) |>
-  distinct() |>
-  write_csv(file = precip_CRU_adm1_fp)
+  dplyr::distinct() |>
+  readr::write_csv(file = precip_CRU_adm1_fp)
 
 ################################################################################
 # Clean variables ----

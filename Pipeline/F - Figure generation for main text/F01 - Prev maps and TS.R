@@ -29,9 +29,9 @@ source(A_utils_calc_fp)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "F01_prev_map_ts.log")
+# log_msg <- create_logger(file.path(logs_dir, "F01_prev_map_ts.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `F01 - Prev maps and TS.R`")
 

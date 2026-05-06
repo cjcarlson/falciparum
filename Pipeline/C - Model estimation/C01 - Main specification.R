@@ -26,9 +26,9 @@ source(A_utils_plot_fp)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "C01_main_spec.log")
+# log_msg <- create_logger(file.path(logs_dir, "C01_main_spec.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script C01 - MainSpec")
 
@@ -80,8 +80,7 @@ stargazer::stargazer(
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "inter"),
-  # out = file.path(table_main_dir, "cXt2intrXm.tex"),
-  out = here::here("Results", "Tables", "cXt2intrXm.tex"),
+  out = file.path(table_main_dir, "cXt2intrXm.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -119,7 +118,7 @@ fig = plotPolynomialResponse(
   xRef = myrefT,
   xLab = expression(paste("Mean temperature (", degree, "C)")),
   yLab = "Prevalence (%)",
-  title = paste0("Main spec: ", clust_label),
+  title = "Main spec: CRU", 
   yLim = c(-30, 5),
   showYTitle = T,
   ci_level = 0.95
@@ -128,7 +127,7 @@ fig = plotPolynomialResponse(
 log_msg("Save temperature response plot")
 
 ggplot2::ggsave(
-  filename = "temp_response_cXt2intrXm.pdf",
+  filename = "temp_response_cXt2intrXm.jpg",
   path = figure_main_dir,
   plot = fig,
   width = 7,

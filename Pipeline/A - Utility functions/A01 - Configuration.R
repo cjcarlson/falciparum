@@ -45,6 +45,7 @@ print(paste0("repository directory set to: ", repo_dir))
 
 # use bootstraps (TRUE) or vcov resampling (FALSE)
 to_boot <- FALSE
+# to_boot <- TRUE
 
 # yr_bin_size <- 10
 yr_bin_size <- 5
@@ -152,8 +153,8 @@ cru_pre_fp <- file.path(
 # ERA5 data (input) ----
 ################################################################################
 
-temp_fp <- file.path(climate_era5_dir, "2m_temperature.grib")
-prec_fp <- file.path(climate_era5_dir, "Total_precipitation.grib")
+era5_temp_fp <- file.path(climate_era5_dir, "2m_temperature.grib")
+era5_prec_fp <- file.path(climate_era5_dir, "Total_precipitation.grib")
 
 # era5_tmp_dir <- file.path(climate_era5_dir, "t2m_tiff")
 # era5_pre_dir <- file.path(climate_era5_dir, "prec_nc")
@@ -199,7 +200,7 @@ dir.create(inter_urban_dir, showWarnings = FALSE, recursive = TRUE)
 
 intermediate_CRU_adm1_fp <- file.path(
   inter_cru_ext_dir,
-  "CRU-climate-intermediate-adm1.csv"
+  "CRU-climate-intermediate-adm1.feather"
 )
 
 intermediate_CRU_grid_fp <- file.path(
@@ -209,7 +210,7 @@ intermediate_CRU_grid_fp <- file.path(
 
 intermediate_ERA_adm1_fp <- file.path(
   inter_era5_ex_dir,
-  'ERA5-climate-intermediate-adm1.csv'
+  'ERA5-climate-intermediate-adm1.feather'
 )
 
 precip_CRU_adm1_fp <- file.path(climate_prc_key_dir, "PrecipKey_CRU_adm1.csv")
@@ -445,6 +446,21 @@ yr_2014 <- 2010:2014
 yr_2015 <- 2015:2019
 yr_2050 <- 2048:2052
 yr_2100 <- 2096:2100
+
+my_covariate_labels <- c(
+  "Avg temp. ($^\\circ$C)",
+  "Avg temp.$^{2}$ ($^\\circ$C)",
+  "Flood",
+  "Flood (lag 1)",
+  "Flood (lag 2)",
+  "Flood (lag 3)",
+  "Drought",
+  "Drought (lag 1)",
+  "Drought (lag 2)",
+  "Drought (lag 3)",
+  "Intvn. 1955-69",
+  "Intvn. 2000-15"
+)
 
 print("Finished loading A01 - Configuration.R")
 

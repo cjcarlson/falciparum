@@ -24,7 +24,9 @@ sf::sf_use_s2(FALSE)
 # Set up logging ----
 ################################################################################
 
-log_msg <- create_logger(file.path(logs_dir, "B03_extract_CRU_grid.log"))
+# log_msg <- create_logger(file.path(logs_dir, "B03_extract_CRU_grid.log"))
+
+log_msg <- create_logger()
 
 log_msg("Starting script `B03 - Extract CRU tmp and prc data grid.R`")
 
@@ -84,7 +86,7 @@ log_msg("Extracting temperature at survey points (powers 1-5)")
 # Apply the function to all powers for temperature
 temp_extract_list <- lapply(
   powers,
-  process_clim_powers_points,
+  extract_clim_data_points,
   clim_data = tmp,
   points_sf = prev_df,
   rast_times = time_names,
@@ -124,7 +126,7 @@ log_msg("Extracting precipitation at survey points (powers 1-5)")
 # Apply the function to all powers for precipitation
 pre_extract_list <- lapply(
   powers,
-  process_clim_powers_points,
+  extract_clim_data_points,
   clim_data = pre,
   points_sf = prev_df,
   rast_times = time_names,

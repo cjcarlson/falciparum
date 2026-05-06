@@ -44,9 +44,9 @@ set.seed(11235)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "D07_ERA5_analysis.log")
+# log_msg <- create_logger(file.path(logs_dir, "D07_ERA5_analysis.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `D07 - ERA5 analysis.R`")
 
@@ -98,8 +98,8 @@ stargazer(
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   keep = c("temp", "flood", "drought", "inter"),
-  # out = file.path(table_era5_dir, "ERA5_cXt2intrXm.tex"),
-  out = here::here("Results", "Tables", "ERA5_cXt2intrXm.tex"),
+  out = file.path(table_era5_dir, "ERA5_cXt2intrXm.tex"),
+  # out = here::here("Results", "Tables", "ERA5_cXt2intrXm.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -137,7 +137,7 @@ fig = plotPolynomialResponse(
   xRef = myrefT,
   xLab = expression(paste("Mean temperature (", degree, "C)")),
   yLab = "Prevalence (%)",
-  title = paste0("Main spec: ", clust_label),
+  title = "Main spec: ERA5",
   yLim = c(-30, 5),
   showYTitle = T,
   ci_level = 0.95
@@ -170,23 +170,25 @@ mod_list <- list(cru_full_mod, cru_sub_mod, era5_mod)
 
 mycollabs <- c("CRU full", "CRU sub", "ERA5")
 
-stargazer(
+tex <- stargazer(
   mod_list,
   title = "PfPR2 response to daily avg. temperature",
   align = TRUE,
   column.labels = mycollabs,
   keep = c("temp", "flood", "drought", "inter"),
-  out = file.path(table_era5_dir, "ERA5_CRU_comp.tex"),
+  covariate.labels = my_covariate_labels,
+  dep.var.labels = "$Pf$PR$_{2-10}$",
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
-  float = F,
+  float = FALSE,
   notes.append = TRUE,
   notes.align = "l",
-  # notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
   digits = 2,
   star.cutoffs = table_star_cutoffs
 )
+
+writeLines(tex, here::here("Results", "Tables", "ERA5_CRU_comp.tex"))
 
 ################################################################################
 # Cluster setup ----
@@ -196,10 +198,6 @@ log_msg("Preparing the compute cluster")
 
 clus <- parallel::makeCluster(n_cores)
 doSNOW::registerDoSNOW(clus)
-
-# pb <- txtProgressBar(max = S, style = 3)
-# progress <- function(n) setTxtProgressBar(pb, n)
-# opts <- list(progress = progress)
 
 ################################################################################
 # Bootstrap estimation ----
@@ -224,12 +222,7 @@ column_names <- c(
 
 log_msg("Begin the bootstrap models")
 
-result <- foreach(
-  i = 1:(S + 1),
-  .packages = c("lfe")
-  # ,
-  # .options.snow = opts
-) %dopar%
+result <- foreach(i = 1:(S + 1), .packages = c("lfe")) %dopar%
   {
     if (i == 1) {
       era5_prev_data.boot <- era5_prev_data
@@ -247,7 +240,7 @@ result <- foreach(
 
     list(coefs = out, model = model, n = nrow(era5_prev_data.boot))
   }
-# close(pb)
+
 stopCluster(clus)
 
 log_msg("Finish the bootstrap models")
@@ -286,9 +279,6 @@ log_msg("Load bootstrap coeffs")
 
 all_mods <- boot_mod_full_ERA5_fn |>
   readr::read_csv(show_col_types = FALSE)
-
-main <- all_mods |>
-  dplyr::filter(model == "main")
 
 ################################################################################
 # Temperature response data ----
@@ -377,12 +367,6 @@ g <- ggplot() +
     color = "black",
     linewidth = .5
   ) +
-  # geom_line(
-  #   data = subset(plotData, model == "main"),
-  #   mapping = aes(x = x, y = response),
-  #   color = "black",
-  #   linewidth = .5
-  # ) +
   geom_line(
     data = percentile_data,
     aes(x = x, y = lower_bound),
@@ -592,6 +576,7 @@ flood_plot = ggplot() +
     plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm")
   ) +
   ylim(min_max)
+
 flood_plot
 
 ################################################################################
@@ -859,14 +844,15 @@ ggsave(
 log_msg("ERA5 vs CRU scatter plot")
 
 era <- intermediate_ERA_adm1_fp |>
-  data.table::fread()
+  arrow::read_feather()
 
 cru <- intermediate_CRU_adm1_fp |>
-  data.table::fread()
-
-cru[, OBJECTID := as.integer(OBJECTID)]
+  arrow::read_feather()
 
 merged <- cru[era, on = .(OBJECTID, year, month), nomatch = 0]
+
+merged[, OBJECTID := as.integer(OBJECTID)]
+merged[, year := as.integer(year)]
 
 era5_prev_data <- data.table::as.data.table(era5_prev_data)
 
@@ -886,7 +872,6 @@ subset[,
       sep = "-"
     )))
 ]
-
 
 min_axis <- min(subset$temp, subset$i.temp, na.rm = TRUE)
 max_axis <- max(subset$temp, subset$i.temp, na.rm = TRUE)

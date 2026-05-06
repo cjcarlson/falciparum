@@ -21,16 +21,12 @@ source(A_utils_plot_fp)
 # Model coefficients ----
 ################################################################################
 
-# log_msg("Load model coefficients")
-
 all_mods <- coeffs_fn |>
   readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
 # Prepare temperature response data ----
 ################################################################################
-
-# log_msg("Prepare the temperature spaghetti data")
 
 conf_level <- 0.90
 Tref = 24

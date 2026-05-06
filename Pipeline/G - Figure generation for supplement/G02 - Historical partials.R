@@ -64,7 +64,7 @@ for (i in seq_along(variables)) {
     boot,
     var$label,
     i == 1,
-    legend_position = c(0.15, 0.16),
+    legend_position = c(0.15, 0.86),
     scen_colors = hist_scenario_colors,
     scen_labels = hist_scenario_labels
   )

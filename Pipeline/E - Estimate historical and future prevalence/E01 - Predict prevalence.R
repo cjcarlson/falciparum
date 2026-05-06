@@ -40,8 +40,8 @@ source(A_utils_calc_fp)
 ################################################################################
 
 # model_version <- "era5"
-# model_version <- "vcov"
-model_version <- "cru"
+model_version <- "vcov"
+# model_version <- "cru"
 
 if (model_version == "cru") {
   precip_fp <- precip_CRU_adm1_fp
@@ -58,9 +58,9 @@ if (model_version == "cru") {
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "E01_pred_prev.log")
+# log_msg <- create_logger(file.path(logs_dir, "E01_pred_prev.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `E01 - Predict prevalence.R`")
 

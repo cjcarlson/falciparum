@@ -37,9 +37,9 @@ source(A_utils_plot_fp)
 # Set up logging ----
 ################################################################################
 
-log_file_path <- file.path(logs_dir, "F03_hist_map_temp_el_ts.log")
+# log_msg <- create_logger(file.path(logs_dir, "F03_hist_map_temp_el_ts.log"))
 
-log_msg <- create_logger(log_file_path)
+log_msg <- create_logger()
 
 log_msg("Starting script `F03 - Hist map, temp, elev, and TS.R`")
 
@@ -61,13 +61,6 @@ hist_scen_mod_yr_adm1_pred <- file.path(
   dplyr::filter(year == 2014)
 
 log_msg("Calculating ADM1 mean difference")
-
-# main_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
-#   dplyr::filter(run == "main",) |>
-#   tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
-#   dplyr::mutate(diff = (historical - `hist-nat`)) |>
-#   dplyr::group_by(OBJECTID) |>
-#   dplyr::summarize(mean.diff = mean(diff))
 
 log_msg("Calculating ADM1 confidence interval")
 
@@ -157,7 +150,9 @@ elev <- elevation_fp |>
   dplyr::mutate(OBJECTID = factor(OBJECTID))
 
 tmean <- intermediate_CRU_adm1_fp |>
-  readr::read_csv(show_col_types = FALSE) |>
+  arrow::read_feather() |> 
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
+  # readr::read_csv(show_col_types = FALSE) |>
   dplyr::filter(year %in% c(1901:1930)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(t = mean(temp, na.rm = TRUE)) |>
@@ -323,17 +318,6 @@ historical_pred <- file.path(
   arrow::read_feather() |>
   data.table::as.data.table()
 
-# hist_main <- historical_pred[run == "main"] |>
-#   baseline_adjust_summarize(
-#     variable = "Pred",
-#     baseline_group = c("model", "scenario", "region", "run"),
-#     adjusted_group = c("scenario", "region", "year"),
-#     baseline_years = 1900:1930,
-#     confidence_level = 0.90
-#   ) |>
-#   dplyr::filter(year > 1901) |>
-#   dplyr::select(-c(upper, lower))
-
 hist_boot <- historical_pred[run != "main"] |>
   baseline_adjust_summarize(
     variable = "Pred",
@@ -343,8 +327,6 @@ hist_boot <- historical_pred[run != "main"] |>
     confidence_level = 0.90
   ) |>
   dplyr::filter(year > 1901) |>
-  # dplyr::select(-c(median, mean)) |>
-  # dplyr::left_join(hist_main) |>
   dplyr::mutate(
     scenario = factor(scenario, levels = names(historical_scenario_names))
   ) |>

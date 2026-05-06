@@ -38,7 +38,9 @@ overwrite <- TRUE
 # Set up logging ----
 ################################################################################
 
-log_msg <- create_logger(file.path(logs_dir, "B02_extract_GCM_ADM1.log"))
+# log_msg <- create_logger(file.path(logs_dir, "B02_extract_GCM_ADM1.log"))
+
+log_msg <- create_logger()
 
 log_msg("Starting script `B02 - Extract GCM tmp and prc data ADM1.R`")
 
@@ -112,14 +114,14 @@ for (scenario in scenarios) {
           ))
           rast_times <- as.character(terra::time(temp_rast))
 
-          temp_dt <- extract_long(
+          temp_dt <- extract_clim_data_polygons(
             rast = temp_rast,
             polygons = cont,
             rast_times = rast_times,
             value_name = "temp"
           )
 
-          temp2_dt <- extract_long(
+          temp2_dt <- extract_clim_data_polygons(
             rast = temp_rast * temp_rast,
             polygons = cont,
             rast_times = rast_times,
@@ -134,7 +136,7 @@ for (scenario in scenarios) {
             prc_fn
           ))
 
-          precip_dt <- extract_long(
+          precip_dt <- extract_clim_data_polygons(
             rast = precip_rast,
             polygons = cont,
             rast_times = as.character(terra::time(precip_rast)),
