@@ -1,134 +1,51 @@
-.Rproj.user
+# History files
 .Rhistory
+.Rapp.history
+
+# Session Data files
 .RData
+.RDataTmp
+
+# User-specific files
 .Ruserdata
-.DS_Store
-TempFiles/ADM1-CRU.csv
-TempFiles/ADM1-Prevalence.csv
-*.gz
-TempFiles/Fig2Big.csv
-TempFiles/Fig4Big2050.csv
-TempFiles/Fig4Big2100.csv
-TempFiles/Fig4BigRCP45.csv
-TempFiles/SuppHistoricalBig.csv
-TempFiles/SuppHistoricalRegions.csv
-TempFiles/SuppFutureRegions.csv
-TempFiles/SuppFutureBig.csv
-TempFiles/Fig2Future-model-monthly.csv
-TempFiles/Fig2Hist-model-monthly.csv
-TempFiles/Fig3Regionals-model-monthly.csv
-TempFiles/Fig3Regionals-monthly.csv
-TempFiles/Fig4Regionals-monthly.csv
-TempFiles/Fig2Future-monthly.csv
-TempFiles/Fig2Hist-monthly.csv
-TempFiles/Fig3ADM1-monthly.csv
-TempFiles/future_diff_summary.csv
 
-*log.txt
-ACCESS-CM2*
-ACCESS-ESM1-5*
-BCC-CSM2-MR*
-CanESM5*
-FGOALS-g3* 
-GFDL-ESM4*
-IPSL-CM6A-LR* 
-MIROC6*
-MRI-ESM2-0* 
-NorESM2-LM*
-*.feather
+# Example code in package build process
+*-Ex.R
 
-Climate/CRU-Reextraction-Aug2022.csv
-Climate/Future/BCC-CSM2-rcp26.csv
-Climate/Future/BCC-CSM2-rcp45.csv
-Climate/Future/BCC-CSM2-rcp85.csv
-Climate/Future/CanESM5-rcp26.csv
-Climate/Future/CanESM5-rcp45.csv
-Climate/Future/CanESM5-rcp85.csv
-Climate/Future/CESM2-rcp26.csv
-Climate/Future/CESM2-rcp45.csv
-Climate/Future/CESM2-rcp85.csv
-Climate/Future/CNRM-CM6-rcp26.csv
-Climate/Future/CNRM-CM6-rcp45.csv
-Climate/Future/CNRM-CM6-rcp85.csv
-Climate/Future/GFDL-ESM4-rcp26.csv
-Climate/Future/GFDL-ESM4-rcp45.csv
-Climate/Future/GFDL-ESM4-rcp85.csv
-Climate/Future/GISS-E2-rcp26.csv
-Climate/Future/GISS-E2-rcp45.csv
-Climate/Future/GISS-E2-rcp85.csv
-Climate/Future/HadGEM3-rcp26.csv
-Climate/Future/HadGEM3-rcp45.csv
-Climate/Future/HadGEM3-rcp85.csv
-Climate/Future/IPSL-CM6A-rcp26.csv
-Climate/Future/IPSL-CM6A-rcp45.csv
-Climate/Future/IPSL-CM6A-rcp85.csv
-Climate/Future/MIROC6-rcp26.csv
-Climate/Future/MIROC6-rcp45.csv
-Climate/Future/MIROC6-rcp85.csv
-Climate/Future/MRI-ESM2-rcp26.csv
-Climate/Future/MRI-ESM2-rcp45.csv
-Climate/Future/MRI-ESM2-rcp85.csv
-Climate/Future/NorESM2-rcp26.csv
-Climate/Future/NorESM2-rcp45.csv
-Climate/Future/NorESM2-rcp85.csv
-Climate/Historical/BCC-CSM2-MR.csv
-Climate/Historical/BCC-CSM2-nat.csv
-Climate/Historical/CanESM5-nat.csv
-Climate/Historical/CanESM5.csv
-Climate/Historical/CESM2-nat.csv
-Climate/Historical/CESM2.csv
-Climate/Historical/CNRM-CM6-nat.csv
-Climate/Historical/CNRM-CM6.csv
-Climate/Historical/GFDL-ESM4-nat.csv
-Climate/Historical/GFDL-ESM4.csv
-Climate/Historical/GISS-E2-nat.csv
-Climate/Historical/GISS-E2.csv
-Climate/Historical/HadGEM3-nat.csv
-Climate/Historical/HadGEM3.csv
-Climate/Historical/IPSL-CM6A-nat.csv
-Climate/Historical/IPSL-CM6A.csv
-Climate/Historical/MIROC6-nat.csv
-Climate/Historical/MIROC6.csv
-Climate/Historical/MRI-ESM2-nat.csv
-Climate/Historical/MRI-ESM2.csv
-Climate/Historical/NorESM2-nat.csv
-Climate/Historical/NorESM2.csv
-TempFiles/Fig3Big.csv
-Quarantine/
-Climate/Historical/ACCESS-CM2.csv
-Climate/Historical/ACCESS-ESM1.csv
-Climate/Historical/ACCESS-CM2-nat.csv
-Climate/Historical/FGOALS-g3.csv
-Climate/Historical/IPSL-CM6A-LR.csv
-Climate/Historical/MRI-ESM2-0.csv
-Climate/Historical/NorESM2-LM.csv
-Climate/Historical/BCC-CSM2-MR-nat.csv
-Climate/Historical/ACCESS-ESM1-nat.csv
-Climate/Historical/FGOALS-g3-nat.csv
-Climate/Historical/IPSL-CM6A-LR-nat.csv
-Climate/Historical/NorESM2-LM-nat.csv
-Climate/Historical/MRI-ESM2-0-nat.csv
-Climate/Future/ACCESS-CM2-rcp45.csv
-Climate/Future/ACCESS-CM2-rcp85.csv
-Climate/Future/ACCESS-CSM2-rcp26.csv
-Climate/Future/ACCESS-ESM1-rcp26.csv
-Climate/Future/ACCESS-ESM1-rcp45.csv
-Climate/Future/ACCESS-ESM1-rcp85.csv
-Climate/Future/BCC-CSM2-MR-rcp26.csv
-Climate/Future/BCC-CSM2-MR-rcp45.csv
-Climate/Future/BCC-CSM2-MR-rcp85.csv
-Climate/Future/FGOALS-g3-rcp26.csv
-Climate/Future/FGOALS-g3-rcp45.csv
-Climate/Future/FGOALS-g3-rcp85.csv
-Climate/Future/IPSL-CM6A-LR-rcp26.csv
-Climate/Future/IPSL-CM6A-LR-rcp45.csv
-Climate/Future/IPSL-CM6A-LR-rcp85.csv
-Climate/Future/MRI-ESM2-0-rcp26.csv
-Climate/Future/MRI-ESM2-0-rcp45.csv
-Climate/Future/MRI-ESM2-0-rcp85.csv
-Climate/Future/NorESM2-LM-rcp26.csv
-Climate/Future/NorESM2-LM-rcp45.csv
-Climate/Future/NorESM2-LM-rcp85.csv
+# Output files from R CMD build
+/*.tar.gz
 
+# Output files from R CMD check
+/*.Rcheck/
 
-slurm.sh
+# RStudio files
+.Rproj.user/
+
+# produced vignettes
+vignettes/*.html
+vignettes/*.pdf
+
+# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
+.httr-oauth
+
+# knitr and R markdown default cache directories
+*_cache/
+/cache/
+
+# Temporary files created by R markdown
+*.utf8.md
+*.knit.md
+
+# R Environment Variables
+.Renviron
+
+# pkgdown site
+docs/
+
+# translation temp files
+po/*~
+
+# RStudio Connect folder
+rsconnect/
+
+*logs

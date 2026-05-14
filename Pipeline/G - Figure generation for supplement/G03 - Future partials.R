@@ -1,83 +1,44 @@
-library(here)
-library(tidyverse)
-library(data.table)
-library(patchwork)
+############################################################
+# This script makes all four panels of Figure S1.
+############################################################
+# Set up ----
+############################################################
 
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
+rm(list = ls())
 
-calculate_baseline_mean <- function(df, variable) {
-  df |>
-    dplyr::filter(year %in% 2015:2020) |>
-    dplyr::group_by(model, scenario, iter) |>
-    dplyr::summarize(BetaMean = mean({{variable}}, na.rm = TRUE))
+if (!require("pacman")) {
+  install.packages("pacman")
 }
 
-adjust_data <- function(df, bm, variable) {
-  df |>
-    dplyr::left_join(bm) |>
-    dplyr::mutate({{variable}} := ({{variable}} - BetaMean)) |>
-    dplyr::select(-BetaMean)
-}
+# packages
+pacman::p_load(
+  here,
+  patchwork,
+  tidyverse,
+  data.table
+)
 
-summarize_data <- function(df, variable) {
-  df |>
-    dplyr::group_by(scenario, year) |>
-    dplyr::summarize(
-      median = median({{variable}}, na.rm = TRUE),
-      upper = quantile({{variable}}, 0.95, na.rm = TRUE),
-      lower = quantile({{variable}}, 0.05, na.rm = TRUE)) |>
-    dplyr::mutate(scenario = factor(scenario, levels = c('ssp126', 'ssp245', 'ssp585'))) |>
-    dplyr::filter(year > 2016)
-}
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
 
-create_plot <- function(data, y_label, show_legend = FALSE) {
-  colors <- c("#4d5f8e", "#C582B2", "#325756")
-  labels <- c(
-    'Future climate (SSP1-RCP2.6)',
-    'Future climate (SSP2-RCP4.5)', 
-    'Future climate (SSP5-RCP8.5)'
-  )
-  p <- ggplot(data, aes(x = year, y = median, group = scenario, color = scenario)) +
-    theme_bw() +
-    geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) +
-    scale_color_manual(
-      values = c(colors),
-      labels = c(labels),
-      name = '') +
-    scale_fill_manual(
-      values = c(colors),
-      labels = c(labels),
-      name = '') +
-    geom_line(aes(x = year, y = median), lwd = 1.3) +
-    geom_ribbon(aes(ymin = lower, ymax = upper, fill = scenario), color = NA, alpha = 0.1) +
-  geom_ribbon(
-    aes(ymin = lower, ymax = upper, colour = scenario),
-    fill = NA,
-    linewidth = 0.1,
-    show.legend = FALSE,
-  ) +
-  geom_ribbon(
-    aes(ymin = lower, ymax = upper, fill = scenario),
-    color = NA,
-    alpha = 0.1
-  ) +
-    xlab(NULL) + ylab(y_label) +
-    theme(axis.title.x = element_text(vjust = -3),
-          axis.title.y = element_text(vjust = 6),
-          plot.margin = unit(c(0.2,0.5,0.2,1), "cm"),
-          legend.title = element_blank())
-  
-  if (show_legend) {
-    p <- p + theme(legend.position = c(0.2, 0.27))
-  } else {
-    p <- p + theme(legend.position = "none")
-  }
-  
-  return(p)
-}
+################################################################################
+# Future time series data ----
+################################################################################
 
-iter.df <- here::here("TempFiles", "SuppFutureBig.feather") |>
-  arrow::read_feather()
+# log_msg("Load and prepare future projections")
+
+future_boot <- file.path(
+  fut_sum_dir,
+  "future_vcov_pred_sum_scen_mod_yr.feather"
+) |>
+  arrow::read_feather() |>
+  dplyr::filter(run != "main")
+
+################################################################################
+# Create partial time series plots ----
+################################################################################
 
 variables <- list(
   list(name = "Pred", label = "Prevalence (%)"),
@@ -90,32 +51,43 @@ plots <- list()
 
 for (i in seq_along(variables)) {
   var <- variables[[i]]
-  bm <- calculate_baseline_mean(iter.df, !!sym(var$name))
-  df <- adjust_data(iter.df, bm, !!sym(var$name))
-  data <- summarize_data(df, !!sym(var$name))
-  plots[[i]] <- create_plot(data, var$label, i == 1)
+
+  boot <- baseline_adjust_summarize(
+    df = future_boot,
+    variable = var$name,
+    baseline_group = c("model", "scenario", "run"),
+    adjusted_group = c("scenario", "year"),
+    baseline_years = 2015:2020,
+    confidence_level = 0.90
+  ) |>
+    dplyr::filter(year > 2016)
+
+  plots[[i]] <- partials_plot(
+    boot,
+    var$label,
+    i == 1,
+    legend_position = c(0.175, 0.22),
+    scen_colors = fut_scenario_colors,
+    scen_labels = fut_scenario_labels
+  )
 }
 
+################################################################################
+# Combine plots and save ----
+################################################################################
+
 combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]]
-print(combined_plot)
+combined_plot
 
 ggplot2::ggsave(
-  filename = "FigureS5.pdf",
+  filename = "Supp_Figure_fut_partials.jpg",
   plot = combined_plot,
-  path = here::here("Figures"),
-  width = 7.42,
-  height = 10.07,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
-)
-
-
-ggplot2::ggsave(
-  filename = "FigureS5.jpg",
-  plot = combined_plot,
-  path = here::here("Figures"),
+  path = here::here("Results", "Figures"),
   width = 7.42,
   height = 10.07,
   units = "in"
 )
+
+################################################################################
+# End of file ----
+################################################################################

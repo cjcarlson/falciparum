@@ -1,296 +1,194 @@
-############################################################
-# This script investigates correlation in the model
-# residuals and assesses alternative methods of clustering
-# or accounting for spatiotemporal correlations in errors.
-############################################################
-
-############################################################
+################################################################################
+# This script investigates correlation in the model residuals and assesses
+# alternative methods of clustering or accounting for spatiotemporal
+# correlations in errors.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
 # packages
-library(here)
-library(lfe)
-library(reshape)
-library(stargazer)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(cowplot)
-library(multcomp)
-library(sp)
-library(gstat)
-library(fixest)
-library(raster)
-library(ggpubr)
-library(car)
-library(sf)
+if (!require("pacman")) {
+  install.packages("pacman")
+}
 
-# source functions for easy plotting and estimation
-source(here::here("Pipeline", "A - Utility functions", "A00 - Configuration.R"))
-source(here::here("Pipeline", "A - Utility functions", "A01 - Utility code for calculations.R"))
-source(here::here("Pipeline", "A - Utility functions", "A02 - Utility code for plotting.R"))
-
-############################################################
-# Plotting toggles
-# Choose reference temperature for response function, as well
-# as minimum and maximum for range of temperature
-############################################################
-
-Tref = 25 # reference temperature - curve gets recentered to 0 here
-Tmin = 10 # min T for x axis
-Tmax = 40 # max T for x axis
-
-########################################################################
-# Data clean up
-########################################################################
-
-#### Call external script for data cleaning
-source(here::here("Pipeline", "A - Utility functions", "A03 - Prep data for estimation.R"))
-
-#### Store output here
-resdir = file.path(datadir, "Results")
-dir.create(file.path(resdir, "Figures", "Diagnostics"), showWarnings = FALSE)
-dir.create(file.path(resdir, "Tables", "Diagnostics"), showWarnings = FALSE)
-dir.create(file.path(resdir, "Figures", "Diagnostics", "Residuals"), showWarnings = FALSE)
-dir.create(file.path(resdir, "Tables", "Diagnostics", "Residuals"), showWarnings = FALSE)
-
-########################################################################
-# Estimate main model, store residuals ----
-########################################################################
-
-# Formula 
-cXt2intrXm = as.formula(
-  paste0(
-    "PfPR2 ~ temp + temp2 + ", floodvars, " + ", droughtvars, 
-    " + I(intervention) + country:monthyr + country:monthyr2 | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
-  )
+pacman::p_load(
+  here,
+  lfe,
+  reshape,
+  stargazer,
+  tidyverse,
+  zoo,
+  lubridate,
+  cowplot,
+  multcomp,
+  sp,
+  gstat,
+  fixest,
+  raster,
+  ggpubr,
+  car,
+  Hmisc,
+  sf
 )
 
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
+
+sf::sf_use_s2(FALSE)
+
+################################################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence
+# and CRU temperature and precipitation data aggregated to
+# the first level of Administrative division.
+################################################################################
+
+print("Loading clean data")
+complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
+
+################################################################################
+# Estimate main model, store residuals ----
+################################################################################
+
 # Estimation & residuals
-mainmod = felm(data = complete, formula = cXt2intrXm)
+mainmod = readRDS(main_mod_obj_fn)
+
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 
-########################################################################
+################################################################################
 # A: Correlation across ADM1s within a country (same year-month) ----
-########################################################################
+################################################################################
 
 # Regress residuals on country dummies, control for month and year
-resCntry = felm(res ~ I(country) | month + year | 0 | 0 , data=complete)
+resCntry = felm(res ~ I(country) | month + year | 0 | 0, data = complete)
 
 # Histogram of p-values on each country's coefficient
-pvals = summary(resCntry)$coefficients[,"Pr(>|t|)"]
-ph = ggplot() + 
-  geom_histogram(aes(x=pvals), color= "seagreen", fill = "seagreen") + 
-  geom_vline(xintercept=0.05, color="grey") +
-  xlab("country p-value (null: no correlation within country)") + ylab("# countries") +
+pvals = summary(resCntry)$coefficients[, "Pr(>|t|)"]
+ph = ggplot() +
+  geom_histogram(aes(x = pvals), color = "seagreen", fill = "seagreen") +
+  geom_vline(xintercept = 0.05, color = "grey") +
+  xlab("country p-value (null: no correlation within country)") +
+  ylab("# countries") +
   theme_classic(base_size = 12)
 ph
 
-# Boxplot of residuals by country 
-g= ggplot(complete, aes(x=country, y=res)) + 
-  geom_boxplot() + 
-  theme_classic(base_size = 12) + ylab("residuals") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
+# Boxplot of residuals by country
+g = ggplot(complete, aes(x = country, y = res)) +
+  geom_boxplot() +
+  theme_classic(base_size = 12) +
+  ylab("residuals") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 g
 
 # Fstatistic
-df = data.frame(stat = c("F stat", "p value"), 
-                value = c(summary(resCntry)$P.fstat[5], summary(resCntry)$P.fstat[1]))
-write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_country_Fstat.csv"))
+df = data.frame(
+  stat = c("F stat", "p value"),
+  value = c(summary(resCntry)$P.fstat[5], summary(resCntry)$P.fstat[1])
+)
+write.csv(df, file.path(table_res_dir, "residuals_country_Fstat.csv"))
 
-########################################################################
+################################################################################
 # B: Correlation across ADM1s within a GBOD region (same year-month) ----
-########################################################################
+################################################################################
 
 # Regress residuals on country dummies, control for month and year
-resGBOD = felm(res ~ I(smllrgn) | month + year | 0 | 0 , data=complete)
+resGBOD = felm(res ~ I(smllrgn) | month + year | 0 | 0, data = complete)
 
 # Histogram of p-values on each region's coefficient
-pvalsR = summary(resGBOD)$coefficients[,"Pr(>|t|)"]
-pr = ggplot() + 
-  geom_histogram(aes(x=pvalsR), color= "seagreen", fill = "seagreen") + 
-  geom_vline(xintercept=0.05, color="grey") +
-  xlab("region p-value (null: no correlation within region)") + ylab("# regions") +
+pvalsR = summary(resGBOD)$coefficients[, "Pr(>|t|)"]
+pr = ggplot() +
+  geom_histogram(aes(x = pvalsR), color = "seagreen", fill = "seagreen") +
+  geom_vline(xintercept = 0.05, color = "grey") +
+  xlab("region p-value (null: no correlation within region)") +
+  ylab("# regions") +
   theme_classic(base_size = 12)
 pr
 
-# Boxplot of residuals by region 
-gr= ggplot(complete, aes(x=as.factor(smllrgn), y=res)) + 
-  geom_boxplot() + 
-  theme_classic(base_size = 12) + ylab("residuals") + xlab("region") + theme( axis.text.x=element_blank(),axis.ticks.x=element_blank())
+# Boxplot of residuals by region
+gr = ggplot(complete, aes(x = as.factor(smllrgn), y = res)) +
+  geom_boxplot() +
+  theme_classic(base_size = 12) +
+  ylab("residuals") +
+  xlab("region") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 gr
 
 # Fstatistic
-df = data.frame(stat = c("F stat", "p value"), 
-                value = c(summary(resGBOD)$P.fstat[5], summary(resGBOD)$P.fstat[1]))
-write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_GBOD_Fstat.csv"))
+df = data.frame(
+  stat = c("F stat", "p value"),
+  value = c(summary(resGBOD)$P.fstat[5], summary(resGBOD)$P.fstat[1])
+)
+write.csv(df, file.path(table_res_dir, "residuals_GBOD_Fstat.csv"))
 
-
-########################################################################
+################################################################################
 # C: Correlation across months (same location) ----
-########################################################################
+################################################################################
 
 # Regress residuals on country dummies, control for OBJECTID
-resMonth = felm(res ~ I(month) | OBJECTID | 0 | 0 , data=complete)
-complete = complete %>% mutate(monthord = factor(month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")))
+resMonth = felm(res ~ I(month) | OBJECTID | 0 | 0, data = complete)
+
+complete = complete %>%
+  mutate(monthord = factor(month, levels = month.abb))
+
 # Histogram of p-values on each region's coefficient
-pvalsM = summary(resMonth)$coefficients[,"Pr(>|t|)"]
-pm = ggplot() + 
-  geom_histogram(aes(x=pvalsM), color= "seagreen", fill = "seagreen") + 
-  geom_vline(xintercept=0.05, color="grey") +
-  xlab("monthly p-value (null: no correlation within months)") + ylab("# months") +
+pvalsM = summary(resMonth)$coefficients[, "Pr(>|t|)"]
+pm = ggplot() +
+  geom_histogram(aes(x = pvalsM), color = "seagreen", fill = "seagreen") +
+  geom_vline(xintercept = 0.05, color = "grey") +
+  xlab("monthly p-value (null: no correlation within months)") +
+  ylab("# months") +
   theme_classic(base_size = 12)
 pm
 
-# Boxplot of residuals by month 
-gm = ggplot(complete, aes(x=as.factor(monthord), y=res)) + 
-  geom_boxplot() + 
-  theme_classic(base_size = 12) + ylab("residuals") + xlab("month") 
+# Boxplot of residuals by month
+gm = ggplot(complete, aes(x = as.factor(monthord), y = res)) +
+  geom_boxplot() +
+  theme_classic(base_size = 12) +
+  ylab("residuals") +
+  xlab("month")
 gm
 
 # Fstatistic
-df = data.frame(stat = c("F stat", "p value"), 
-                value = c(summary(resMonth)$P.fstat[5], summary(resMonth)$P.fstat[1]))
-write.csv(df, file.path(resdir, "Tables", "Diagnostics", "Residuals", "residuals_Month_Fstat.csv"))
+df = data.frame(
+  stat = c("F stat", "p value"),
+  value = c(summary(resMonth)$P.fstat[5], summary(resMonth)$P.fstat[1])
+)
+write.csv(df, file.path(table_res_dir, "residuals_Month_Fstat.csv"))
 
 # combine all boxplots
-box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels="auto")
+box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels = "auto")
 box
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "residuals_ALL_boxplot.png"), plot = box, width = 5, height = 5)
+
+ggsave(
+  filename = "residuals_ALL_boxplot.jpg",
+  path = figure_res_dir,
+  plot = box,
+  width = 5,
+  height = 5
+)
 
 # combine all pval hists
-hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels="auto")
+hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels = "auto")
 hists
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "pvals_ALL_correlations.png"), plot = hists, width = 5, height = 5)
 
-########################################################################
+ggsave(
+  filename = "pvals_ALL_correlations.jpg",
+  path = figure_res_dir,
+  plot = hists,
+  width = 5,
+  height = 5
+)
+
+################################################################################
 # D: General correlation over space -- distributions of correlations ----
-########################################################################
-
-##### Correlation Helper Functions ----
-analyze_corr <- function(
-  kind, corrVec, selection, name, obsCountVec = NULL, T_min = 10, weighting = FALSE
-) {
-  # Taken and modified from:
-  # github.com/chroetz/ClusSpatCorr/blob/2299012ea07b8817bc11b9bbfb61d3e7a7150459/03_2_Correlation_Analyze.R#L8-L25
-
-  # Apply selection filter
-  selection[is.na(selection)] <- FALSE 
-  
-  if (!is.null(obsCountVec)) {
-    # Filter out low observation counts
-    sample_size_filter <- obsCountVec >= T_min & !is.na(obsCountVec)
-    selection <- selection & sample_size_filter
-  }
-  
-  # Get filtered data
-  x <- corrVec[selection & !is.na(corrVec)]
-  
-  # Calculate statistics (weighted or unweighted based on weighting parameter)
-  probs <- seq(0, 1, 0.05)
-  
-  if (weighting && !is.null(obsCountVec)) {
-    # Weighted statistics using obsCountVec
-    weights <- obsCountVec[selection & !is.na(corrVec)]
-    
-    # Weighted mean
-    mean <- weighted.mean(x, weights)
-    
-    # Weighted quantiles (using Hmisc package)
-    quantiles <- Hmisc::wtd.quantile(x, weights = weights, probs = probs, normwt = TRUE)
-    
-    # Weighted standard deviation
-    var <- sum(weights * (x - mean)^2) / sum(weights)
-    sd <- sqrt(var)
-    
-    # Weighted median (50th percentile)
-    median <- Hmisc::wtd.quantile(x, weights = weights, probs = 0.5, normwt = TRUE)
-    
-    total_weight <- sum(weights)
-    
-  } else {
-    # Unweighted statistics
-    mean <- mean(x)
-    quantiles <- quantile(x, probs = probs)
-    sd <- sd(x)
-    median <- median(x)
-    total_weight <- length(x)  # For unweighted, total weight equals sample size
-  }
-  
-  bind_cols(
-    tibble(
-      kind = kind,
-      group = name,
-      mean = mean,
-      median = as.numeric(median),
-      sd = sd,
-      n = length(x),
-      total_weight = total_weight),
-    setNames(
-      as.list(quantiles), 
-      sprintf("q%02d", as.integer(probs * 100))
-    ) |> 
-      as_tibble()
-  )
-}
-
-# Function to convert dataframe to LaTeX table
-df_to_latex <- function(df, digits = 2) {
-  # Handle NaN/NA values
-  df$mean[is.nan(df$mean)] <- NA
-  df$q25[is.nan(df$q25)] <- NA  
-  df$q75[is.nan(df$q75)] <- NA
-  
-  # Round numeric columns
-  df$mean <- round(df$mean, digits)
-  df$q25 <- round(df$q25, digits)
-  df$q75 <- round(df$q75, digits)
-  
-  # Replace NA with empty string for display
-  df$mean[is.na(df$mean)] <- ""
-  df$q25[is.na(df$q25)] <- ""
-  df$q75[is.na(df$q75)] <- ""
-  
-  # Start LaTeX table
-  cat("\\begin{tabular}{llcccc}\n")
-  cat("    \\toprule\n")
-  cat("    Kind & Group & $\\overline{\\rho}$ & Q25 & Q75 & $N$ \\\\\n")
-  cat("    \\hline\n")
-  
-  # Print each row
-  for(i in 1:nrow(df)) {
-    cat("    ", df$kind[i], " & ", df$group[i], " & ", 
-        df$mean[i], " & ", df$q25[i], " & ", df$q75[i], " & ", 
-        df$n[i], " \\\\\n", sep = "")
-  }
-  
-  cat("    \\bottomrule\n")
-  cat("\\end{tabular}\n")
-}
-
-count_pairwise_obs <- function(data) {
-  data_matrix <- as.matrix(data)
-  n_vars <- ncol(data_matrix)
-  obs_count_matrix <- matrix(0, nrow = n_vars, ncol = n_vars)
-  
-  for (i in 1:n_vars) {
-    for (j in 1:n_vars) {
-      complete_pairs <- sum(!is.na(data_matrix[, i]) & !is.na(data_matrix[, j]))
-      obs_count_matrix[i, j] <- complete_pairs
-    }
-  }
-  
-  rownames(obs_count_matrix) <- colnames(data_matrix)
-  colnames(obs_count_matrix) <- colnames(data_matrix)
-  return(obs_count_matrix)
-}
+################################################################################
 
 ##### Temporal Correlation Matrix ----
-residual_wide_yr_mn <- 
-  complete |> 
+residual_wide_yr_mn <- complete |> 
   dplyr::select(OBJECTID,monthyr,res) |> 
   arrange(monthyr) |> 
   pivot_wider(names_from=monthyr, values_from=res) |> 
@@ -306,8 +204,7 @@ count_matrix_yr_mn <- residual_wide_yr_mn |>
   count_pairwise_obs()
 
 ##### Spatial Correlation Matrix ----
-residual_wide_location <- 
-  complete |> 
+residual_wide_location <- complete |> 
   dplyr::mutate(
     short_region = case_match(
       smllrgn,
@@ -360,8 +257,16 @@ location_simple <- complete |>
     ),
     location = paste(short_region, ISO, OBJECTID, sep = ".")
   ) 
-centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
-centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE) |> 
+
+centroids <- ADM1_fp |>
+  sf::read_sf() |>
+  dplyr::mutate(
+    lon = sf::st_coordinates(sf::st_centroid(geometry))[, 1],
+    lat = sf::st_coordinates(sf::st_centroid(geometry))[, 2],
+    OBJECTID = as.numeric(OBJECTID)
+  ) |>
+  sf::st_drop_geometry() |>
+  dplyr::select(OBJECTID, lon, lat) |> 
   dplyr::filter(OBJECTID %in% unique(complete$OBJECTID)) |> 
   dplyr::left_join(location_simple, by = join_by(OBJECTID))
 
@@ -429,169 +334,143 @@ weighting <- FALSE
 
 corrData <- bind_rows(
   ##### temporal correlations ----
-  analyze_corr("temporal", corrVecYear, TRUE, "all", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, timeDiff == 1, "1", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, timeDiff == 2, "2", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, timeDiff == 3, "3", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 4, "4", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 5, "5", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 6, "6", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 7, "7", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 8, "8", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 9, "9", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 10, "10", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 11, "11", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, timeDiff == 12, "12", obsCountVecYearMon, T_min, weighting = weighting),
-  analyze_corr("temporal", corrVecYear, month_col == month_row & year_col != year_row, "same month, diff year", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & yearDiff == 1, "same month, 1 yr later", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & yearDiff == 2, "same month, 2 yrs later", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & yearDiff == 3, "same month, 3 yrs later", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & abs(yearDiff) == 1, "same month, ±1 yr", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & abs(yearDiff) == 2, "same month, ±2 yrs", obsCountVecYearMon, T_min, weighting = weighting),
-  # analyze_corr("temporal", corrVecYear, month_col == month_row & abs(yearDiff) <= 2, "same month, within ±2 yrs", obsCountVecYearMon, T_min, weighting = weighting),
+  analyze_corr("temporal", corrVecYear, TRUE, "all", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, timeDiff == 1, "1", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, timeDiff == 2, "2", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, timeDiff == 3, "3", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, abs(yearDiff) <= 5, "within 5 years", obsCountVecYearMon),
+  analyze_corr("temporal", corrVecYear, abs(yearDiff) > 5, "> 5 years", obsCountVecYearMon),
   ##### Basic spatial patterns ----
-  analyze_corr("spatial", corrVecGid1, TRUE, "all", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 == rowGid0, "same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0, "different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg == rowReg, "same region", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg != rowReg, "different region", obsCountVecGid1, T_min, weighting = weighting),
-  ##### thresholds (less than) ----
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e5, "< 100km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e5, "< 200km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5, "< 500km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e6, "< 1000km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e6, "< 2000km", obsCountVecGid1, T_min, weighting = weighting),
-  ##### + country interactions (less than) ----
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 != rowGid0, "< 100km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 != rowGid0, "< 200km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "< 500km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 != rowGid0, "< 1000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e6 & colGid0 != rowGid0, "< 2000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e5 & colGid0 == rowGid0, "< 100km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e5 & colGid0 == rowGid0, "< 200km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 == rowGid0, "< 500km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 1e6 & colGid0 == rowGid0, "< 1000km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 2e6 & colGid0 == rowGid0, "< 2000km and same country", obsCountVecGid1, T_min, weighting = weighting),
+  analyze_corr("spatial", corrVecGid1, TRUE, "all", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 == rowGid0, "same country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0, "different country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg == rowReg, "same region", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg != rowReg, "different region", obsCountVecGid1),
+  # ##### thresholds (less than) ----
+  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5, "< 500km", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "< 500km and different country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 == rowGid0, "< 500km and same country", obsCountVecGid1),
   ##### thresholds (greater than) ----
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e5, "> 100km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e5, "> 200km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5, "> 500km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6, "> 1000km", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e6, "> 2000km", obsCountVecGid1, T_min, weighting = weighting),
-  ##### + country interactions (greater than) ----
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e5 & colGid0 != rowGid0, "> 100km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e5 & colGid0 != rowGid0, "> 200km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 != rowGid0, "> 500km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6 & colGid0 != rowGid0, "> 1000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e6 & colGid0 != rowGid0, "> 2000km and different country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e5 & colGid0 == rowGid0, "> 100km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e5 & colGid0 == rowGid0, "> 200km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 == rowGid0, "> 500km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6 & colGid0 == rowGid0, "> 1000km and same country", obsCountVecGid1, T_min, weighting = weighting),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 2e6 & colGid0 == rowGid0, "> 2000km and same country", obsCountVecGid1, T_min, weighting = weighting),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6, "> 1000km", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 != rowGid0, "> 500km and different country", obsCountVecGid1),
+  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 == rowGid0, "> 500km and same country", obsCountVecGid1)
+) |> 
+  dplyr::select(kind, group, mean, q25, q75, n)
+
+corrData
+
+tex <- df_to_latex(corrData)
+
+writeLines(
+  tex,
+  con = here::here("Results", "Tables", "spatial_and_serial_correlations.tex")
 )
 
-print(dplyr::select(corrData, kind, group, mean, q25, q75, n), n = 48)
-
-df_to_latex(dplyr::select(corrData, kind, group, mean, q25, q75, n))
-
-########################################################################
+################################################################################
 # E: General correlation over space -- VARIOGRAMS ----
-########################################################################
+################################################################################
 
 # create year groupings for variogram
-complete = complete %>% 
-  mutate(yeargp = (yearnum - min(yearnum)) %/% 5*5 + min(yearnum) ) 
-# |> 
-#   dplyr::select(-lat, -lon)
-
-# bring in lat-lon of ADM1 centroids
-centroid_fp <- file.path(datadir, "Data", "ADM1-centroids.csv")
-
-centroids <- readr::read_csv(centroid_fp, show_col_types = FALSE)
+complete = complete %>%
+  mutate(yeargp = (yearnum - min(yearnum)) %/% 5 * 5 + min(yearnum))
 
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
 
 # Estimate an empirical variogram
 # coordinates - so variogram is in m
-coordinates(spdf) = ~lon+lat
+coordinates(spdf) = ~ lon + lat
 projection(spdf) = CRS("+init=EPSG:4326")
 
 # estimate variogram, 0 lags
-vv = variogram(res~1, data=spdf, projection(FALSE))
-vvP = variogram(PfPR2~1, data = spdf, projection(FALSE))
+vv = variogram(res ~ 1, data = spdf, projection(FALSE))
+vvP = variogram(PfPR2 ~ 1, data = spdf, projection(FALSE))
 f <- fit.variogram(vv, vgm("Sph"))
 fP <- fit.variogram(vvP, vgm("Sph"))
 
-vvplot = plot(vv, model=f, xlab="distance (km)", main = "Model residuals")
-vvPplot = plot(vvP, model=fP, xlab="distance (km)", main = "Prevalence (PfPR2)")
+vvplot = plot(vv, model = f, xlab = "distance (km)", main = "Model residuals")
+vvPplot = plot(
+  vvP,
+  model = fP,
+  xlab = "distance (km)",
+  main = "Prevalence (PfPR2)"
+)
 
 # vars = ggarrange(vvplot, vvPplot, ncol = 2, nrow = 1)
 vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
 vars
-ggsave(file.path(resdir, "Figures", "Diagnostics", "Residuals", "variogram_2panel.png"), plot = vars, width = 9, height = 5, bg = "white")
+ggsave(
+  filename = "variogram_2panel.jpg",
+  path = figure_res_dir,
+  plot = vars,
+  width = 9,
+  height = 5,
+  bg = "white"
+)
 
 # By year groupings
-range = data.frame(yeargp=NA,n=NA,range=NA)
+range = data.frame(yeargp = NA, n = NA, range = NA)
 
-for(y in unique(spdf$yeargp)){
-  test = subset(spdf,yeargp==y)
-  if(dim(test)[1]>100){
-    vv = variogram(res~1, data=test, projection(FALSE))
+for (y in unique(spdf$yeargp)) {
+  test = subset(spdf, yeargp == y)
+  if (dim(test)[1] > 100) {
+    vv = variogram(res ~ 1, data = test, projection(FALSE))
     f = fit.variogram(vv, vgm("Sph"))
-    range = rbind(range,c(y,dim(test)[1],f$range[2]))
+    range = rbind(range, c(y, dim(test)[1], f$range[2]))
   }
 }
 
 range = range %>% arrange(yeargp)
-hist(range$range, breaks=30 )
-quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE) 
+hist(range$range, breaks = 30)
+quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE)
 
 # By country
-range = data.frame(country=NA,n=NA,range=NA)
+range = data.frame(country = NA, n = NA, range = NA)
 
-for(c in unique(spdf$country)){
-  test = subset(spdf,country==c)
-  if(dim(test)[1]>100){
-    vv = variogram(res~1, data=test, projection(FALSE))
-    vv = subset(vv,dist>0) # many obs of same location
+for (c in unique(spdf$country)) {
+  # c <- "Sierra Leone"
+  test = subset(spdf, country == c)
+  if (dim(test)[1] > 115) {
+    vv = variogram(res ~ 1, data = test, projection(FALSE))
+    vv = subset(vv, dist > 0) # many obs of same location
     f = fit.variogram(vv, vgm("Sph"))
-    range = rbind(range,c(c,dim(test)[1],f$range[2]))
+    range = rbind(range, c(c, dim(test)[1], f$range[2]))
   }
 }
 
-range = range %>% arrange(country) %>% mutate(range=as.numeric(range))
-hist(range$range, breaks=30 )
-quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE) 
+range = range %>% arrange(country) %>% mutate(range = as.numeric(range))
+hist(range$range, breaks = 30)
+quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE)
 
-########################################################################
+################################################################################
 # F: General correlation over time ----
-########################################################################
+################################################################################
 
-# As detailed in D03 - Additional robustness.R, the panel is sufficiently unbalanced 
+# As detailed in D03 - Additional robustness.R, the panel is sufficiently unbalanced
 # that estimating a distributed lag at monthly scale is likely not feasible. Instead, look across years.
 
-complete_expanded <- complete %>% 
-  mutate(year = as.numeric(as.character(year)),
-         month = as.character(month),
-         month = match(month, month.abb)) |> 
-  group_by(OBJECTID) %>% 
+complete_expanded <- complete %>%
+  mutate(
+    year = as.numeric(as.character(year)),
+    month = as.character(month),
+    month = match(month, month.abb)
+  ) |>
+  group_by(OBJECTID) %>%
   complete(year = 1902:2016, month = 1:12) %>%
   ungroup()
 
 complete_with_lag <- complete_expanded %>%
   arrange(OBJECTID, year, month) %>%
-  group_by(OBJECTID) %>% 
+  group_by(OBJECTID) %>%
   mutate(
     resmn = res,
-    reslag1 = dplyr::lag(resmn,1),
-    reslag2 = dplyr::lag(resmn,2),
-    reslag3 = dplyr::lag(resmn,3),
-    reslag4 = dplyr::lag(resmn,4),
-    reslag5 = dplyr::lag(resmn,5)
-  ) |> 
-  tidyr::drop_na(resmn) 
+    reslag1 = dplyr::lag(resmn, 1),
+    reslag2 = dplyr::lag(resmn, 2),
+    reslag3 = dplyr::lag(resmn, 3),
+    reslag4 = dplyr::lag(resmn, 4),
+    reslag5 = dplyr::lag(resmn, 5)
+  ) |>
+  tidyr::drop_na(resmn)
 
 mn_lag1 <- lm(resmn ~ reslag1, data = complete_with_lag)
 
@@ -600,10 +479,12 @@ mn_lag2 <- lm(resmn ~ reslag1 + reslag2, data = complete_with_lag)
 mn_lag3 <- lm(resmn ~ reslag1 + reslag2 + reslag3, data = complete_with_lag)
 
 # Average residuals by ADM1-year
-anndf = complete |> group_by(OBJECTID,yearnum) |> dplyr::summarize(resmn = mean(res, na.rm=TRUE), year = first(yearnum))
+anndf = complete |>
+  group_by(OBJECTID, yearnum) |>
+  dplyr::summarize(resmn = mean(res, na.rm = TRUE), year = first(yearnum))
 
-# Expand to be a full panel 
-anndf_ex <- anndf %>% 
+# Expand to be a full panel
+anndf_ex <- anndf %>%
   group_by(OBJECTID) %>%
   complete(year = 1902:2016) %>%
   ungroup()
@@ -611,10 +492,16 @@ anndf_ex <- anndf %>%
 # Add lags
 anndf_with_lag <- anndf_ex %>%
   arrange(OBJECTID, year) %>%
-  mutate(reslag1 = lag(resmn,1), reslag2 = lag(resmn,2),reslag3 = lag(resmn,3),reslag4 = lag(resmn,4),reslag5 = lag(resmn,5)) |> 
+  mutate(
+    reslag1 = lag(resmn, 1),
+    reslag2 = lag(resmn, 2),
+    reslag3 = lag(resmn, 3),
+    reslag4 = lag(resmn, 4),
+    reslag5 = lag(resmn, 5)
+  ) |>
   tidyr::drop_na(resmn)
 
-# Estimation 
+# Estimation
 lag1 <- lm(resmn ~ reslag1, data = anndf_with_lag)
 
 lag2 <- lm(resmn ~ reslag1 + reslag2, data = anndf_with_lag)
@@ -623,31 +510,53 @@ lag3 <- lm(resmn ~ reslag1 + reslag2 + reslag3, data = anndf_with_lag)
 
 lag4 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4, data = anndf_with_lag)
 
-lag5 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4 + reslag5, data = anndf_with_lag)
+lag5 <- lm(
+  resmn ~ reslag1 + reslag2 + reslag3 + reslag4 + reslag5,
+  data = anndf_with_lag
+)
 
 mynote <- "Note"
 
 stargazer(
-  mn_lag1, 
+  mn_lag1,
   mn_lag2,
-  mn_lag3, 
-  lag1, lag2, lag3, lag4, lag5,
-  title           = "Model diagnostics: Residual lags",
-  # align           = TRUE,
-  column.labels   = c(
-    "1 Mn", "2 Mn","3 Mn",
-    "1 Yr", "2 Yr", "3 Yr", "4 Yr", "5 Yr"),
-  covariate.labels= c("Res. Lag 1", "Res. Lag 2", "Res. Lag 3",
-                      "Res. Lag 4", "Res. Lag 5"),       
-  omit.stat       = c("f", "ser"),
-  digits          = 2,
-  # float           = FALSE,
-  type            = "latex",
-  notes.append    = TRUE,
-  notes.align     = "l",
-  notes           = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
-  out             = file.path(resdir, "Tables", "Diagnostics",
-                              "Residuals", "serial_correlation_in_model_residuals.tex")
+  mn_lag3,
+  lag1,
+  lag2,
+  lag3,
+  lag4,
+  lag5,
+  title = "Model diagnostics: Residual lags",
+  # align = TRUE,
+  column.labels = c(
+    "1 Mn",
+    "2 Mn",
+    "3 Mn",
+    "1 Yr",
+    "2 Yr",
+    "3 Yr",
+    "4 Yr",
+    "5 Yr"
+  ),
+  covariate.labels = c(
+    "Res. Lag 1",
+    "Res. Lag 2",
+    "Res. Lag 3",
+    "Res. Lag 4",
+    "Res. Lag 5"
+  ),
+  omit.stat = c("f", "ser"),
+  digits = 2,
+  # float = FALSE,
+  type = "latex",
+  notes.append = TRUE,
+  notes.align = "l",
+  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
+  out = file.path(
+    table_res_dir,
+    "serial_correlation_in_model_residuals.tex"
+  ),
+  star.cutoffs = table_star_cutoffs
 )
 
 

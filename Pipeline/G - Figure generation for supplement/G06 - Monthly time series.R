@@ -1,59 +1,104 @@
-library(zoo)
-library(here)
-library(tidyverse)
-library(lubridate)
-library(patchwork)
-library(cowplot)
-library(knitr)
-library(kableExtra)
-library(broom)
+############################################################
+# This script makes 
+############################################################
+# Set up ----
+############################################################
 
-source(
-  here::here(
-    "Pipeline",
-    "A - Utility functions",
-    "A00 - Configuration.R"
-  )
-)
-source(
-  here::here(
-    "Pipeline",
-    "A - Utility functions",
-    "A01 - Utility code for calculations.R"
-  )
-)
-source(
-  here::here(
-    "Pipeline",
-    "A - Utility functions",
-    "A02 - Utility code for plotting.R"
-  )
+rm(list = ls())
+
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+# packages
+pacman::p_load(
+  zoo,
+  here,
+  broom,
+  knitr,
+  cowplot,
+  patchwork,
+  tidyverse,
+  lubridate,
+  kableExtra
 )
 
-###### seasonal difference
+# source functions for easy plotting and estimation
+source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
+source(A_utils_calc_fp)
+source(A_utils_plot_fp)
 
-rgn_mod_mon_df <- here::here("TempFiles", "Fig3Regionals-model-monthly.csv") |>
-  vroom::vroom(show_col_types = FALSE) |>
+################################################################################
+# Load monthly regional hist predictions ----
+################################################################################
+
+hist_scen_mod_yr_adm1_pred <- file.path(
+  hist_sum_dir,
+  "historical_vcov_pred_sum_scen_mod_yr_mon_reg.feather"
+) |>
+  arrow::read_feather() |>
   dplyr::mutate(
     region = stringr::str_remove_all(region, "Sub-Saharan Africa \\("),
     region = stringr::str_replace_all(region, "\\)", " Africa")
   )
 
-rgn_mon_df <- here::here("TempFiles", "Fig3Regionals-monthly.csv") |>
-  vroom::vroom(show_col_types = FALSE) |>
+################################################################################
+# Regional monthly diff ----
+################################################################################
+
+diff_df <- hist_scen_mod_yr_adm1_pred |>
+  dplyr::filter(year >= 2010) |> 
+  tidyr::pivot_wider(
+    id_cols = c(month, year, model, region, run),
+    names_from = scenario,
+    values_from = Pred
+  ) |>
   dplyr::mutate(
-    region = stringr::str_remove_all(region, "Sub-Saharan Africa \\("),
-    region = stringr::str_replace_all(region, "\\)", " Africa")
+    diff = historical - `hist-nat`,
+    month_num = match(month, month.abb),
+    date = make_date(year = year, month = month_num, day = 1)
   )
+
+################################################################################
+# Regional mean monthly diff ----
+################################################################################
+
+rgn_mean_diff_df <- diff_df |>
+  dplyr::filter(run != "main") |>
+  dplyr::group_by(region, month_num) |>
+  dplyr::summarize(
+    mean = mean(diff, na.rm = TRUE),
+    median = median(diff, na.rm = TRUE),
+    upper = quantile(diff, 0.95, na.rm = TRUE),
+    lower = quantile(diff, 0.05, na.rm = TRUE)
+  )
+
+################################################################################
+# Regional model mean monthly diff ----
+################################################################################
+
+rgn_mod_mean_diff_df <- diff_df |>
+  dplyr::filter(run != "main") |>
+  dplyr::group_by(region, model, month_num) |>
+  dplyr::summarize(
+    mean = mean(diff, na.rm = TRUE),
+    median = median(diff, na.rm = TRUE),
+    upper = quantile(diff, 0.95, na.rm = TRUE),
+    lower = quantile(diff, 0.05, na.rm = TRUE)
+  )
+
+################################################################################
+# Monthly diff plot ----
+################################################################################
 
 monthly_diff <- ggplot() +
   geom_hline(data = NULL, yintercept = 0, colour = "black", linewidth = 0.3) +
   geom_line(
-    data = rgn_mod_mon_df,
+    data = rgn_mod_mean_diff_df,
     aes(
       x = month_num,
-      y = median,
-      # color = region,
+      # y = median,
+      y = mean,
       group = model
     ),
     alpha = 0.3,
@@ -61,28 +106,25 @@ monthly_diff <- ggplot() +
     color = "grey60"
   ) +
   geom_line(
-    data = rgn_mon_df,
+    data = rgn_mean_diff_df,
     aes(
       x = month_num,
-      y = median,
+      # y = median,
+      y = mean,
       group = region
     ),
-    linewidth = 1.5, # mean trace
+    linewidth = 1.5, 
     colour = "#287DAB"
   ) +
   facet_wrap(~region, ncol = 1) +
   scale_x_continuous(
     breaks = 1:12,
     labels = month.abb,
-    expand = c(0.02, 0) # small left/right padding
-  ) +
-  scale_y_continuous(
-    limits = c(-10, 10)
+    expand = c(0.02, 0) 
   ) +
   labs(
     x = NULL,
     y = "Change in prevalence (%)",
-    # title = "Avg Monthly difference (2010-2014) between ‘historical’ and ‘hist-nat’ scenarios",
   ) +
   theme_classic() +
   theme(
@@ -91,42 +133,121 @@ monthly_diff <- ggplot() +
     axis.title.x = element_text(vjust = -2),
     plot.margin = unit(c(0.5, 0.5, 1, 1), "cm"),
     legend.position = "none",
-    # legend.position.inside = c(0.13, 0.85),
   )
 
 monthly_diff
 
 ggplot2::ggsave(
-  filename = "FigureS-monthly-diff.pdf",
+  filename = "Supp_Figure_monthly-diff.jpg",
   plot = monthly_diff,
-  path = here::here("Figures"),
+  path = here::here("Results", "Figures"),
   width = 7.42,
   height = 10.07,
-  units = "in",
-  device = cairo_pdf,
-  dpi = 1200
+  units = "in"
 )
 
+################################################################################
+# Global time series data ----
+################################################################################
 
-regional_avg_effect <- here::here("TempFiles", "H04_results_summary.csv") |>
-  vroom::vroom(show_col_types = FALSE) |>
+# log_msg("load the regional time series data")
+
+hist_scen_mod_yr <- file.path(
+  hist_sum_dir,
+  "historical_vcov_pred_sum_scen_mod_yr.feather"
+) |>
+  arrow::read_feather() |>
+  data.table::as.data.table()
+
+global_results <- calc_hist_regional_diff(hist_scen_mod_yr)
+
+################################################################################
+# Regional time series data ----
+################################################################################
+
+hist_scen_mod_yr_reg <- file.path(
+  hist_sum_dir,
+  "historical_vcov_pred_sum_scen_mod_yr_reg.feather"
+) |>
+  arrow::read_feather() |>
+  data.table::as.data.table()
+
+region_results <- names(region_names)[2:5] |>
+  purrr::map(~ calc_hist_regional_diff(hist_scen_mod_yr_reg, .x)) |>
+  purrr::list_rbind()
+
+region_results <- dplyr::bind_rows(global_results, region_results) |>
+  dplyr::mutate(Region = dplyr::case_match(Region, !!!region_formulas))
+
+print(region_results)
+
+################################################################################
+# Latex table of historic regional diffs ----
+################################################################################
+
+latex_table <- region_results |>
+  dplyr::mutate(
+    Estimate = sprintf("%.4f", ScaledMeanDifference / 1000),
+    CI = sprintf("(%.4f, %.4f)", Quantile_025, Quantile_975),
+    Pplus = sprintf("%.2f", ProportionPositive),
+    RegionTex = dplyr::if_else(
+      grepl("\n", Region),
+      paste0(
+        "\\begin{tabular}[c]{@{}l@{}}",
+        gsub("\n", "\\\\\\\\", Region),
+        "\\end{tabular}"
+      ),
+      Region
+    )
+  ) |>
+  dplyr::mutate(
+    row = paste0("    ", RegionTex, " & ", Estimate, " & ", CI, " & ", Pplus, " \\\\")
+  )
+
+header <- paste0(
+  "\\begin{tabular}{|l|lll|}\n",
+  "    \\hline\n",
+  "    \\textbf{Region} & \\multicolumn{3}{c|}{\\textbf{Mean Difference}} \\\\\n",
+  "    \\cline{2-4}\n",
+  "    & \\textbf{Estimate} & \\textbf{95\\% CI} & \\textbf{P$_{+}$} \\\\\n",
+  "    \\hline"
+)
+
+body <- paste(
+  paste0(latex_table$row, "\n    \\hline"),
+  collapse = "\n"
+)
+
+footer <- "\\end{tabular}"
+
+tex_out <- paste(header, body, footer, sep = "\n")
+
+output_file <- here::here("Results", "Tables", "historical_regional_diffs.tex")
+writeLines(tex_out, output_file)
+
+cat("Results have been saved to:", output_file, "\n")
+
+################################################################################
+# Regional peak effect ----
+################################################################################
+
+regional_avg_effect <- region_results |>
   dplyr::filter(Region != "Sub-Saharan Africa (continent-wide)") |>
   dplyr::rename(`Average Annual Impact (% points)` = MeanDifference)
 
-
-region_peak_effect <- rgn_mon_df |>
+region_peak_effect <- rgn_mean_diff_df |>
   dplyr::group_by(region) |>
-  dplyr::slice_max(abs(median), n = 1, with_ties = FALSE) |>
+  dplyr::slice_max(abs(mean), n = 1, with_ties = FALSE) |>
   dplyr::ungroup() |>
   dplyr::mutate(
     Region = region,
     `Month of Peak Impact` = factor(month.abb[month_num], levels = month.abb),
-    `Impact Size (% points)` = median,
+    `Impact Size (% points)` = mean,
     mon_Quantile_025 = lower,
     mon_Quantile_975 = upper,
     .keep = "none"
   ) |>
-  dplyr::left_join(regional_avg_effect) |>
+  dplyr::left_join(regional_avg_effect, by = join_by(Region)) |>
   dplyr::arrange(Region) |>
   dplyr::select(
     Region,
@@ -139,25 +260,26 @@ region_peak_effect <- rgn_mon_df |>
     Quantile_975
   )
 
+################################################################################
+# Format table ----
+################################################################################
 
-region_peak_effect <- rgn_mon_df |>
+region_peak_effect <- rgn_mean_diff_df |>
   dplyr::group_by(region) |>
   dplyr::mutate(
-    # find the month with the max and min median values
-    max_month_val = max(median, na.rm = TRUE),
-    min_month_val = min(median, na.rm = TRUE),
-    # compute the range
+    max_month_val = max(mean, na.rm = TRUE),
+    min_month_val = min(mean, na.rm = TRUE),
     monthly_range = max_month_val - min_month_val
   ) |>
-  dplyr::slice_max(abs(median), n = 1, with_ties = FALSE) |>
+  dplyr::slice_max(abs(mean), n = 1, with_ties = FALSE) |>
   dplyr::ungroup() |>
   dplyr::mutate(
     Region = region,
     `Month of Peak Impact` = factor(month.abb[month_num], levels = month.abb),
-    `Impact Size (% points)` = median,
+    `Impact Size (% points)` = mean,
     mon_Quantile_025 = lower,
     mon_Quantile_975 = upper,
-    `Monthly Range (% points)` = monthly_range, # new column here
+    `Monthly Range (% points)` = monthly_range,
     .keep = "none"
   ) |>
   dplyr::left_join(regional_avg_effect) |>
@@ -172,21 +294,44 @@ region_peak_effect <- rgn_mon_df |>
     `Average Annual Impact (% points)`,
     Quantile_025,
     Quantile_975
-  )
+  ) |>
+  dplyr::transmute(
+    Region,
+    `Month of Peak Impact`,
+    `Impact Size (\\% points)` = sprintf(
+      "%.2f (%.2f, %.2f)",
+      `Impact Size (% points)`,
+      mon_Quantile_025,
+      mon_Quantile_975
+    ),
+    `Average Annual Impact (\\% points)` = sprintf(
+      "%.2f (%.2f, %.2f)",
+      `Average Annual Impact (% points)`,
+      Quantile_025,
+      Quantile_975
+    )
+  ) |>
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    align = c("l", "c", "c", "c"),
+    col.names = c(
+      "Region",
+      "\\makecell{Month of \\\\ Peak Impact}",
+      "\\makecell{Impact Size \\\\ (\\% points)}",
+      "\\makecell{Average Annual \\\\ Impact (\\% points)}"
+    ),
+    escape = FALSE
+  ) |>
+  kable_styling(latex_options = c("hold_position"))
 
-# # LaTeX table (booktabs + makecell-style headers)
-# kableExtra::kable(
-#   region_peak_effect,
-#   format = "latex",
-#   digits = 4,
-#   booktabs = TRUE,
-#   align = c("l", "c", "c", "c"),
-#   col.names = c(
-#     "Region",
-#     "\\makecell{Month of \\\\ Peak Impact}",
-#     "\\makecell{Impact Size \\\\ (\\% points)}",
-#     "\\makecell{Average Annual Impact \\\\ (\\% points)}"
-#   ),
-#   escape = FALSE
-# ) |>
-#   kableExtra::kable_styling(latex_options = c("hold_position"))
+region_peak_effect
+
+kableExtra::save_kable(
+  region_peak_effect,
+  file = here::here("Results", "Tables", "monthly_differences.tex")
+)
+
+################################################################################
+# End of file ----
+################################################################################
