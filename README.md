@@ -19,9 +19,10 @@ All data used in this analysis are freely available online.
     - Under 5 climate scenarios - `historical`, `historical-natural`, `SSP1-2.6`, `SSP2-4.5`, and `SSP5-8.5`
     - **Note:** CMIP6 data have gone through a bias correction procedure to calibrate values to CRU 4.03. Due to this, we provide replication data located at forthcoming.
   - [European Centre for Medium-Range Weather Forecasts Reanalysis v5 (ERA5)](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means?tab=overview): Monthly averaged data on single levels from 1940 to present.  
-- [Global Burden of Disease (GBD) regions](https://www.healthdata.org/research-analysis/gbd): Defines the 4 regions in sub-Saharan Africa used in the analysis.
-- [Global Administrative Areas dataset version 3.6](https://gadm.org/download_world36.html): Level one administrative boundaries (ADM1) are used as the primary unit of prevalence and data aggregation. 
-- [Global Human Settlement Layer Urban Centre Database GHS-UCDB R2024A](https://human-settlement.emergency.copernicus.eu/ghs_ucdb_2024.php): UCDB defines the boundaries of urban centers and allows us to construct an urban dummy variable for diagnostics. 
+- Spatial data: 
+  - [Global Burden of Disease (GBD) regions](https://www.healthdata.org/research-analysis/gbd): Defines the 4 regions in sub-Saharan Africa used in the analysis.
+  - [Global Administrative Areas dataset version 3.6](https://gadm.org/download_world36.html): Level one administrative boundaries (ADM1) are used as the primary unit of prevalence and data aggregation. 
+  - [Global Human Settlement Layer Urban Centre Database GHS-UCDB R2024A](https://human-settlement.emergency.copernicus.eu/ghs_ucdb_2024.php): UCDB defines the boundaries of urban centers and allows us to construct an urban dummy variable for diagnostics. 
 
 The data replication package includes all files needed to reproduce the analysis, but does not include publicly available datsets. These data include:
 
@@ -100,9 +101,8 @@ In both cases, the first steps are the same:
 
 Full replication is a higher bar to clear as each user will be responsible for downloading the public data files and for placing them in the appropriate data folder following the outline that is reflected in `A01 - Configuration.R`. Only minimal data processing will be required for the simpler analysis replication pathway. 
 
-The Pipeline can be run at any level a user chooses. It is important to note that there are a few R packages which have become outdated since the beginning of this project and we have therefore created a Docker container [r-malaria-cru](https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general) which is able to run the files which require old R versions. These files include:
+The Pipeline can be run at any level a user chooses. It is important to note that there is an outdated R package and we have therefore created a Docker container [r-malaria-cru](https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general) which is able to run the files. These files include:
 
-- `B01 - Extract CRU tmp and prc data ADM1.R` due to the now outdated [velox](https://github.com/hunzikp/velox) package
 - `F03 - Hist map, temp, elev, and TS.R` due to the [multiscales](https://github.com/clauswilke/multiscales) package
 - `F04 - Future map, temp, elev, and TS.R` due to the [multiscales](https://github.com/clauswilke/multiscales) package
 
