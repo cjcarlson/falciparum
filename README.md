@@ -101,16 +101,15 @@ In both cases, the first steps are the same:
 
 Full replication is a higher bar to clear as each user will be responsible for downloading the public data files and for placing them in the appropriate data folder following the outline that is reflected in `A01 - Configuration.R`. Only minimal data processing will be required for the simpler analysis replication pathway. 
 
-The Pipeline can be run at any level a user chooses. It is important to note that there is an outdated R package and we have therefore created a Docker container [r-malaria-cru](https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general) which is able to run the files. These files include:
+The Pipeline can be run at any level a user chooses. The pipeline has most recently been used with R 4.5.2. 
 
-- `F03 - Hist map, temp, elev, and TS.R` due to the [multiscales](https://github.com/clauswilke/multiscales) package
-- `F04 - Future map, temp, elev, and TS.R` due to the [multiscales](https://github.com/clauswilke/multiscales) package
+For local runs, we provide `run_pipeline.sh`, a bash script that executes each pipeline file sequentially on a local machine. The last complete local run took 1 hour and 45 minutes on a MacBook Pro with an Apple M4 Max chip and 36 GB of RAM (2 of 14 cores utilized). The smaller analysis replication on a normal desktop computer will run in approximately 30 minutes.
 
-The rest of the code can be run with more recent versions of R. It has most recently been used with R 4.5.2. 
+For HPC runs, we provide a SLURM orchestration script `run_pipeline.slurm`. This can be used to run each file sequentially on a high performance compute (HPC) cluster node. Parallel processing has been implemented on the script level where needed to speed up overall run time. This script relies on a docker container, which is freely available on Dockerhub at [rocker/geospatial](https://hub.docker.com/r/rocker/geospatial). The last complete HPC run took 1 hour and 12 minutes on a single node running an Intel Xeon Gold 6330 processor with 256 GB of RAM (10 of 56 CPUs utilized due to memory constraints).
 
-Along with the structured and sequential pipeline, we provide a SLURM orchestration script `run_pipeline.slurm`. This can be used to run each file sequentially on a high performance compute (HPC) cluster node. Parallel processing has been implemented on the script level where needed to speed up overall run time. This script relies on docker containers, which are freely available on Dockerhub including the [r-malaria-cru](https://hub.docker.com/repository/docker/cmolitor/r-malaria-cru/general) and [rocker/geospatial](https://hub.docker.com/r/rocker/geospatial). 
+Both orchestration scripts can be modified by commenting out any file they do not wish to run. For example, `E01 - Predict prevalence.R` takes a long time to run, and is hungry for RAM. 
 
-The last complete run of this pipeline took 1 hour and 12 minutes on a single HPC node running an Intel Xeon Gold 6330 processor with 56 cores and 256 GB of RAM. The full data storage requirement with all input data, intermediate data, and output data is XX GB. Running this on a standard desktop computer could incur 1-2 orders of magnitude more run time. The smaller analysis replication on a normal desktop computer will run in approximately 3 hours.
+The full data storage requirement with all input data, intermediate data, and output data is XX GB.
 
 ## Use of code and data
 

@@ -305,7 +305,7 @@ uncert = plot_grid(
 )
 
 ggsave(
-  filename = "Supp_Figure_temp_response_difft_SEs.jpg",
+  filename = paste0("Supp_Figure_temp_response_difft_SEs.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = uncert,
   width = 20,
@@ -689,7 +689,7 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "Supp_Figure_panelFE_FE_sensitivity.jpg",
+  filename = paste0("Supp_Figure_panelFE_FE_sensitivity.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
@@ -929,7 +929,7 @@ section3 <- plot_grid(label3, row_group3, ncol = 1, rel_heights = c(0.05, 1))
 # Stack all three sections vertically
 grid <- plot_grid(section1, section2, section3, ncol = 1)
 ggsave(
-  filename = "Supp_Figure_influence_analysis.jpg",
+  filename = paste0("Supp_Figure_influence_analysis.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = grid,
   width = 6,
@@ -960,18 +960,9 @@ p
 
 grid = plot_grid(g, p, nrow = 1)
 ggsave(
-  filename = "Supp_Figure_model_residuals.jpg",
+  filename = paste0("Supp_Figure_model_residuals.", fig_file_type),
   path = here::here("Results", "Figures"),
-  # path = figure_res_dir,
   plot = grid,
   width = 9,
   height = 4
 )
-
-
-# apptainer exec \
-#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
-#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
-#   --pwd /global/home/users/cmolitor/falciparum \
-#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/rocker-geospatial.sif \
-#   Rscript "Pipeline/D - Model sensitivity analyses and checks/D04b - newrob.R"

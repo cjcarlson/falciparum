@@ -185,7 +185,7 @@ combined_plot1
 ################################################################################
 
 ggsave(
-  filename = "Supp_Figure_temp_rain_adm1_and_grid.jpg",
+  filename = paste0("Supp_Figure_temp_rain_adm1_and_grid.", fig_file_type),
   # path = figure_grid_dir,
   path = here::here("Results", "Figures"),
   plot = combined_plot1,

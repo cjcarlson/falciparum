@@ -124,7 +124,7 @@ supp_2 <- ggplot(cont) +
   )
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_attributable_map.jpg",
+  filename = paste0("Supp_Figure_attributable_map.", fig_file_type),
   plot = supp_2,
   path = here::here("Results", "Figures"),
   width = 9.53,

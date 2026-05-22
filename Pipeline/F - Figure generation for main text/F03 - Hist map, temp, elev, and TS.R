@@ -1,12 +1,6 @@
 ################################################################################
 # This script plots Figure 3, Historical changes in malaria prevalence
 # attributable to anthropogenic climate change from 1901 to 2014.
-# apptainer exec --cleanenv --contain \
-#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
-#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
-#   --pwd /global/home/users/cmolitor/falciparum \
-#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/r-malaria-cru_4.2.3.sif \
-#   Rscript "Pipeline/F - Figure generation for main text/F03 - Hist map, temp, elev, and TS.R"
 ################################################################################
 # Set up ----
 ################################################################################
@@ -21,13 +15,14 @@ if (!require("pacman")) {
 pacman::p_load(
   sf,
   here,
-  # reshape,
   tidyverse,
   lubridate,
-  patchwork
+  patchwork,
+  remotes
 )
 
-pacman::p_load_gh("clauswilke/multiscales")
+remotes::install_github("clauswilke/multiscales")
+library(multiscales)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
@@ -389,8 +384,8 @@ fig3 <- (map.diff + temp_plot + elev_plot + regional_ts_plot) +
   theme(plot.tag = element_text(size = 23))
 
 ggsave(
-  filename = "Figure3_hist_map_tmp_el_and_TS.jpg",
-  plot = last_plot(),
+  filename = paste0("Figure3_hist_map_tmp_el_and_TS.", fig_file_type),
+  plot = fig3,
   path = here::here("Results", "Figures"),
   width = 11.63,
   height = 10.07,

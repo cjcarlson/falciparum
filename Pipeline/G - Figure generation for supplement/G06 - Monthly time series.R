@@ -138,7 +138,7 @@ monthly_diff <- ggplot() +
 monthly_diff
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_monthly-diff.jpg",
+  filename = paste0("Supp_Figure_monthly-diff.", fig_file_type),
   plot = monthly_diff,
   path = here::here("Results", "Figures"),
   width = 7.42,

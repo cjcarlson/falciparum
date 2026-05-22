@@ -47,7 +47,7 @@ print("Loading analysis ready data")
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 ########################################################################
-# Assessing temporal controls: At what spatial scale do we need to address 
+# Assessing temporal controls: At what spatial scale do we need to address
 # long-run trends?
 ########################################################################
 
@@ -64,7 +64,7 @@ complete$yhat = NA
 
 ################################################################################
 # Time controls - Regional 1 ----
-# 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease region, 
+# 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease region,
 # suggesting at least some spatially varying temporal controls are merited
 ################################################################################
 
@@ -262,8 +262,8 @@ ggsave(
 ################################################################################
 
 climate_data <- intermediate_CRU_adm1_fp |>
-  arrow::read_feather() |> 
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
+  arrow::read_feather() |>
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
   # readr::read_csv(show_col_types = FALSE) |>
   tidyr::unite("monthyr", month:year, sep = ' ', remove = FALSE) |>
   dplyr::mutate(
@@ -474,11 +474,8 @@ p = plot_grid(c, p1, p2, p3, nrow = 1)
 p
 
 cowplot::save_plot(
-  filename = here::here(
-    "Results",
-    "Figures",
-    "Supp_Figure_templags_cumulative_effects.jpg"
-  ),
+  filename = paste0("Supp_Figure_templags_cumulative_effects.", fig_file_type),
+  path = here::here("Results", "Figures"),
   p,
   ncol = 1,
   base_asp = 4
@@ -579,7 +576,10 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "Supp_Figure_temp_responses_drought_flood_sensitivity.jpg",
+  filename = paste0(
+    "Supp_Figure_temp_responses_drought_flood_sensitivity.",
+    fig_file_type
+  ),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
@@ -627,7 +627,10 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "Supp_Figure_drought_responses_sensitivity.jpg",
+  filename = paste0(
+    "Supp_Figure_drought_responses_sensitivity.",
+    fig_file_type
+  ),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
@@ -670,7 +673,7 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = "Supp_Figure_flood_responses_sensitivity.jpg",
+  filename = paste0("Supp_Figure_flood_responses_sensitivity.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
@@ -772,7 +775,7 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
 p
 
 ggsave(
-  filename = "Supp_Figure_temperature_poly_order.jpg",
+  filename = paste0("Supp_Figure_temperature_poly_order.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 10,
@@ -860,7 +863,7 @@ p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
 p
 
 ggsave(
-  filename = "Supp_Figure_precipitation_poly_order.jpg",
+  filename = paste0("Supp_Figure_precipitation_poly_order.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 10,

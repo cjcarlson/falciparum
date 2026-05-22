@@ -19,6 +19,7 @@ data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "tammacarleton" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
+  user == "cullenmolitor" ~ "/Users/cullenmolitor/Dropbox/malaria-replication/data",
   user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication/data'),
   TRUE ~ NA_character_
 )
@@ -31,11 +32,14 @@ repo_dir <- dplyr::case_when(
   user == "tammacarleton" ~
     '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum',
   user == "cullen_molitor" ~ '/home/cullen_molitor/falciparum',
+  user == "cullenmolitor" ~ '/Users/cullenmolitor/Documents/github/falciparum',
   user == "cmolitor" ~ '/global/home/users/cmolitor/falciparum',
   TRUE ~ NA_character_
 )
 
 print(paste0("repository directory set to: ", repo_dir))
+
+fig_file_type <- "pdf" # jpg png
 
 ################################################################################
 # Model formula ----

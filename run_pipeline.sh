@@ -1,38 +1,22 @@
 #!/bin/bash
-#SBATCH --job-name=malaria_pipeline
-#SBATCH --account=co_carleton
-#SBATCH --qos=carleton_htc4_normal
-#SBATCH --partition=savio4_htc
-#SBATCH --nodes=1
-#SBATCH --exclusive
-#SBATCH --time=12:00:00
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=cmolitor@berkeley.edu
-#SBATCH --output=./logs/pipeline_%j.out
-#SBATCH --error=./logs/pipeline_%j.err
-
 ################################################################################
-# SLURM Pipeline Orchestration Script for Malaria Attribution Analysis
-# This script runs the complete pipeline from data extraction through figure
-# generation in sequential order.
+# Local Pipeline Orchestration Script for Malaria Attribution Analysis
+# Runs the complete pipeline from data extraction through figure generation
+# in sequential order, calling Rscript directly on the local machine.
 ################################################################################
 
 set -e  # Exit on error
 set -u  # Exit on undefined variable
 set -o pipefail  # Exit on pipe failure
 
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+
 ################################################################################
 # Setup
 ################################################################################
 
-echo "========================================="
-echo "Starting Malaria Attribution Pipeline"
-echo "Job ID: ${SLURM_JOB_ID}"
-echo "Start time: $(date)"
-echo "========================================="
-
-# Set working directory
-REPO_DIR="/global/home/users/cmolitor/falciparum"
+# Set working directory - adjust this to your local repo location
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 PIPELINE_DIR="${REPO_DIR}/Pipeline"
 LOG_DIR="${REPO_DIR}/logs"
 
@@ -41,16 +25,16 @@ mkdir -p "${LOG_DIR}"
 
 cd "${REPO_DIR}"
 
-# Load R module (adjust version as needed for your cluster)
-module purge
-# module load r/4.2.2
+# Send ALL output (banners, echoes, and R output) to a master log while
+# still printing to the terminal. Each script also gets its own per-script log.
+MASTER_LOG="${LOG_DIR}/pipeline_$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee "${MASTER_LOG}") 2>&1
 
-# Default apptainer image for most scripts
-APPTAINER_DIR="/global/scratch/projects/co_carleton/carleton_colab/software/apptainers"
-DEFAULT_APPTAINER="${APPTAINER_DIR}/rocker-geospatial.sif"
-
-# Special apptainer for B01, F03, F04 (requires old R packages)
-OLD_R_APPTAINER="${APPTAINER_DIR}/r-malaria-cru_4.2.3.sif"
+echo "========================================="
+echo "Starting Malaria Attribution Pipeline"
+echo "Start time: $(date)"
+echo "Master log: ${MASTER_LOG}"
+echo "========================================="
 
 ################################################################################
 # Helper function to run R scripts with error handling
@@ -58,20 +42,17 @@ OLD_R_APPTAINER="${APPTAINER_DIR}/r-malaria-cru_4.2.3.sif"
 
 run_r_script() {
     local script_path="$1"
-    local script_name=$(basename "$script_path")
+    local script_name
+    script_name=$(basename "$script_path")
     local log_file="${LOG_DIR}/${script_name%.R}.log"
 
     echo ""
     echo "========================================="
     echo "Running: ${script_name}"
-    echo "Via rocker-geospatial environment"
     echo "Time: $(date)"
     echo "========================================="
 
-    # Run the script using default apptainer container
-    if apptainer exec \
-        "${DEFAULT_APPTAINER}" Rscript "${script_path}" 2>&1 \
-        | tee "${log_file}"; then
+    if Rscript "${script_path}" 2>&1 | tee "${log_file}"; then
         echo "✓ SUCCESS: ${script_name}"
     else
         echo "✗ FAILED: ${script_name}"
@@ -83,36 +64,36 @@ run_r_script() {
 # Section B: Extract climate and prevalence data
 ################################################################################
 
-echo ""
-echo "################################################################"
-echo "# SECTION B: Extract climate and prevalence data"
-echo "################################################################"
+# echo ""
+# echo "################################################################"
+# echo "# SECTION B: Extract climate and prevalence data"
+# echo "################################################################"
 
-PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
-run_r_script "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
-run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
-run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
-run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
-run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
-run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
+# PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
+# run_r_script "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
+# run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
+# run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
+# run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
+# run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
+# run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
 
-################################################################################
-# Section C: Model estimation
-################################################################################
+# ################################################################################
+# # Section C: Model estimation
+# ################################################################################
 
-echo ""
-echo "################################################################"
-echo "# SECTION C: Model estimation"
-echo "################################################################"
+# echo ""
+# echo "################################################################"
+# echo "# SECTION C: Model estimation"
+# echo "################################################################"
 
-PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
-run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
-run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
-run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
+# PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
+# run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
+# run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
+# run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
 
-################################################################################
-# Section D: Model sensitivity analyses and checks
-################################################################################
+# ################################################################################
+# # Section D: Model sensitivity analyses and checks
+# ################################################################################
 
 echo ""
 echo "################################################################"
@@ -128,17 +109,17 @@ run_r_script "${PIPELINE_D_DIR}/D05 - High resolution model.R"
 run_r_script "${PIPELINE_D_DIR}/D06 - Urbanization.R"
 run_r_script "${PIPELINE_D_DIR}/D07 - ERA5 analysis.R"
 
-################################################################################
-# Section E: Estimate historical and future prevalence
-################################################################################
+# ################################################################################
+# # Section E: Estimate historical and future prevalence
+# ################################################################################
 
-echo ""
-echo "################################################################"
-echo "# SECTION E: Estimate historical and future prevalence"
-echo "################################################################"
+# echo ""
+# echo "################################################################"
+# echo "# SECTION E: Estimate historical and future prevalence"
+# echo "################################################################"
 
-PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
-run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
+# PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
+# run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
 
 ################################################################################
 # Section F: Figure generation for main text

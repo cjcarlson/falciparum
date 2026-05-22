@@ -386,7 +386,7 @@ p <- plot_grid(figList[[1]], figList[[2]], nrow = 1)
 p
  
 ggsave(
-  filename = "Supp_Figure_split_sample_1995.jpg",
+  filename = paste0("Supp_Figure_split_sample_1995.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 10,

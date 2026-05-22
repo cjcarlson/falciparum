@@ -177,7 +177,7 @@ p1 <- ((map_n_samples_plot / map_mean_prev_plot) | ts) +
   patchwork::plot_annotation(tag_levels = 'A')
 
 ggplot2::ggsave(
-  filename = "Figure1_prev_maps_and_TS.jpg",
+  filename = paste0("Figure1_prev_maps_and_TS.", fig_file_type),
   plot = p1,
   path = here::here("Results", "Figures"),
   width = 9,

@@ -110,7 +110,7 @@ map_grid <- ((plots[[1]] + plots[[2]]) /
   theme(legend.position = "right")
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_projection_maps.jpg",
+  filename = paste0("Supp_Figure_projection_maps.", fig_file_type),
   plot = map_grid,
   path = here::here("Results", "Figures"),
   width = 9.53,

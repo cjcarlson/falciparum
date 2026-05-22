@@ -29,7 +29,7 @@ pacman::p_load(
   future.apply
 )
 
-n_cores <- min(10, future::availableCores())
+n_cores <- min(2, future::availableCores())
 options(future.globals.maxSize = 6 * 1024^3)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))

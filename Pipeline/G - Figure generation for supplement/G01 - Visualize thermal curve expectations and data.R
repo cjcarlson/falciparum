@@ -225,7 +225,7 @@ p <- plot_grid(
 p
 
 ggsave(
-  filename = 'Supp_Figure_thermal_curve_and_data.jpg',
+  filename = paste0("Supp_Figure_thermal_curve_and_data.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   height = 10,

@@ -623,7 +623,7 @@ f2 <- top_row / yearly_ts_plot + plot_annotation(tag_levels = 'A')
 f2
 
 ggsave(
-  filename = "Figure2_coeffs_and_TS.jpg",
+  filename = paste0("Figure2_coeffs_and_TS.", fig_file_type),
   plot = f2,
   path = here::here("Results", "Figures"),
   width = 10.32,

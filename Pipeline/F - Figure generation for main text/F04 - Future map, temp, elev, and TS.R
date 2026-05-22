@@ -1,12 +1,6 @@
 ################################################################################
 # This script plots Figure 4, Projected future changes in malaria prevalence
 # driven by climate change from 2015 to 2100.
-# apptainer exec --cleanenv --contain \
-#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
-#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
-#   --pwd /global/home/users/cmolitor/falciparum \
-#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/r-malaria-cru_4.2.3.sif Rscript \
-#   "Pipeline/F - Figure generation for main text/F04 - Future map, temp, elev, and TS.R"
 ################################################################################
 # Set up ----
 ################################################################################
@@ -24,10 +18,12 @@ pacman::p_load(
   tidyverse,
   data.table,
   patchwork,
-  multiscales
+  multiscales,
+  remotes
 )
 
-pacman::p_load_gh("clauswilke/multiscales")
+remotes::install_github("clauswilke/multiscales")
+library(multiscales)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
@@ -408,7 +404,7 @@ regional_ts_plot <- ggplot(
 
 log_msg("Compile plots and save")
 
-map.rcp45.2100 +
+fig4 <- map.rcp45.2100 +
   temp_plot +
   elev_plot +
   regional_ts_plot +
@@ -417,8 +413,8 @@ map.rcp45.2100 +
   theme(plot.tag = element_text(size = 23))
 
 ggsave(
-  filename = "Figure4_fut_map_tmp_el_and_TS.jpg",
-  plot = last_plot(),
+  filename = paste0("Figure4_fut_map_tmp_el_and_TS.", fig_file_type),
+  plot = fig4,
   path = here::here("Results", "Figures"),
   width = 11.63,
   height = 10.07,

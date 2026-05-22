@@ -74,7 +74,7 @@ combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]]
 combined_plot
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_hist_partials.jpg",
+  filename = paste0("Supp_Figure_hist_partials.", fig_file_type),
   plot = combined_plot,
   path = here::here("Results", "Figures"),
   width = 7.42,

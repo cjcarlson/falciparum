@@ -161,7 +161,7 @@ combined_plot <- t +
 ################################################################################
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_urban_sensitivity.jpg",
+  filename = paste0("Supp_Figure_urban_sensitivity.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = combined_plot,
   width = 7,
