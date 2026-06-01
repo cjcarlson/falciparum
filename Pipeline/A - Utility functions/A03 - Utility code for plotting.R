@@ -89,9 +89,14 @@ plotPolynomialResponse <- function(
   title = "title",
   yLim = c(-1, 1),
   showYTitle = TRUE,
+  showXTitle = TRUE,
   ci_level = 0.95,
   plotmax_x = 3.5,
-  plotmax_y = 2.55
+  plotmax_y = 2.55,
+  max_x_size = 3,
+  axis_size = 10,
+  axis_title_size = 10,
+  title_size = 12
 ) {
   ### mod is a model regression model object (e.g. mod = lm(y~x) or mode = felm(y~x)).
   ### patternForPlotVars is a string that is in the variables from the model that you want to plot but not in the ones you don't want to plot.
@@ -124,6 +129,17 @@ plotPolynomialResponse <- function(
     vars = names(beta)
     beta = as.matrix(beta)
     rownames(beta) = vars
+  }
+
+  if (showYTitle) {
+    yLab
+  } else {
+    yLab = NULL
+  }
+  if (showXTitle) {
+    xLab
+  } else {
+    xLab = NULL
   }
 
   #Get the variables that we're plotting
@@ -227,16 +243,17 @@ plotPolynomialResponse <- function(
       ) +
       labs(
         x = expression(paste("Mean temperature (", degree, "C)")),
-        y = "Prevalence (%)",
+        y = yLab,
         title = NULL
       ) +
       coord_cartesian(ylim = c(-30, 10)) +
       theme_classic() +
       theme(
-        plot.title = element_text(size = 10),
+        plot.title = element_text(size = title_size),
+        axis.title = element_text(size = axis_title_size),
+        axis.text = element_text(size = axis_size),
         legend.position = "bottom",
-        legend.box = "horizontal",
-        text = element_text(size = 8)
+        legend.box = "horizontal"
       )
   } else {
     response <- as.matrix(xValsT) %*% b
@@ -265,9 +282,13 @@ plotPolynomialResponse <- function(
         color = "black",
         linewidth = 1
       ) +
+      labs(x = xLab, y = yLab, title = title) +
       theme_classic() +
-      labs(x = xLab, y = yLab) +
-      ggtitle(title)
+      theme(
+        plot.title = element_text(size = title_size),
+        axis.title = element_text(size = axis_title_size),
+        axis.text = element_text(size = axis_size)
+      )
   }
 
   # 10) optionally fix y-limits
@@ -312,7 +333,7 @@ plotPolynomialResponse <- function(
         y = plotmax_y,
         label = paste0(maxX, " C"),
         color = "grey39",
-        size = 3
+        size = max_x_size
       )
   }
 
@@ -343,7 +364,8 @@ plotPolynomialResponse_2_mod = function(
   model1_name = "Model 1",
   model2_name = "Model 2",
   fillcolor2 = "#43A7BA",
-  x_adjust = 4
+  x_adjust = 4,
+  max_x_size = 3
 ) {
   # Function to extract polynomial response data for a single model
   extractPolynomialData = function(
@@ -520,7 +542,7 @@ plotPolynomialResponse_2_mod = function(
         y = 5,
         label = paste0(maxX1, " C"),
         color = "grey39",
-        size = 3
+        size = max_x_size
       ) +
       annotate(
         geom = "text",
@@ -528,7 +550,7 @@ plotPolynomialResponse_2_mod = function(
         y = 5,
         label = paste0(maxX2, " C "),
         color = "grey39",
-        size = 3
+        size = max_x_size
       )
   }
 
@@ -552,8 +574,24 @@ plotLinearLags = function(
   xLab,
   yLab,
   title = "title",
-  yLim = c(-1, 1)
+  yLim = c(-1, 1),
+  showYTitle = TRUE,
+  showXTitle = TRUE,
+  axis_size = 10,
+  axis_title_size = 10,
+  title_size = 12
 ) {
+  if (showYTitle) {
+    yLab
+  } else {
+    yLab = NULL
+  }
+  if (showXTitle) {
+    xLab
+  } else {
+    xLab = NULL
+  }
+
   beta = mod$coefficients
   vars = rownames(beta)
   plotVars = vars[grepl(pattern = patternForPlotVars, x = vars)]
@@ -590,10 +628,15 @@ plotLinearLags = function(
     geom_point(aes(y = response), color = mycolor, size = 2) +
     geom_errorbar(aes(ymin = lb, ymax = ub), color = mycolor, width = .1) +
     theme_classic() +
-    labs(x = "Lag", y = "Coefficient") +
+    labs(x = xLab, y = yLab, title = title) +
     coord_cartesian(ylim = yLim) +
     ggtitle(title) +
-    theme(plot.title = element_text(size = 8), text = element_text(size = 8))
+    theme(
+      plot.title = element_text(size = title_size),
+      axis.title = element_text(size = axis_title_size),
+      axis.text = element_text(size = axis_size)
+      # text = element_text(size = 8)
+    )
 
   return(g)
 }
@@ -827,9 +870,7 @@ partials_plot <- function(
     data,
     aes(x = year, y = mean, group = scenario, color = scenario)
   ) +
-    theme_bw() +
     geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) +
-
     scale_color_manual(values = scen_colors, labels = scen_labels) +
     scale_fill_manual(values = scen_colors, labels = scen_labels) +
     geom_ribbon(
@@ -844,13 +885,8 @@ partials_plot <- function(
       alpha = 0.1
     ) +
     geom_line(aes(x = year, y = mean), lwd = 1.3) +
-    labs(x = NULL, y = y_label, color = NULL, fill = NULL)
-  theme(
-    axis.title.x = element_text(vjust = -3),
-    axis.title.y = element_text(vjust = 6),
-    plot.margin = unit(c(0.2, 0.5, 0.2, 1), "cm"),
-    legend.title = element_blank()
-  )
+    labs(x = NULL, y = y_label, color = NULL, fill = NULL) +
+    theme_classic() 
 
   if (show_legend) {
     p <- p +
@@ -866,7 +902,7 @@ partials_plot <- function(
 }
 
 ################################################################################
-# create_future_slice_map ----
+# create_future_slice_map_data ----
 ################################################################################
 
 create_future_slice_map_data <- function(df, scenario, year) {
@@ -899,7 +935,6 @@ create_future_slice_map <- function(data_column, limits) {
   ggplot(cont) +
     geom_sf(aes(fill = !!sym(data_column)), color = "gray30", size = 0.05) +
     coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
-    theme_void() +
     scale_fill_gradientn(
       colors = pal,
       values = values,
@@ -907,7 +942,8 @@ create_future_slice_map <- function(data_column, limits) {
       limits = limits,
       oob = scales::squish
     ) +
-    labs(fill = "Prevalence (%)")
+    labs(fill = "Prevalence (%)") +
+    theme_void() 
 }
 
 print("Done loading A03 - Utility code for plotting.R")

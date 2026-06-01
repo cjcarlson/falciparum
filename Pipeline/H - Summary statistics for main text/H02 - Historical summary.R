@@ -65,7 +65,7 @@ boots_2010_2014 <- file.path(
 # Join to elev and ADM1 data ----
 ################################################################################
 
-elev <- elevation_fp |>
+elev <- elevation_summary_fp |>
   readr::read_csv(show_col_types = FALSE)
 
 sfcont <- ADM1_fp |>

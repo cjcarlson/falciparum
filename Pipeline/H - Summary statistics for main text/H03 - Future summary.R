@@ -239,7 +239,7 @@ boot_diff <- file.path(
 # Join to elev and ADM1 data ----
 ################################################################################
 
-elev <- elevation_fp |>
+elev <- elevation_summary_fp |>
   readr::read_csv(show_col_types = FALSE) |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
 

@@ -13,13 +13,9 @@ if (!require("pacman")) {
 # packages
 pacman::p_load(
   lfe,
-  zoo,
   here,
-  reshape,
   tidyverse,
-  lubridate,
-  patchwork,
-  cowplot
+  patchwork
 )
 
 # source functions for easy plotting and estimation
@@ -36,9 +32,8 @@ print("Loading clean data")
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
 data <- intermediate_CRU_adm1_fp |>
-  arrow::read_feather() |> 
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
-  # readr::read_csv() |>
+  arrow::read_feather() |>
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
   dplyr::mutate(year = factor(year)) |>
   dplyr::left_join(complete)
 
@@ -53,12 +48,13 @@ g1 <- ggplot(data = data, aes(x = temp, y = predR0)) +
     linetype = 'longdash'
   ) +
   geom_line(color = "black", lwd = 0.7) +
-  xlim(c(15, 35)) +
   labs(
     x = expression(paste("Temperature (", degree, "C)")),
     y = expression('R'[0] * ' predicted')
   ) +
-  theme_bw()
+  scale_x_continuous(limits = c(15, 35), expand = expansion(c(0, 0))) +
+  scale_y_continuous(limits = c(0, 1), expand = expansion(add = c(0, 0.02))) +
+  theme_classic()
 
 
 #######################################################################
@@ -73,12 +69,15 @@ g2 <- ggplot(data = data, aes(x = temp, y = predR0)) +
     linetype = 'longdash'
   ) +
   geom_smooth(aes(y = PfPR2), lwd = 1, color = "#C1657C", fill = 'light grey') +
-  xlim(c(15, 35)) +
+  scale_x_continuous(
+    limits = c(15, 35),
+    expand = expansion(add = c(0.02, 0.02))
+  ) +
   labs(
     x = expression(paste("Temperature (", degree, "C)")),
     y = "Prevalence (%, raw data)"
   ) +
-  theme_bw()
+  theme_classic()
 
 sm <- ggplot_build(g2)$data[[2]]
 
@@ -98,24 +97,26 @@ g2 <- ggplot(data = data, aes(x = temp, y = predR0)) +
     linetype = 'longdash'
   ) +
   geom_smooth(aes(y = PfPR2), lwd = 1, color = "#C1657C", fill = 'light grey') +
-  xlim(c(15, 35)) +
+  scale_x_continuous(
+    limits = c(15, 35),
+    expand = expansion(add = c(0.02, 0.02))
+  ) +
   labs(
     x = expression(paste("Temperature (", degree, "C)")),
     y = "Prevalence (%, raw data)"
   ) +
-  theme_bw()
+  theme_classic()
 
 #######################################################################
 # S1C: Econometric model + uncertainty ----
 #######################################################################
 # Formula & estimation
 
-mainmod <- felm(data = complete, formula = cXt2intrXm)
+mainmod <- readRDS(main_mod_obj_fn)
+
 beta <- mainmod$coefficients
 vars <- rownames(beta)
 plotVars <- vars[grepl(pattern = "temp", x = vars)]
-
-# rm(complete, countrydf, data, data_iso, data.reset)
 
 # plot setup
 Tref <- 24
@@ -141,7 +142,7 @@ plotData <- data.frame(
 )
 
 g3 <- ggplot(data = plotData) +
-  #geom_ribbon(aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = 'light grey') +
+  # geom_ribbon(aes(x, ymin = lb, ymax = ub), alpha = 0.4, fill = 'light grey') +
   geom_vline(
     xintercept = 25.56,
     color = 'dark grey',
@@ -155,13 +156,19 @@ g3 <- ggplot(data = plotData) +
     linetype = 'longdash'
   ) +
   geom_line(aes(x = x, y = response), color = "#C1657C", lwd = 1) +
-  xlim(c(15, 35)) +
-  ylim(c(-9, 0.2)) +
   labs(
     x = expression(paste("Temperature (", degree, "C)")),
     y = "Prevalence (%, modeled)"
   ) +
-  theme_bw()
+  scale_x_continuous(
+    limits = c(15, 35),
+    expand = expansion(add = c(0.2, 0.2))
+  ) +
+  scale_y_continuous(
+    limits = c(-9, 0.2),
+    expand = expansion(add = c(0, 0.02))
+  ) +
+  theme_classic()
 g3
 
 #######################################################################
@@ -170,15 +177,8 @@ g3
 
 # upload bootstraps
 boots <- coeffs_fn |>
-  readr::read_csv() |> 
-  dplyr::mutate(peakT = optT(temp, temp2))
-
-main <-  boots|>
-  dplyr::filter(model == "main")
-
-# opt = -main$temp / (2 * main$temp2)
-
-boots <- boots |>
+  readr::read_csv() |>
+  dplyr::mutate(peakT = optT(temp, temp2)) |>
   dplyr::filter(model != "main")
 
 meanpeak <- mean(boots$peakT)
@@ -204,8 +204,15 @@ g4 <- ggplot(data = boots) +
     lwd = 0.7,
     linetype = 'longdash'
   ) +
-  theme_bw() +
-  scale_x_continuous(limits = c(20, 30))
+  scale_x_continuous(
+    limits = c(20, 30),
+    expand = expansion(add = c(0.2, 0.2))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 0.32),
+    expand = expansion(add = c(0, 0.02))
+  ) +
+  theme_classic()
 g4
 
 
@@ -213,19 +220,20 @@ g4
 # Combine and save ----
 #######################################################################
 
-p <- plot_grid(
-  g1,
-  g2,
-  g3,
-  g4,
-  nrow = 2,
-  label_size = 12,
-  labels = c('A', 'B', 'C', 'D')
-)
-p
+p <- (g1 + g2 + g3 + g4) +
+  patchwork::plot_layout(nrow = 2) +
+  patchwork::plot_annotation(tag_levels = 'A') &
+  theme(
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    plot.tag = element_text(size = 23),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.175, 1),
+    plot.margin = margin(3, 3, 3, 3, unit = "mm")
+  )
 
 ggsave(
-  filename = paste0("Supp_Figure_thermal_curve_and_data.", fig_file_type),
+  filename = paste0("ED_Figure_thermal_curve_and_data.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   height = 10,

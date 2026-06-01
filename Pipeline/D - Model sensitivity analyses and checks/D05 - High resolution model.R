@@ -120,7 +120,9 @@ t1 = plotPolynomialResponse_2_mod(
   mod2 = highresmod,
   model1_name = "Main",
   model2_name = "Grid level",
-  fillcolor2 = "grey50"
+  fillcolor2 = "grey50",
+  x_adjust = 4.5,
+  max_x_size = 4
 )
 t1
 
@@ -171,9 +173,9 @@ combined_plot1 <- t1 +
   f1 +
   plot_layout(ncol = 3, guides = "collect") &
   theme(
-    axis.text = element_text(size = 8),
-    axis.title = element_text(size = 8),
-    legend.text = element_text(size = 6),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
     legend.position = "bottom",
     legend.margin = margin(0, 0, 0, 0)
   )

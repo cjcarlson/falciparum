@@ -96,14 +96,8 @@ colors <- scales::colour_ramp(
   rev()
 
 map.rcp45.2100 <- ggplot(sfcont) +
-  geom_sf(
-    mapping = aes(fill = zip(mean.diff, moe)),
-    color = "gray30",
-    size = 0.05
-  ) +
-  scale_x_continuous(limits = c(-17, 52), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(-36, 38), expand = c(0, 0)) +
-  coord_sf(datum = NA) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", linewidth = 0.05) +
+  coord_sf(datum = NA, xlim = c(-18, 51.5), ylim = c(-35, 37), expand = FALSE) +
   multiscales::bivariate_scale(
     "fill",
     pal_vsup(
@@ -114,7 +108,7 @@ map.rcp45.2100 <- ggplot(sfcont) +
       pow_light = 1
     ),
     name = c("Prevalence (%)", "sign uncertainty"),
-    limits = list(c(-3, 3), c(0, 1)),
+    limits = list(c(-3.05, 3), c(0, 1)),
     breaks = list(c(-3, -1.5, 0, 1.5, 3), c(0, 0.25, 0.5, 0.75, 1)),
     labels = list(waiver(), scales::percent),
     guide = "colourfan"
@@ -125,12 +119,14 @@ map.rcp45.2100 <- ggplot(sfcont) +
   ) +
   theme_void() +
   theme(
-    plot.title = element_text(hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5),
-    legend.position = c(0.18, 0.3),
-    legend.key.size = grid::unit(0.8, "cm"),
     legend.title = element_text(hjust = 0.5),
-    plot.margin = margin(0, 0, 0, 0)
+    legend.text = element_text(size = 10),
+    legend.position = "inside",
+    legend.position.inside = c(0.18, 0.3),
+    legend.key.size = grid::unit(0.8, "cm"),
+    plot.margin = margin(0, 0, 0, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.14, 1.055)
   )
 
 ################################################################################
@@ -139,14 +135,14 @@ map.rcp45.2100 <- ggplot(sfcont) +
 
 log_msg("Load elevation and CRU temperature data")
 
-elev <- elevation_fp |>
+elev <- elevation_summary_fp |>
   readr::read_csv(show_col_types = FALSE) |>
   dplyr::select(OBJECTID, elevmn) |>
   dplyr::mutate(OBJECTID = as.factor(OBJECTID))
 
 tmean <- intermediate_CRU_adm1_fp |>
-  arrow::read_feather() |> 
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
+  arrow::read_feather() |>
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
   # readr::read_csv(show_col_types = FALSE) |>
   dplyr::filter(year %in% c(1901:1930)) |>
   dplyr::group_by(OBJECTID) |>
@@ -187,7 +183,7 @@ temp_plot <- ggplot() +
     ),
     color = "grey80",
     alpha = 0.3,
-    size = 0.5
+    linewidth = 0.5
   ) +
   geom_errorbar(
     data = df_non_sig,
@@ -199,7 +195,7 @@ temp_plot <- ggplot() +
     ),
     color = "grey80",
     alpha = 0.5,
-    size = 0.7
+    linewidth = 0.7
   ) +
   geom_point(
     data = df_non_sig,
@@ -216,7 +212,7 @@ temp_plot <- ggplot() +
       color = sign
     ),
     alpha = 0.3,
-    size = 0.5
+    linewidth = 0.5
   ) +
   geom_errorbar(
     data = df_sig,
@@ -228,20 +224,21 @@ temp_plot <- ggplot() +
       color = sign
     ),
     alpha = 0.5,
-    size = 0.7
+    linewidth = 0.7
   ) +
   geom_point(data = df_sig, mapping = aes(x = mean.diff, y = t, color = sign)) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
+  labs(x = "Prevalence (%)", y = "Mean temperature (1901-1930)") +
+  scale_color_manual(values = c("#2265A3", "#AC202F")) +
   theme_classic() +
-  xlab("Prevalence (%)") +
-  ylab("Mean temperature (1901-1930)") +
   theme(
     axis.title.x = element_text(margin = margin(t = 20, b = 10)),
     axis.title.y = element_text(margin = margin(r = 20, l = 10)),
     legend.position = 'n',
-    plot.margin = margin(0, 0, 0, 0)
-  ) +
-  scale_color_manual(values = c("#2265A3", "#AC202F"))
+    plot.margin = margin(0, 0, 0, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.6, 1.06)
+  )
 
 ################################################################################
 # Elevation plot ----
@@ -308,16 +305,17 @@ elev_plot <- ggplot() +
     mapping = aes(x = mean.diff, y = elevmn, color = sign)
   ) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
+  labs(x = "Prevalence (%)", y = "Elevation (m)") +
+  scale_color_manual(values = c("#2265A3", "#AC202F")) +
   theme_classic() +
-  xlab("Prevalence (%)") +
-  ylab("Elevation (m)") +
   theme(
     axis.title.x = element_text(margin = margin(t = 20, b = 10)),
     axis.title.y = element_text(margin = margin(r = 20, l = 10)),
     legend.position = 'n',
-    plot.margin = margin(0, 0, 10, 0)
-  ) +
-  scale_color_manual(values = c("#2265A3", "#AC202F"))
+    plot.margin = margin(0, 0, 10, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.6, 1.06)
+  )
 
 ################################################################################
 # Regional time series data ----
@@ -396,7 +394,12 @@ regional_ts_plot <- ggplot(
   geom_hline(mapping = aes(yintercept = 0), lty = 2, lwd = 0.5) +
   facet_wrap(region ~ ., ncol = 4) +
   theme(legend.position = 'bottom') +
-  theme(plot.title = element_text(size = 20))
+  theme(
+    legend.position = 'bottom',
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.03, 1.15),
+    legend.text = element_text(size = 12)
+  )
 
 ################################################################################
 # Compile and save plot ----
@@ -410,7 +413,15 @@ fig4 <- map.rcp45.2100 +
   regional_ts_plot +
   plot_layout(design = fig_3_4_layout) +
   plot_annotation(tag_levels = 'A') &
-  theme(plot.tag = element_text(size = 23))
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5, margin = margin(r = 10)),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.tag = element_text(size = 28),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
 
 ggsave(
   filename = paste0("Figure4_fut_map_tmp_el_and_TS.", fig_file_type),

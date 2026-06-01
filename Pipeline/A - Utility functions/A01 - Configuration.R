@@ -39,7 +39,8 @@ repo_dir <- dplyr::case_when(
 
 print(paste0("repository directory set to: ", repo_dir))
 
-fig_file_type <- "pdf" # jpg png
+# fig_file_type <- "pdf" # jpg png
+fig_file_type <- "jpg" # pdf png
 
 ################################################################################
 # Model formula ----
@@ -123,11 +124,6 @@ urban_fp <- file.path(
   "GHS_UCDB_REGION_SUB_SAHARAN_AFRICA_R2024A.gpkg"
 )
 
-elevation_fp <- file.path(
-  geo_data_dir,
-  "elevation",
-  "elevation_extracted_all_ADM1.csv"
-)
 ################################################################################
 # Climate data (input) ----
 ################################################################################
@@ -223,6 +219,11 @@ precip_ERA5_adm1_fp <- file.path(climate_prc_key_dir, "PrecipKey_ERA5_adm1.csv")
 
 urban_summary_fp <- file.path(inter_urban_dir, 'urban_summary.csv')
 
+elevation_summary_fp <- file.path(
+  inter_dir,
+  "elevation",
+  "elevation_extracted_all_ADM1.csv"
+)
 ################################################################################
 # Analysis ready files (output) ----
 ################################################################################
@@ -301,7 +302,7 @@ dir.create(model_main_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(model_rand_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(model_grid_dir, showWarnings = FALSE, recursive = TRUE)
 
-main_mod_obj_fn <- file.path(model_main_dir, "model_object_cXt2intrXm..rds")
+main_mod_obj_fn <- file.path(model_main_dir, "model_object_cXt2intrXm.rds")
 main_mod_beta_fn <- file.path(model_main_dir, "coefficients_cXt2intrXm.rds")
 main_mod_vcov_fn <- file.path(model_main_dir, "vcv_cXt2intrXm.rds")
 

@@ -249,7 +249,7 @@ ggsave(
 ################################################################################
 # Data imbalance: responses on temporal subsamples ----
 ################################################################################
- 
+
 complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
 g = ggplot(complete) +
   geom_histogram(aes(x = yearnum), color = "seagreen", fill = "seagreen") +
@@ -257,11 +257,11 @@ g = ggplot(complete) +
   ylab("count of observations") +
   theme_classic()
 g
- 
+
 # obs by group
 complete = complete |> mutate(post1995 = (yearnum >= 1995))
 complete %>% count(post1995)
- 
+
 # formula (different intervention dummies for each temporal subsample)
 cXt2rXm = as.formula(paste0(
   common,
@@ -270,20 +270,20 @@ cXt2rXm = as.formula(paste0(
   " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
   clustering
 ))
- 
+
 pre_data <- subset(complete, post1995 == FALSE)
 pos_data <- subset(complete, post1995 == TRUE)
- 
+
 pre1995 = felm(data = pre_data, formula = cXt2rXm)
 post1995 = felm(data = pos_data, formula = cXt2rXm)
- 
+
 # plot temperature responses
 modellist = list(pre1995, post1995)
 mycollabs = c(
   "Early sample (1901-1994)",
   "Late sample (1995-2016)"
 )
- 
+
 percentiles_list = list()
 pre_post <- c(F, T)
 for (i in 1:length(pre_post)) {
@@ -297,12 +297,14 @@ for (i in 1:length(pre_post)) {
     n = length(pre_post_data)
   )
 }
- 
+
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 figList = list()
 for (m in 1:length(modellist)) {
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+
+  showtitle <- ifelse(m == 1, T, F)
   figList[[m]] = plotPolynomialResponse(
     modellist[[m]],
     "temp",
@@ -314,9 +316,10 @@ for (m in 1:length(modellist)) {
     yLab = "Prevalence (%)",
     title = mycollabs[m],
     yLim = c(-35, 10),
-    showYTitle = T,
-    plotmax_x = 2,
-    plotmax_y = 5
+    showYTitle = showtitle,
+    plotmax_x = 3,
+    plotmax_y = 5,
+    max_x_size = 6
   ) +
     theme(plot.title = element_text(size = 10)) +
     geom_vline(
@@ -331,21 +334,28 @@ for (m in 1:length(modellist)) {
     ) +
     annotate(
       geom = "text",
-      x = 36,
-      y = 10,
+      x = 37,
+      y = 0,
       vjust = -1,
-      label = paste0("italic(N) == ", percentiles_list[[m]]$n),
-      size = 3,
+      label = paste0("italic(n) == ", percentiles_list[[m]]$n),
+      size = 5,
       parse = TRUE
+    ) +
+    theme(
+      plot.title = element_text(size = 16),
+      plot.title.position = "plot",
+      axis.title.x = element_text(vjust = -0.5),
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
     )
 }
- 
+
 # Create histogram grobs for each subsample (F02-style inset approach)
 hist_data_list <- list(pre_data, pos_data)
 yLim_split <- c(-37, 10)
-hist_ymin <- yLim_split[1]       # bottom of the response plot y-axis
-hist_ymax <- hist_ymin + 5       # height of the histogram band
- 
+hist_ymin <- yLim_split[1] # bottom of the response plot y-axis
+hist_ymax <- hist_ymin + 5 # height of the histogram band
+
 for (m in 1:length(hist_data_list)) {
   # Build a void histogram matching the x-axis of the response plot
   hist_inset <- ggplot() +
@@ -362,10 +372,10 @@ for (m in 1:length(hist_data_list)) {
       limits = c(Tmin, Tmax),
       expand = expansion(mult = c(0.0, 0.0))
     )
- 
+
   # Convert to grob
   hist_grob <- ggplotGrob(hist_inset)
- 
+
   # Add grob inset to each response figure
   figList[[m]] <- figList[[m]] +
     annotation_custom(
@@ -374,17 +384,12 @@ for (m in 1:length(hist_data_list)) {
       xmax = Tmax,
       ymin = hist_ymin,
       ymax = hist_ymax
-    ) +
-    labs(x = expression(paste("Mean temperature (", degree, "C)"))) +
-    theme(
-      axis.title.x = element_text(vjust = -0.5),
-      plot.title.position = "plot"
     )
 }
- 
+
 p <- plot_grid(figList[[1]], figList[[2]], nrow = 1)
 p
- 
+
 ggsave(
   filename = paste0("Supp_Figure_split_sample_1995.", fig_file_type),
   path = here::here("Results", "Figures"),

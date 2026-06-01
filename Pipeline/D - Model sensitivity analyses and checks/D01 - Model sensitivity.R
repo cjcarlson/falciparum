@@ -379,7 +379,13 @@ c = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "contemp.",
   yLim = c(-30, 5),
-  showYTitle = T
+  showYTitle = T,
+  max_x_size = 6,
+  plotmax_x = 3,
+  plotmax_y = 5,
+  axis_size = 14,
+  axis_title_size = 16,
+  title_size = 18
 )
 
 # Plot with one lag
@@ -396,7 +402,10 @@ p1 = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "cumulative (1 mo.)",
   yLim = c(-30, 5),
-  showYTitle = T
+  showYTitle = F,
+  axis_size = 14,
+  axis_title_size = 16,
+  title_size = 18
 ) +
   geom_vline(
     mapping = aes(xintercept = 25),
@@ -408,7 +417,8 @@ p1 = plotPolynomialResponse(
     x = 28,
     y = 5,
     label = paste0("25 C"),
-    color = "grey39"
+    color = "grey39",
+    size = 6
   )
 
 # Plot with two lags
@@ -425,7 +435,10 @@ p2 = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "cumulative (2 mo.)",
   yLim = c(-30, 5),
-  showYTitle = T
+  showYTitle = F,
+  axis_size = 14,
+  axis_title_size = 16,
+  title_size = 18
 ) +
   geom_vline(
     mapping = aes(xintercept = 25),
@@ -437,7 +450,8 @@ p2 = plotPolynomialResponse(
     x = 28,
     y = 5,
     label = paste0("25 C"),
-    color = "grey39"
+    color = "grey39",
+    size = 6
   )
 
 # Plot with three lags
@@ -454,7 +468,10 @@ p3 = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "cumulative (3 mo.)",
   yLim = c(-30, 5),
-  showYTitle = T
+  showYTitle = F,
+  axis_size = 14,
+  axis_title_size = 16,
+  title_size = 18
 ) +
   geom_vline(
     mapping = aes(xintercept = 25),
@@ -466,17 +483,20 @@ p3 = plotPolynomialResponse(
     x = 28,
     y = 5,
     label = paste0("25 C"),
-    color = "grey39"
+    color = "grey39",
+    size = 6
   )
+
+p3
 
 # Combine figs
 p = plot_grid(c, p1, p2, p3, nrow = 1)
-p
+# p
 
 cowplot::save_plot(
-  filename = paste0("Supp_Figure_templags_cumulative_effects.", fig_file_type),
+  filename = paste0("ED_Figure_templags_cumulative_effects.", fig_file_type),
   path = here::here("Results", "Figures"),
-  p,
+  plot = p,
   ncol = 1,
   base_asp = 4
 )
@@ -534,8 +554,12 @@ for (dd in dlist) {
 ################################################################################
 
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+nrowGrid <- 5
+ncolGrid <- ceiling(length(modellist) / nrowGrid)
 figList = list()
 for (m in 1:length(modellist)) {
+  isLeftCol <- ((m - 1) %% ncolGrid) == 0
+  isBottomRow <- m > ncolGrid * (nrowGrid - 1)
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
   figList[[m]] = plotPolynomialResponse(
@@ -549,7 +573,14 @@ for (m in 1:length(modellist)) {
     yLab = "Prevalence (%)",
     title = modellabs[m],
     yLim = c(-30, 5),
-    showYTitle = T
+    showYTitle = isLeftCol,
+    showXTitle = isBottomRow,
+    max_x_size = 4,
+    plotmax_x = 4,
+    plotmax_y = 5,
+    axis_size = 14,
+    axis_title_size = 16,
+    title_size = 18
   ) +
     theme(plot.title = element_text(size = 10))
 }
@@ -594,15 +625,22 @@ ggsave(
 # All drought figures
 figList = list()
 for (m in 1:length(modellist)) {
+  isLeftCol <- ((m - 1) %% ncolGrid) == 0
+  isBottomRow <- m > ncolGrid * (nrowGrid - 1)
   figList[[m]] = plotLinearLags(
-    modellist[[m]],
-    "drought",
+    mod = modellist[[m]],
+    patternForPlotVars = "drought",
     cluster = T,
     laglength = 3,
-    xLab = "Monthly lag",
-    "Coefficient",
+    xLab = "Lag",
+    yLab = "Coefficient",
     title = modellabs[[m]],
-    yLim = c(-6, 4)
+    yLim = c(-6, 4),
+    showYTitle = isLeftCol,
+    showXTitle = isBottomRow,
+    axis_size = 10,
+    axis_title_size = 10,
+    title_size = 10
   )
 }
 
@@ -640,15 +678,22 @@ ggsave(
 # All flood figures
 figList = list()
 for (m in 1:length(modellist)) {
+  isLeftCol <- ((m - 1) %% ncolGrid) == 0
+  isBottomRow <- m > ncolGrid * (nrowGrid - 1)
   figList[[m]] = plotLinearLags(
-    modellist[[m]],
-    "flood",
+    mod = modellist[[m]],
+    patternForPlotVars = "flood",
     cluster = T,
     laglength = 3,
-    xLab = "Monthly lag",
-    "Coefficient",
+    xLab = "Lag",
+    yLab = "Coefficient",
     title = modellabs[[m]],
-    yLim = c(-4, 4)
+    yLim = c(-4, 4),
+    showYTitle = isLeftCol,
+    showXTitle = isBottomRow,
+    axis_size = 10,
+    axis_title_size = 10,
+    title_size = 10
   )
 }
 
@@ -740,13 +785,19 @@ modellabs = c("Quadratic", "Cubic", "Quartic", "Quintic")
 coefs = summary(modellist[[1]])$coefficients[1:2]
 myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 
+
+nrowGrid <- 2
+ncolGrid <- ceiling(length(modellist) / nrowGrid)
+
 figList = list()
 for (m in 1:length(modellist)) {
+  isLeftCol <- ((m - 1) %% ncolGrid) == 0
+  isBottomRow <- m > ncolGrid * (nrowGrid - 1)
   end = m + 1
   figList[[m]] = plotPolynomialResponse(
-    modellist[[m]],
-    "temp",
-    plotXtemp[, 1:end],
+    mod = modellist[[m]],
+    patternForPlotVars = "temp",
+    xVals = plotXtemp[, 1:end],
     polyOrder = end,
     plotmax = F,
     cluster = T,
@@ -755,7 +806,11 @@ for (m in 1:length(modellist)) {
     yLab = "Prevalence (%)",
     title = modellabs[m],
     yLim = c(-30, 5),
-    showYTitle = T
+    showYTitle = isLeftCol,
+    showXTitle = isBottomRow,
+    axis_size = 16,
+    axis_title_size = 18,
+    title_size = 20
   ) +
     geom_vline(
       mapping = aes(xintercept = myrefT),
@@ -767,7 +822,8 @@ for (m in 1:length(modellist)) {
       x = myrefT + 3,
       y = 5,
       label = paste0(myrefT, " C"),
-      color = "grey39"
+      color = "grey39",
+      size = 6
     )
 }
 
@@ -841,11 +897,13 @@ myrefP = 0
 
 figList = list()
 for (m in 1:length(modellist)) {
+  isLeftCol <- ((m - 1) %% ncolGrid) == 0
+  isBottomRow <- m > ncolGrid * (nrowGrid - 1)
   end = m + 1
   figList[[m]] = plotPolynomialResponse(
-    modellist[[m]],
-    "ppt",
-    plotXprcp[, 1:end],
+    mod = modellist[[m]],
+    patternForPlotVars = "ppt",
+    xVals = plotXprcp[, 1:end],
     polyOrder = end,
     plotmax = F,
     cluster = T,
@@ -855,7 +913,11 @@ for (m in 1:length(modellist)) {
     yLab = "Prevalence (%)",
     title = modellabs[m],
     yLim = c(-10, 5),
-    showYTitle = T
+    showYTitle = isLeftCol,
+    showXTitle = isBottomRow,
+    axis_size = 16,
+    axis_title_size = 18,
+    title_size = 20
   )
 }
 

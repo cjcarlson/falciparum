@@ -66,7 +66,7 @@ adm1mod = felm(data = complete, formula = adm1form)
 # only need to compute this and the next line once, all specs have same coeffs but different CIs
 coefs = summary(adm1mod)$coefficients[1:2]
 # plot relative to max of Quadratic function
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) 
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 adm1fig = plotPolynomialResponse(
   adm1mod,
   "temp",
@@ -78,7 +78,14 @@ adm1fig = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "ADM1 clust.",
   yLim = c(-30, 5),
-  showYTitle = T
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = T,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
 )
 
 ## country clustering ----
@@ -102,7 +109,14 @@ isofig = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "country clust.",
   yLim = c(-30, 5),
-  showYTitle = T
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
 )
 
 ## country x year clustering ----
@@ -132,7 +146,14 @@ isoyrfig = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "country-year clust.",
   yLim = c(-30, 5),
-  showYTitle = T
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
 )
 
 ## year clustering ----
@@ -156,7 +177,14 @@ yrfig = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "year clust.",
   yLim = c(-30, 5),
-  showYTitle = T
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
 )
 
 ## country-5-year clustering ----
@@ -187,7 +215,14 @@ iso5fig = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "country-5-year clust. (main)",
   yLim = c(-30, 5),
-  showYTitle = T
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = T,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
 )
 
 ## country-decade clustering ----
@@ -218,7 +253,14 @@ iso10fig = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "country-decade clust.",
   yLim = c(-30, 5),
-  showYTitle = T
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
 )
 
 ## Conley standard errors ----
@@ -272,7 +314,14 @@ conleyfig1 = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = paste0("Conley (", conley_dist_1, "km)"),
   yLim = c(-30, 5),
-  showYTitle = T
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
 )
 
 coefs = summary(conleymod2)$coefficients[1:2]
@@ -288,11 +337,18 @@ conleyfig2 = plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = paste0("Conley (", conley_dist_2, "km)"),
   yLim = c(-30, 5),
-  showYTitle = T
-)
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+) 
 
 ## merged plot
-uncert = plot_grid(
+uncert <- plot_grid(
   adm1fig,
   isofig,
   yrfig,
@@ -508,8 +564,12 @@ writeLines(tex, here::here("Results", "Tables", "FixedEffects_sensitivity.tex"))
 
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
+nrowGrid <- 4
+ncolGrid <- ceiling(length(modellist) / nrowGrid)
 figList = list()
 for (m in 1:length(modellist)) {
+  isLeftCol <- ((m - 1) %% ncolGrid) == 0
+  isBottomRow <- m > ncolGrid * (nrowGrid - 1)
   # get max of response function
   coefs = summary(modellist[[m]])$coefficients[1:2]
   myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
@@ -524,12 +584,15 @@ for (m in 1:length(modellist)) {
     yLab = "Prevalence (%)",
     title = mycollabs[m],
     yLim = c(-30, 5),
-    showYTitle = T
-  ) +
-    theme(
-      text = element_text(size = 8),
-      plot.title = element_text(size = 8)
-    )
+    showYTitle = isLeftCol,
+    showXTitle = isBottomRow,
+    max_x_size = 4,
+    plotmax_x = 4,
+    plotmax_y = 5,
+    axis_size = 9,
+    axis_title_size = 9,
+    title_size = 9
+  ) 
 }
 
 # point estimate and CIs for main spec
@@ -652,23 +715,24 @@ g = ggplot() +
   geom_vline(xintercept = maxX, colour = "grey39") +
   annotate(
     geom = "text",
-    x = maxX + 3.5,
-    y = 2.55,
+    x = maxX + 4,
+    y = 5,
     label = paste0(maxX, " C"),
     color = "grey39",
-    size = 3
+    size = 4
   ) +
   theme_classic() +
   labs(
-    x = expression(paste("Mean temperature (", degree, "C)")),
-    y = "Prevalence (%)"
+    x = NULL, # expression(paste("Mean temperature (", degree, "C)")),
+    y = NULL, #"Prevalence (%)"
   ) +
   xlim(Tmin, Tmax) +
   ylim(-30, 5) +
   ggtitle("main: cnty trd, int + rgn−mo FEs.") +
   theme(
-    text = element_text(size = 8),
-    plot.title = element_text(size = 8)
+    plot.title = element_text(size = 9),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 9)
   )
 
 p = plot_grid(
@@ -689,7 +753,7 @@ p = plot_grid(
 p
 
 ggsave(
-  filename = paste0("Supp_Figure_panelFE_FE_sensitivity.", fig_file_type),
+  filename = paste0("ED_Figure_panelFE_FE_sensitivity.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
   width = 7,
@@ -732,25 +796,28 @@ for (c in 1:length(cntrs)) {
 loco <- loco |> dplyr::filter(!is.na(betaT))
 
 # plot ----
-b1loco = ggplot(data = loco) +
+b1loco <- ggplot(data = loco) +
   geom_histogram(aes(x = betaT), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff.") +
   ylab("Count") +
   theme_classic()
-p1loco = ggplot(data = loco) +
+
+p1loco <- ggplot(data = loco) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff. p-value") +
   ylab("Count") +
-  theme_classic()
-b2loco = ggplot(data = loco) +
+  theme_classic() 
+
+b2loco <- ggplot(data = loco) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("Quadratic temp. coeff.") +
   ylab("Count") +
-  theme_classic()
-p2loco = ggplot(data = loco) +
+  theme_classic() 
+
+p2loco <- ggplot(data = loco) +
   geom_histogram(
     aes(x = pvalT2),
     bins = 30,
@@ -760,7 +827,11 @@ p2loco = ggplot(data = loco) +
   geom_vline(xintercept = pvalT2main, color = "darkgrey", linetype = "dashed") +
   xlab("Quadratic temp. coeff. p-value") +
   ylab("Count") +
-  theme_classic()
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12)
+  )
 
 ## Leave one year out ----
 years <- unique(complete$yearnum)
@@ -782,25 +853,28 @@ for (c in 1:length(years)) {
 loyo <- loyo |> dplyr::filter(!is.na(betaT))
 
 # plot
-b1loyo = ggplot(data = loyo) +
+b1loyo <- ggplot(data = loyo) +
   geom_histogram(aes(x = betaT), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff.") +
   ylab("Count") +
-  theme_classic()
-p1loyo = ggplot(data = loyo) +
+  theme_classic() 
+
+p1loyo <- ggplot(data = loyo) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff. p-value") +
   ylab("Count") +
-  theme_classic()
-b2loyo = ggplot(data = loyo) +
+  theme_classic() 
+
+b2loyo <- ggplot(data = loyo) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("Quadratic temp. coeff.") +
   ylab("Count") +
-  theme_classic()
-p2loyo = ggplot(data = loyo) +
+  theme_classic() 
+
+p2loyo <- ggplot(data = loyo) +
   geom_histogram(
     aes(x = pvalT2),
     bins = 30,
@@ -832,25 +906,26 @@ for (c in 1:length(months)) {
 lomo <- lomo |> dplyr::filter(!is.na(betaT))
 
 # plot
-b1lomo = ggplot(data = lomo) +
+b1lomo <- ggplot(data = lomo) +
   geom_histogram(aes(x = betaT), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff.") +
   ylab("Count") +
-  theme_classic()
-p1lomo = ggplot(data = lomo) +
+  theme_classic() 
+
+p1lomo <- ggplot(data = lomo) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff. p-value") +
   ylab("Count") +
   theme_classic()
-b2lomo = ggplot(data = lomo) +
+b2lomo <- ggplot(data = lomo) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("Quadratic temp. coeff.") +
   ylab("Count") +
-  theme_classic()
-p2lomo = ggplot(data = lomo) +
+  theme_classic() 
+p2lomo <- ggplot(data = lomo) +
   geom_histogram(
     aes(x = pvalT2),
     bins = 30,
@@ -946,7 +1021,11 @@ g <- ggplot(data = complete) +
   geom_histogram(aes(x = res), color = "seagreen", fill = "seagreen") +
   xlab("Model residuals") +
   ylab("Count") +
-  theme_classic()
+  theme_classic() +
+    theme(
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 14)
+    )
 g
 
 ## Q-Q plot
@@ -955,10 +1034,14 @@ p <- ggplot(complete, aes(sample = res)) +
   stat_qq_line(color = "seagreen") +
   xlab("Normal distribution quantiles") +
   ylab("Model residuals quantiles") +
-  theme_classic()
+  theme_classic() +
+    theme(
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 14)
+    )
 p
 
-grid = plot_grid(g, p, nrow = 1)
+grid <- plot_grid(g, p, nrow = 1)
 ggsave(
   filename = paste0("Supp_Figure_model_residuals.", fig_file_type),
   path = here::here("Results", "Figures"),

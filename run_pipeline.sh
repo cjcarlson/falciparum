@@ -12,7 +12,7 @@ set -o pipefail  # Exit on pipe failure
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 ################################################################################
-# Setup
+# Setup 
 ################################################################################
 
 # Set working directory - adjust this to your local repo location
@@ -37,7 +37,7 @@ echo "Master log: ${MASTER_LOG}"
 echo "========================================="
 
 ################################################################################
-# Helper function to run R scripts with error handling
+# Helper function to run R scripts with error handling 
 ################################################################################
 
 run_r_script() {
@@ -61,39 +61,39 @@ run_r_script() {
 }
 
 ################################################################################
-# Section B: Extract climate and prevalence data
+# Section B: Extract climate and prevalence data 
 ################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION B: Extract climate and prevalence data"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION B: Extract climate and prevalence data"
+echo "################################################################"
 
-# PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
-# run_r_script "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
-# run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
-# run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
-# run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
-# run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
-# run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
+PIPELINE_B_DIR="${PIPELINE_DIR}/B - Extract climate and prevalence data"
+run_r_script "${PIPELINE_B_DIR}/B01 - Extract CRU tmp and prc data ADM1.R"
+run_r_script "${PIPELINE_B_DIR}/B02 - Extract GCM tmp and prc data ADM1.R"
+run_r_script "${PIPELINE_B_DIR}/B03 - Extract CRU tmp and prc data grid.R"
+run_r_script "${PIPELINE_B_DIR}/B04 - Join prev and CRU data.R"
+run_r_script "${PIPELINE_B_DIR}/B05 - Extract ERA5 tmp and prc data ADM1.R"
+run_r_script "${PIPELINE_B_DIR}/B06 - Join prev and ERA5 data.R"
 
-# ################################################################################
-# # Section C: Model estimation
-# ################################################################################
+################################################################################
+# Section C: Model estimation
+################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION C: Model estimation"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION C: Model estimation"
+echo "################################################################"
 
-# PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
-# run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
-# run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
-# run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
+PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
+run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
+run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
+run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
 
-# ################################################################################
-# # Section D: Model sensitivity analyses and checks
-# ################################################################################
+################################################################################
+# Section D: Model sensitivity analyses and checks
+################################################################################
 
 echo ""
 echo "################################################################"
@@ -105,21 +105,22 @@ run_r_script "${PIPELINE_D_DIR}/D01 - Model sensitivity.R"
 run_r_script "${PIPELINE_D_DIR}/D02 - Randomization tests.R"
 run_r_script "${PIPELINE_D_DIR}/D03 - Additional robustness.R"
 run_r_script "${PIPELINE_D_DIR}/D04 - Uncertainty analysis.R"
+run_r_script "${PIPELINE_D_DIR}/D04b - newrob.R"
 run_r_script "${PIPELINE_D_DIR}/D05 - High resolution model.R"
 run_r_script "${PIPELINE_D_DIR}/D06 - Urbanization.R"
 run_r_script "${PIPELINE_D_DIR}/D07 - ERA5 analysis.R"
 
-# ################################################################################
-# # Section E: Estimate historical and future prevalence
-# ################################################################################
+################################################################################
+# Section E: Estimate historical and future prevalence
+################################################################################
 
-# echo ""
-# echo "################################################################"
-# echo "# SECTION E: Estimate historical and future prevalence"
-# echo "################################################################"
+echo ""
+echo "################################################################"
+echo "# SECTION E: Estimate historical and future prevalence"
+echo "################################################################"
 
-# PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
-# run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
+PIPELINE_E_DIR="${PIPELINE_DIR}/E - Estimate historical and future prevalence"
+run_r_script "${PIPELINE_E_DIR}/E01 - Predict prevalence.R"
 
 ################################################################################
 # Section F: Figure generation for main text
