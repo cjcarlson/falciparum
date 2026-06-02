@@ -1,34 +1,29 @@
 ################################################################################
-# This script is temporary. It should be integrated into other D03-D04 scripts
-# as it contains additional robustness tests.
+# This script conducts additional robustness checks. This script should be
+# incorporated into D01 when a subset of tests are included in the main text
+# and/or Supplement.
 ################################################################################
 # Set up ----
 ################################################################################
 
 rm(list = ls())
 
+# packages
 if (!require("pacman")) {
   install.packages("pacman")
 }
 
-# packages
 pacman::p_load(
-  sf,
-  sp,
-  car,
-  lfe,
-  zoo,
   here,
-  gstat,
-  ggpubr,
-  fixest,
+  lfe,
   reshape,
-  cowplot,
-  multcomp,
   stargazer,
   tidyverse,
+  zoo,
   lubridate,
-  conleyreg
+  cowplot,
+  multcomp,
+  sf
 )
 
 # source functions for easy plotting and estimation
@@ -36,372 +31,78 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
-sf::sf_use_s2(FALSE)
+################################################################################
+# Load data ----
+# Read in the analysis ready data file with malaria prevalence and CRU 
+# temperature and precipitation data aggregated to the first level of 
+# Administrative division.
+################################################################################
 
-############################################################
-# Load data, set plotting toggles ----
-############################################################
-
+print("Loading clean data")
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
-# reference temperature - curve gets recentered to 0 here
-Tref = 25
-# temperature vector for plotting response function
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+################################################################################
+# Diagnostic method ----
+################################################################################
 
-############################################################
-# Clustering sensitivity ----
-############################################################
+complete_dm <- complete |>
+  dplyr::mutate(microscopy = simplified_METHOD == "MICROSCOPY") |>
+  dplyr::filter(dominant_METHOD != "LAMP")
 
-## ADM1 clustering ----
-adm1form = as.formula(
+complete_dm$dominant_METHOD = as.factor(complete_dm$dominant_METHOD)
+complete_dm$simplified_METHOD = as.factor(complete_dm$simplified_METHOD)
+
+complete_dm$month = as.factor(complete_dm$month)
+complete_dm$year = as.factor(complete_dm$year)
+
+################################################################################
+# Control for diagnostic method ----
+################################################################################
+
+cXt2intrXmDM = as.formula(
   paste0(
     common,
-    " + I(intervention) + ",
+    " + dominant_METHOD + I(intervention) + ",
     country_time,
-    " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+    " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+    clustering
   )
 )
-adm1mod = felm(data = complete, formula = adm1form)
-# only need to compute this and the next line once, all specs have same coeffs but different CIs
-coefs = summary(adm1mod)$coefficients[1:2]
-# plot relative to max of Quadratic function
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-adm1fig = plotPolynomialResponse(
-  adm1mod,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = "ADM1 clust.",
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = T,
-  showXTitle = F,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-)
-
-## country clustering ----
-isoform = as.formula(
+cXt2intrXmSM = as.formula(
   paste0(
     common,
-    " + I(intervention) + ",
+    " + simplified_METHOD + I(intervention) + ",
     country_time,
-    " | OBJECTID + as.factor(smllrgn):month | 0 | country"
-  )
-)
-isomod = felm(data = complete, formula = isoform)
-isofig = plotPolynomialResponse(
-  isomod,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = "country clust.",
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = F,
-  showXTitle = F,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-)
-
-## country x year clustering ----
-# (no correlation over years)
-complete = complete |>
-  group_by(country, year) |>
-  mutate(cntryyr = cur_group_id()) |>
-  ungroup()
-
-isoyrform = as.formula(
-  paste0(
-    common,
-    " + I(intervention) + ",
-    country_time,
-    " | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr"
-  )
-)
-isoyrmod = felm(data = complete, formula = isoyrform)
-isoyrfig = plotPolynomialResponse(
-  isoyrmod,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = "country-year clust.",
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = F,
-  showXTitle = F,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-)
-
-## year clustering ----
-yrform = as.formula(
-  paste0(
-    common,
-    " + I(intervention) + ",
-    country_time,
-    " | OBJECTID + as.factor(smllrgn):month | 0 | year"
-  )
-)
-yrmod = felm(data = complete, formula = yrform)
-yrfig = plotPolynomialResponse(
-  yrmod,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = "year clust.",
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = F,
-  showXTitle = F,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-)
-
-## country-5-year clustering ----
-yr_bin_size <- 5
-complete <- complete |>
-  dplyr::mutate(yr_bin5 = floor(yearnum / yr_bin_size) * yr_bin_size) |>
-  dplyr::group_by(country, yr_bin5) |>
-  dplyr::mutate(cntry_yrbin5 = dplyr::cur_group_id()) |>
-  dplyr::ungroup()
-
-iso5form = as.formula(
-  paste0(
-    common,
-    " + I(intervention) + ",
-    country_time,
-    " | OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin5"
-  )
-)
-iso5mod = felm(data = complete, formula = iso5form)
-iso5fig = plotPolynomialResponse(
-  iso5mod,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = "country-5-year clust. (main)",
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = T,
-  showXTitle = T,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-)
-
-## country-decade clustering ----
-yr_bin_size <- 10
-complete <- complete |>
-  dplyr::mutate(yr_bin10 = floor(yearnum / yr_bin_size) * yr_bin_size) |>
-  dplyr::group_by(country, yr_bin10) |>
-  dplyr::mutate(cntry_yrbin10 = dplyr::cur_group_id()) |>
-  dplyr::ungroup()
-
-iso10form = as.formula(
-  paste0(
-    common,
-    " + I(intervention) + ",
-    country_time,
-    " | OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin10"
-  )
-)
-iso10mod = felm(data = complete, formula = iso10form)
-iso10fig = plotPolynomialResponse(
-  iso10mod,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = "country-decade clust.",
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = F,
-  showXTitle = T,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-)
-
-## Conley standard errors ----
-
-centroids <- ADM1_fp |>
-  sf::read_sf() |>
-  dplyr::mutate(
-    lon = sf::st_coordinates(sf::st_centroid(geometry))[, 1],
-    lat = sf::st_coordinates(sf::st_centroid(geometry))[, 2],
-    OBJECTID = as.numeric(OBJECTID)
-  ) |>
-  sf::st_drop_geometry() |>
-  dplyr::select(OBJECTID, lon, lat)
-
-spdf <- complete |>
-  dplyr::left_join(centroids, by = join_by(OBJECTID))
-
-conleyform = as.formula(
-  paste0(
-    common,
-    " + I(intervention) + ",
-    country_time,
-    " + as.factor(smllrgn):month | OBJECTID"
+    " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+    clustering
   )
 )
 
-conley_dist_1 <- 200
-conley_dist_2 <- 500
+myforms = c(cXt2intrXm, cXt2intrXmDM, cXt2intrXmSM)
 
-conleymod1 = feols(
-  conleyform,
-  data = spdf,
-  conley(conley_dist_1, distance = "spherical")
-)
-conleymod2 = feols(
-  conleyform,
-  data = spdf,
-  conley(conley_dist_2, distance = "spherical")
-)
-
-coefs = summary(conleymod1)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-conleyfig1 = plotPolynomialResponse(
-  conleymod1,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = paste0("Conley (", conley_dist_1, "km)"),
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = F,
-  showXTitle = T,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-)
-
-coefs = summary(conleymod2)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of Quadratic function
-conleyfig2 = plotPolynomialResponse(
-  conleymod2,
-  "temp",
-  plotXtemp,
-  polyOrder = 2,
-  cluster = T,
-  xRef = myrefT,
-  xLab = expression(paste("Mean temperature (", degree, "C)")),
-  yLab = "Prevalence (%)",
-  title = paste0("Conley (", conley_dist_2, "km)"),
-  yLim = c(-30, 5),
-  plotmax_x = 3,
-  plotmax_y = 5,
-  max_x_size = 8,
-  showYTitle = F,
-  showXTitle = T,
-  axis_size = 20,
-  axis_title_size = 22,
-  title_size = 22
-) 
-
-## merged plot
-uncert <- plot_grid(
-  adm1fig,
-  isofig,
-  yrfig,
-  isoyrfig,
-  iso5fig,
-  iso10fig,
-  conleyfig1,
-  conleyfig2,
-  nrow = 2
-)
-
-ggsave(
-  filename = paste0("Supp_Figure_temp_response_difft_SEs.", fig_file_type),
-  path = here::here("Results", "Figures"),
-  plot = uncert,
-  width = 20,
-  height = 10
-)
-
-## Table
-# feols models do not work with stargazer as it has no method for feols objects (class "fixest")
-# so we use stargazer on the felm objects and etable on the feols objects. The two tables are
-# then combined manually
-
-# tabular output
-modellist = list(
-  adm1mod,
-  isomod,
-  yrmod,
-  isoyrmod,
-  iso5mod,
-  iso10mod
-)
 mycollabs = c(
-  "Adm1 clust.",
-  "Country clust.",
-  "Year clust.",
-  "Country-year clust.",
-  "Country-5-year clust.",
-  "Country-decade clust."
+  "main specification", # Main Spec
+  "+ diag. method (full set)", # Main Spec with dominant method
+  "+ diag. method (small set)" # Main Spec with simplified method
 )
 
-mynote = "Column specifications: (1) standard errors clustered at ADM1 level; (2) standard errors clustered at country level; (3) standard errors clustered at year level; (4) standard errors clustered at country-year level; (5) standard errors clustered at country-5-year level (main specification); (6) standard errors clustered at country-decade level; (7) standard errors estimated following Conley (2008) using 200km cutoff; (6) standard errors estimated following Conley (2008) using a 500km cutoff."
+modellist = list()
+i = 0
+for (m in myforms) {
+  i = i + 1
+  modellist[[i]] = felm(data = complete_dm, formula = m)
+}
+
+mynote = "Column specifications: (1) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (2) same as (1), but with additional controls for diagnostic method: Microscopy, Microcscopy/PCR Confirmed, PCR, RDT, RDT/PCR Confirmed, and RDT/SLIDE Confirmed; (3) same as (2) but using simplified diagnostic method control set: Microscopy, PCR, RDT."
 
 tex <- stargazer(
   modellist,
-  title = "Quadratic temperature: standard error sensitivity",
+  title = "Sensitivity to controlling for diagnostic method",
   align = TRUE,
   column.labels = mycollabs,
   covariate.labels = my_covariate_labels,
   dep.var.labels = "$Pf$PR$_{2-10}$",
-  keep = c("temp", "flood", "drought", "intervention"),
-  # out = here::here("Results", "Tables", "uncertainty.tex"),
+  keep = c("temp", "flood", "drought", "int", "METHOD"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -413,27 +114,168 @@ tex <- stargazer(
   star.cutoffs = table_star_cutoffs
 )
 
-writeLines(tex, here::here("Results", "Tables", "uncertainty.tex"))
+writeLines(tex, here::here("Results", "Tables", "Diagnostic_method.tex"))
 
-conley_tab <- fixest::etable(
-  conleymod1,
-  conleymod2,
-  keep = c("temp", "flood", "drought", "intervention"),
-  tex = TRUE,
-  fitstat = c("n", "r2", "ar2"),
-  digits = 3,
-  label = "tab:conley",
-  file = here::here("Results", "Tables", "conley.tex"),
-  signif.code = c("***" = 0.001, "**" = 0.01, "*" = 0.05)
+################################################################################
+# Data imbalance: responses on temporal subsamples ----
+################################################################################
+
+complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
+g = ggplot(complete) +
+  geom_histogram(aes(x = yearnum), color = "seagreen", fill = "seagreen") +
+  xlab("year") +
+  ylab("count of observations") +
+  theme_classic()
+g
+
+# obs by group
+complete = complete |> mutate(post1995 = (yearnum >= 1995))
+complete %>% count(post1995)
+
+# formula (different intervention dummies for each temporal subsample)
+cXt2rXm = as.formula(paste0(
+  common,
+  " + I(intervention) +  ",
+  country_time,
+  " | OBJECTID  + as.factor(smllrgn):month | 0 | ",
+  clustering
+))
+
+pre_data <- subset(complete, post1995 == FALSE)
+pos_data <- subset(complete, post1995 == TRUE)
+
+pre1995 = felm(data = pre_data, formula = cXt2rXm)
+post1995 = felm(data = pos_data, formula = cXt2rXm)
+
+# plot temperature responses
+modellist = list(pre1995, post1995)
+mycollabs = c(
+  "Early sample (1901-1994)",
+  "Late sample (1995-2016)"
 )
 
-conley_tab
+percentiles_list = list()
+pre_post <- c(F, T)
+for (i in 1:length(pre_post)) {
+  # i <- 1
+  pre_post_data <- subset(complete, post1995 == pre_post[i])$temp
+  temp_p01 <- quantile(pre_post_data, 0.01, na.rm = TRUE)
+  temp_p99 <- quantile(pre_post_data, 0.99, na.rm = TRUE)
+  percentiles_list[[i]] <- list(
+    p01 = temp_p01,
+    p99 = temp_p99,
+    n = length(pre_post_data)
+  )
+}
 
-############################################################
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+figList = list()
+for (m in 1:length(modellist)) {
+  coefs = summary(modellist[[m]])$coefficients[1:2]
+  myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+
+  showtitle <- ifelse(m == 1, T, F)
+  figList[[m]] = plotPolynomialResponse(
+    modellist[[m]],
+    "temp",
+    plotXtemp,
+    polyOrder = 2,
+    cluster = T,
+    xRef = myrefT,
+    xLab = expression(paste("Mean temperature (", degree, "C)")),
+    yLab = "Prevalence (%)",
+    title = mycollabs[m],
+    yLim = c(-35, 10),
+    showYTitle = showtitle,
+    plotmax_x = 3,
+    plotmax_y = 5,
+    max_x_size = 6
+  ) +
+    theme(plot.title = element_text(size = 10)) +
+    geom_vline(
+      xintercept = percentiles_list[[m]]$p01,
+      colour = "grey39",
+      linetype = "dashed"
+    ) +
+    geom_vline(
+      xintercept = percentiles_list[[m]]$p99,
+      colour = "grey39",
+      linetype = "dashed"
+    ) +
+    annotate(
+      geom = "text",
+      x = 37,
+      y = 0,
+      vjust = -1,
+      label = paste0("italic(n) == ", percentiles_list[[m]]$n),
+      size = 5,
+      parse = TRUE
+    ) +
+    theme(
+      plot.title = element_text(size = 16),
+      plot.title.position = "plot",
+      axis.title.x = element_text(vjust = -0.5),
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+    )
+}
+
+# Create histogram grobs for each subsample (F02-style inset approach)
+hist_data_list <- list(pre_data, pos_data)
+yLim_split <- c(-37, 10)
+hist_ymin <- yLim_split[1] # bottom of the response plot y-axis
+hist_ymax <- hist_ymin + 5 # height of the histogram band
+
+for (m in 1:length(hist_data_list)) {
+  # Build a void histogram matching the x-axis of the response plot
+  hist_inset <- ggplot() +
+    geom_histogram(
+      data = hist_data_list[[m]],
+      mapping = aes(x = temp),
+      fill = "#8B3A4A",
+      alpha = 1,
+      bins = 30,
+      colour = "black"
+    ) +
+    theme_void() +
+    scale_x_continuous(
+      limits = c(Tmin, Tmax),
+      expand = expansion(mult = c(0.0, 0.0))
+    )
+
+  # Convert to grob
+  hist_grob <- ggplotGrob(hist_inset)
+
+  # Add grob inset to each response figure
+  figList[[m]] <- figList[[m]] +
+    annotation_custom(
+      grob = hist_grob,
+      xmin = Tmin,
+      xmax = Tmax,
+      ymin = hist_ymin,
+      ymax = hist_ymax
+    )
+}
+
+p <- plot_grid(figList[[1]], figList[[2]], nrow = 1)
+
+ggsave(
+  filename = paste0("Supp_Figure_split_sample_1995.", fig_file_type),
+  path = here::here("Results", "Figures"),
+  plot = p,
+  width = 10,
+  height = 5
+)
+
+################################################################################
 # Sensitivity to spatiotemporal controls (tabular output) ----
-############################################################
+################################################################################
 
-# felm doesn't like triple interactions, hard code this one
+# reference temperature - curve gets recentered to 0 here
+Tref = 25
+# temperature vector for plotting response function
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+
 complete <- complete |>
   dplyr::group_by(as.factor(smllrgn), month) |>
   dplyr::mutate(smllrgnMO = dplyr::cur_group_id()) |>
@@ -558,9 +400,9 @@ tex <- stargazer(
 
 writeLines(tex, here::here("Results", "Tables", "FixedEffects_sensitivity.tex"))
 
-############################################################
+################################################################################
 # Sensitivity to spatiotemporal controls (figure output) ----
-############################################################
+################################################################################
 
 plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
@@ -760,9 +602,9 @@ ggsave(
   height = 9
 )
 
-############################################################
+################################################################################
 # Influence analysis ----
-############################################################
+################################################################################
 
 ## main model
 betaTmain = mainmod$coefficients[1]
@@ -795,7 +637,7 @@ for (c in 1:length(cntrs)) {
 
 loco <- loco |> dplyr::filter(!is.na(betaT))
 
-# plot ----
+## Leave one country out ----
 b1loco <- ggplot(data = loco) +
   geom_histogram(aes(x = betaT), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
@@ -1011,41 +853,6 @@ ggsave(
   height = 8
 )
 
-############################################################
-# Normally distributed errors ----
-############################################################
-
-## histogram of model errors
-complete <- complete |> mutate(res = c(residuals(mainmod)))
-g <- ggplot(data = complete) +
-  geom_histogram(aes(x = res), color = "seagreen", fill = "seagreen") +
-  xlab("Model residuals") +
-  ylab("Count") +
-  theme_classic() +
-    theme(
-      axis.text = element_text(size = 12),
-      axis.title = element_text(size = 14)
-    )
-g
-
-## Q-Q plot
-p <- ggplot(complete, aes(sample = res)) +
-  stat_qq() +
-  stat_qq_line(color = "seagreen") +
-  xlab("Normal distribution quantiles") +
-  ylab("Model residuals quantiles") +
-  theme_classic() +
-    theme(
-      axis.text = element_text(size = 12),
-      axis.title = element_text(size = 14)
-    )
-p
-
-grid <- plot_grid(g, p, nrow = 1)
-ggsave(
-  filename = paste0("Supp_Figure_model_residuals.", fig_file_type),
-  path = here::here("Results", "Figures"),
-  plot = grid,
-  width = 9,
-  height = 4
-)
+################################################################################
+# End of file ----
+################################################################################

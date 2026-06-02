@@ -60,6 +60,45 @@ mainmod = readRDS(main_mod_obj_fn)
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 
 ################################################################################
+# Normally distributed errors ----
+################################################################################
+
+## histogram of model errors
+complete <- complete |> mutate(res = c(residuals(mainmod)))
+g <- ggplot(data = complete) +
+  geom_histogram(aes(x = res), color = "seagreen", fill = "seagreen") +
+  xlab("Model residuals") +
+  ylab("Count") +
+  theme_classic() +
+    theme(
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 14)
+    )
+g
+
+## Q-Q plot
+p <- ggplot(complete, aes(sample = res)) +
+  stat_qq() +
+  stat_qq_line(color = "seagreen") +
+  xlab("Normal distribution quantiles") +
+  ylab("Model residuals quantiles") +
+  theme_classic() +
+    theme(
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 14)
+    )
+p
+
+grid <- plot_grid(g, p, nrow = 1)
+ggsave(
+  filename = paste0("Supp_Figure_model_residuals.", fig_file_type),
+  path = here::here("Results", "Figures"),
+  plot = grid,
+  width = 9,
+  height = 4
+)
+
+################################################################################
 # A: Correlation across ADM1s within a country (same year-month) ----
 ################################################################################
 
@@ -367,196 +406,385 @@ writeLines(
 )
 
 ################################################################################
-# E: General correlation over space -- VARIOGRAMS ----
+# E. Sensitivity to clustering  ----
 ################################################################################
 
-# create year groupings for variogram
-complete = complete %>%
-  mutate(yeargp = (yearnum - min(yearnum)) %/% 5 * 5 + min(yearnum))
+## ADM1 clustering ----
+adm1form = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
+  )
+)
+adm1mod = felm(data = complete, formula = adm1form)
+# only need to compute this and the next line once, all specs have same coeffs but different CIs
+coefs = summary(adm1mod)$coefficients[1:2]
+# plot relative to max of Quadratic function
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+adm1fig = plotPolynomialResponse(
+  adm1mod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = "ADM1 clust.",
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = T,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+)
+
+## country clustering ----
+isoform = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | country"
+  )
+)
+isomod = felm(data = complete, formula = isoform)
+isofig = plotPolynomialResponse(
+  isomod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = "country clust.",
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+)
+
+## country x year clustering ----
+# (no correlation over years)
+complete = complete |>
+  group_by(country, year) |>
+  mutate(cntryyr = cur_group_id()) |>
+  ungroup()
+
+isoyrform = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr"
+  )
+)
+isoyrmod = felm(data = complete, formula = isoyrform)
+isoyrfig = plotPolynomialResponse(
+  isoyrmod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = "country-year clust.",
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+)
+
+## year clustering ----
+yrform = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | year"
+  )
+)
+yrmod = felm(data = complete, formula = yrform)
+yrfig = plotPolynomialResponse(
+  yrmod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = "year clust.",
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = F,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+)
+
+## country-5-year clustering ----
+yr_bin_size <- 5
+complete <- complete |>
+  dplyr::mutate(yr_bin5 = floor(yearnum / yr_bin_size) * yr_bin_size) |>
+  dplyr::group_by(country, yr_bin5) |>
+  dplyr::mutate(cntry_yrbin5 = dplyr::cur_group_id()) |>
+  dplyr::ungroup()
+
+iso5form = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin5"
+  )
+)
+iso5mod = felm(data = complete, formula = iso5form)
+iso5fig = plotPolynomialResponse(
+  iso5mod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = "country-5-year clust. (main)",
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = T,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+)
+
+## country-decade clustering ----
+yr_bin_size <- 10
+complete <- complete |>
+  dplyr::mutate(yr_bin10 = floor(yearnum / yr_bin_size) * yr_bin_size) |>
+  dplyr::group_by(country, yr_bin10) |>
+  dplyr::mutate(cntry_yrbin10 = dplyr::cur_group_id()) |>
+  dplyr::ungroup()
+
+iso10form = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " | OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin10"
+  )
+)
+iso10mod = felm(data = complete, formula = iso10form)
+iso10fig = plotPolynomialResponse(
+  iso10mod,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = "country-decade clust.",
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+)
+
+## Conley standard errors ----
+
+centroids <- ADM1_fp |>
+  sf::read_sf() |>
+  dplyr::mutate(
+    lon = sf::st_coordinates(sf::st_centroid(geometry))[, 1],
+    lat = sf::st_coordinates(sf::st_centroid(geometry))[, 2],
+    OBJECTID = as.numeric(OBJECTID)
+  ) |>
+  sf::st_drop_geometry() |>
+  dplyr::select(OBJECTID, lon, lat)
 
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
 
-# Estimate an empirical variogram
-# coordinates - so variogram is in m
-coordinates(spdf) = ~ lon + lat
-projection(spdf) = CRS("+init=EPSG:4326")
-
-# estimate variogram, 0 lags
-vv = variogram(res ~ 1, data = spdf, projection(FALSE))
-vvP = variogram(PfPR2 ~ 1, data = spdf, projection(FALSE))
-f <- fit.variogram(vv, vgm("Sph"))
-fP <- fit.variogram(vvP, vgm("Sph"))
-
-vvplot = plot(vv, model = f, xlab = "distance (km)", main = "Model residuals")
-vvPplot = plot(
-  vvP,
-  model = fP,
-  xlab = "distance (km)",
-  main = "Prevalence (PfPR2)"
+conleyform = as.formula(
+  paste0(
+    common,
+    " + I(intervention) + ",
+    country_time,
+    " + as.factor(smllrgn):month | OBJECTID"
+  )
 )
 
-# vars = ggarrange(vvplot, vvPplot, ncol = 2, nrow = 1)
-vars = ggarrange(vvPplot, vvplot, ncol = 2, nrow = 1)
-vars
+conley_dist_1 <- 200
+conley_dist_2 <- 500
+
+conleymod1 = feols(
+  conleyform,
+  data = spdf,
+  conley(conley_dist_1, distance = "spherical")
+)
+conleymod2 = feols(
+  conleyform,
+  data = spdf,
+  conley(conley_dist_2, distance = "spherical")
+)
+
+coefs = summary(conleymod1)$coefficients[1:2]
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+conleyfig1 = plotPolynomialResponse(
+  conleymod1,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = paste0("Conley (", conley_dist_1, "km)"),
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+)
+
+coefs = summary(conleymod2)$coefficients[1:2]
+myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of Quadratic function
+conleyfig2 = plotPolynomialResponse(
+  conleymod2,
+  "temp",
+  plotXtemp,
+  polyOrder = 2,
+  cluster = T,
+  xRef = myrefT,
+  xLab = expression(paste("Mean temperature (", degree, "C)")),
+  yLab = "Prevalence (%)",
+  title = paste0("Conley (", conley_dist_2, "km)"),
+  yLim = c(-30, 5),
+  plotmax_x = 3,
+  plotmax_y = 5,
+  max_x_size = 8,
+  showYTitle = F,
+  showXTitle = T,
+  axis_size = 20,
+  axis_title_size = 22,
+  title_size = 22
+) 
+
+## merged plot
+uncert <- plot_grid(
+  adm1fig,
+  isofig,
+  yrfig,
+  isoyrfig,
+  iso5fig,
+  iso10fig,
+  conleyfig1,
+  conleyfig2,
+  nrow = 2
+)
+
 ggsave(
-  filename = "variogram_2panel.jpg",
-  path = figure_res_dir,
-  plot = vars,
-  width = 9,
-  height = 5,
-  bg = "white"
+  filename = paste0("Supp_Figure_temp_response_difft_SEs.", fig_file_type),
+  path = here::here("Results", "Figures"),
+  plot = uncert,
+  width = 20,
+  height = 10
 )
 
-# By year groupings
-range = data.frame(yeargp = NA, n = NA, range = NA)
+## Table
+# feols models do not work with stargazer as it has no method for feols objects (class "fixest")
+# so we use stargazer on the felm objects and etable on the feols objects. The two tables are
+# then combined manually
 
-for (y in unique(spdf$yeargp)) {
-  test = subset(spdf, yeargp == y)
-  if (dim(test)[1] > 100) {
-    vv = variogram(res ~ 1, data = test, projection(FALSE))
-    f = fit.variogram(vv, vgm("Sph"))
-    range = rbind(range, c(y, dim(test)[1], f$range[2]))
-  }
-}
-
-range = range %>% arrange(yeargp)
-hist(range$range, breaks = 30)
-quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE)
-
-# By country
-range = data.frame(country = NA, n = NA, range = NA)
-
-for (c in unique(spdf$country)) {
-  # c <- "Sierra Leone"
-  test = subset(spdf, country == c)
-  if (dim(test)[1] > 115) {
-    vv = variogram(res ~ 1, data = test, projection(FALSE))
-    vv = subset(vv, dist > 0) # many obs of same location
-    f = fit.variogram(vv, vgm("Sph"))
-    range = rbind(range, c(c, dim(test)[1], f$range[2]))
-  }
-}
-
-range = range %>% arrange(country) %>% mutate(range = as.numeric(range))
-hist(range$range, breaks = 30)
-quantile(range$range, probs = c(0.1, 0.5, 0.9, .95, .99), na.rm = TRUE)
-
-################################################################################
-# F: General correlation over time ----
-################################################################################
-
-# As detailed in D03 - Additional robustness.R, the panel is sufficiently unbalanced
-# that estimating a distributed lag at monthly scale is likely not feasible. Instead, look across years.
-
-complete_expanded <- complete %>%
-  mutate(
-    year = as.numeric(as.character(year)),
-    month = as.character(month),
-    month = match(month, month.abb)
-  ) |>
-  group_by(OBJECTID) %>%
-  complete(year = 1902:2016, month = 1:12) %>%
-  ungroup()
-
-complete_with_lag <- complete_expanded %>%
-  arrange(OBJECTID, year, month) %>%
-  group_by(OBJECTID) %>%
-  mutate(
-    resmn = res,
-    reslag1 = dplyr::lag(resmn, 1),
-    reslag2 = dplyr::lag(resmn, 2),
-    reslag3 = dplyr::lag(resmn, 3),
-    reslag4 = dplyr::lag(resmn, 4),
-    reslag5 = dplyr::lag(resmn, 5)
-  ) |>
-  tidyr::drop_na(resmn)
-
-mn_lag1 <- lm(resmn ~ reslag1, data = complete_with_lag)
-
-mn_lag2 <- lm(resmn ~ reslag1 + reslag2, data = complete_with_lag)
-
-mn_lag3 <- lm(resmn ~ reslag1 + reslag2 + reslag3, data = complete_with_lag)
-
-# Average residuals by ADM1-year
-anndf = complete |>
-  group_by(OBJECTID, yearnum) |>
-  dplyr::summarize(resmn = mean(res, na.rm = TRUE), year = first(yearnum))
-
-# Expand to be a full panel
-anndf_ex <- anndf %>%
-  group_by(OBJECTID) %>%
-  complete(year = 1902:2016) %>%
-  ungroup()
-
-# Add lags
-anndf_with_lag <- anndf_ex %>%
-  arrange(OBJECTID, year) %>%
-  mutate(
-    reslag1 = lag(resmn, 1),
-    reslag2 = lag(resmn, 2),
-    reslag3 = lag(resmn, 3),
-    reslag4 = lag(resmn, 4),
-    reslag5 = lag(resmn, 5)
-  ) |>
-  tidyr::drop_na(resmn)
-
-# Estimation
-lag1 <- lm(resmn ~ reslag1, data = anndf_with_lag)
-
-lag2 <- lm(resmn ~ reslag1 + reslag2, data = anndf_with_lag)
-
-lag3 <- lm(resmn ~ reslag1 + reslag2 + reslag3, data = anndf_with_lag)
-
-lag4 <- lm(resmn ~ reslag1 + reslag2 + reslag3 + reslag4, data = anndf_with_lag)
-
-lag5 <- lm(
-  resmn ~ reslag1 + reslag2 + reslag3 + reslag4 + reslag5,
-  data = anndf_with_lag
+# tabular output
+modellist = list(
+  adm1mod,
+  isomod,
+  yrmod,
+  isoyrmod,
+  iso5mod,
+  iso10mod
+)
+mycollabs = c(
+  "Adm1 clust.",
+  "Country clust.",
+  "Year clust.",
+  "Country-year clust.",
+  "Country-5-year clust.",
+  "Country-decade clust."
 )
 
-mynote <- "Note"
+mynote = "Column specifications: (1) standard errors clustered at ADM1 level; (2) standard errors clustered at country level; (3) standard errors clustered at year level; (4) standard errors clustered at country-year level; (5) standard errors clustered at country-5-year level (main specification); (6) standard errors clustered at country-decade level; (7) standard errors estimated following Conley (2008) using 200km cutoff; (6) standard errors estimated following Conley (2008) using a 500km cutoff."
 
-stargazer(
-  mn_lag1,
-  mn_lag2,
-  mn_lag3,
-  lag1,
-  lag2,
-  lag3,
-  lag4,
-  lag5,
-  title = "Model diagnostics: Residual lags",
-  # align = TRUE,
-  column.labels = c(
-    "1 Mn",
-    "2 Mn",
-    "3 Mn",
-    "1 Yr",
-    "2 Yr",
-    "3 Yr",
-    "4 Yr",
-    "5 Yr"
-  ),
-  covariate.labels = c(
-    "Res. Lag 1",
-    "Res. Lag 2",
-    "Res. Lag 3",
-    "Res. Lag 4",
-    "Res. Lag 5"
-  ),
+tex <- stargazer(
+  modellist,
+  title = "Quadratic temperature: standard error sensitivity",
+  align = TRUE,
+  column.labels = mycollabs,
+  covariate.labels = my_covariate_labels,
+  dep.var.labels = "$Pf$PR$_{2-10}$",
+  keep = c("temp", "flood", "drought", "intervention"),
+  # out = here::here("Results", "Tables", "uncertainty.tex"),
   omit.stat = c("f", "ser"),
-  digits = 2,
-  # float = FALSE,
+  out.header = FALSE,
   type = "latex",
+  float = F,
   notes.append = TRUE,
+  digits = 2,
   notes.align = "l",
   notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
-  out = file.path(
-    table_res_dir,
-    "serial_correlation_in_model_residuals.tex"
-  ),
   star.cutoffs = table_star_cutoffs
 )
 
+writeLines(tex, here::here("Results", "Tables", "uncertainty.tex"))
 
+conley_tab <- fixest::etable(
+  conleymod1,
+  conleymod2,
+  keep = c("temp", "flood", "drought", "intervention"),
+  tex = TRUE,
+  fitstat = c("n", "r2", "ar2"),
+  digits = 3,
+  label = "tab:conley",
+  file = here::here("Results", "Tables", "conley.tex"),
+  signif.code = c("***" = 0.001, "**" = 0.01, "*" = 0.05)
+)
+
+conley_tab
+
+################################################################################
+# End of file ----
+################################################################################

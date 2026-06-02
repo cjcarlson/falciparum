@@ -185,6 +185,7 @@ fut_pred_dir <- file.path(inter_cmip6_pred_dir, "future")
 hist_sum_dir <- file.path(inter_cmip6_sum_dir, "historical")
 fut_sum_dir <- file.path(inter_cmip6_sum_dir, "future")
 inter_urban_dir <- file.path(inter_dir, "urban")
+native_rast_pred_dir <- file.path(inter_cmip6_pred_dir, "native_raster")
 
 dir.create(climate_prc_key_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(inter_cru_ext_dir, showWarnings = FALSE, recursive = TRUE)

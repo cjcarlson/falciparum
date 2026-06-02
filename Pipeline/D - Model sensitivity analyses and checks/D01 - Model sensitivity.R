@@ -46,216 +46,6 @@ print("Loading analysis ready data")
 
 complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 
-########################################################################
-# Assessing temporal controls: At what spatial scale do we need to address
-# long-run trends?
-########################################################################
-
-complete$datestr = paste0(
-  as.character(complete$year),
-  '-',
-  as.character(complete$month),
-  '-15'
-)
-complete$datevar = ymd(complete$datestr)
-
-clist = unique(complete$country)
-complete$yhat = NA
-
-################################################################################
-# Time controls - Regional 1 ----
-# 1. Show that temporal trends in PfPR2 vary by Global Burden of Disease region,
-# suggesting at least some spatially varying temporal controls are merited
-################################################################################
-
-rlist = unique(complete$smllrgn)
-complete$yhat = NA
-
-for (r in 1:length(rlist)) {
-  mydf = subset(complete, smllrgn == rlist[r])
-  mydf$monthyr2 = mydf$monthyr^2
-  mod = lm(PfPR2 ~ monthyr + monthyr2, data = mydf)
-  complete$yhat[complete$smllrgn == rlist[r]] = predict(mod, newdata = mydf)
-}
-
-g = ggplot(data = complete, aes(x = datevar, PfPR2)) +
-  geom_point(color = "cadetblue4", size = 1) +
-  theme_classic() +
-  geom_line(aes(y = yhat), color = "red", linewidth = 1) +
-  labs(y = "PfPR2", x = "Date") +
-  facet_wrap(~smllrgn)
-
-ggsave(
-  filename = 'region_quad_trends.jpg',
-  path = figure_fe_dir,
-  plot = g,
-  height = 6,
-  width = 8,
-)
-
-################################################################################
-# Time controls - Regional 2 ----
-# 2. Show that trends appear a) nonlinear; and b) heterogeneous by country
-# within GBOD regions, suggesting country specific quadratic trends are preferred
-################################################################################
-
-clist = unique(complete$country)
-complete$yhat = NA
-
-for (c in 1:length(clist)) {
-  mydf = subset(complete, country == clist[c])
-  mydf$monthyr2 = mydf$monthyr^2
-  mod = lm(PfPR2 ~ monthyr + monthyr2, data = mydf)
-  complete$yhat[complete$country == clist[c]] = predict(mod, newdata = mydf)
-}
-
-figList = list()
-for (r in 1:length(rlist)) {
-  figList[[r]] = ggplot(
-    data = subset(complete, smllrgn == rlist[r]),
-    aes(x = datevar, PfPR2)
-  ) +
-    geom_point(color = "cadetblue4", size = 1) +
-    theme_classic() +
-    geom_line(aes(y = yhat), color = "red", linewidth = 1) +
-    labs(y = "PfPR2", x = "") +
-    facet_wrap(~country)
-}
-
-p = plot_grid(
-  figList[[1]],
-  figList[[2]],
-  figList[[3]],
-  figList[[4]],
-  nrow = 2,
-  labels = c(
-    as.character(rlist[1]),
-    as.character(rlist[2]),
-    as.character(rlist[3]),
-    as.character(rlist[4])
-  ),
-  label_size = 8,
-  vjust = .5
-)
-
-ggsave(
-  filename = 'country_quad_trends_by_GBOD_region.jpg',
-  path = figure_fe_dir,
-  plot = p,
-  height = 10,
-  width = 10,
-)
-
-################################################################################
-# Time controls - Regional 3 ----
-# 3. Ensure we have sufficient data to identify GBOD region X year FEs,
-# region X month FEs, country X month FEs, but not country X year FEs
-# (too little coverage here). This implies country trends are likely
-# more reliable to capture within region heterogeneity in trends, since
-# we are underpowered to estimate country-month FEs.
-################################################################################
-
-# on average, we've got >2400 observations per GBOD region over the whole sample
-regcounts <- complete %>% group_by(smllrgn) %>% tally()
-summary(regcounts$n)
-
-# on average, we've got 27 observations per GBOD region per year to identify
-# regionXyear FEs
-regyrcounts <- complete %>% group_by(smllrgn, year) %>% tally()
-summary(regyrcounts$n)
-
-# on average, we've got 206 observations per GBOD region per month to identify
-# regionXmonth FEs
-regmocounts <- complete %>% group_by(smllrgn, month) %>% tally()
-summary(regmocounts$n)
-
-# on average, we've got 20 observations per country per month to identify
-# countryXmonth FEs (not great...)
-isomocounts <- complete %>% group_by(country, month) %>% tally()
-summary(isomocounts$n)
-
-# on average, we've got just 6 observations per country per year to identify
-# countryXyear FEs (highly insufficient)
-isoyrcounts <- complete %>% group_by(country, year) %>% tally()
-summary(isoyrcounts$n)
-
-################################################################################
-# Time controls - Seasonality ----
-# Assessing temporal controls: At what spatial scale do we need to
-# address seasonality?
-################################################################################
-
-# Show that seasonality looks different by region
-rlist = unique(complete$smllrgn)
-molist = unique(complete$month)
-
-avgbyregionmo = complete %>%
-  dplyr::group_by(smllrgn, month) %>%
-  dplyr::summarize(ymn = mean(PfPR2))
-toplot = left_join(complete, avgbyregionmo, by = c("smllrgn", "month"))
-toplot = toplot %>% mutate(monthnum = month(datevar))
-
-# quick plot by GBOD region over time
-g = ggplot(data = toplot, aes(x = monthnum, y = ymn)) +
-  theme_classic() +
-  geom_point(color = "cadetblue4", size = 1) +
-  facet_wrap(~smllrgn) +
-  labs(y = "PfPR2", x = "Month")
-g
-
-ggsave(
-  filename = 'region_seasonality.jpg',
-  path = figure_fe_dir,
-  plot = g,
-  height = 6,
-  width = 8
-)
-
-################################################################################
-# Time controls - Residuals ----
-# Ensure residuals are normally distributed and uncorrelated over time
-################################################################################
-
-# plot residuals from main specifications (over time and histogram)
-main = felm(data = complete, formula = cXt2intrXm)
-complete$residuals = main$residuals
-
-# residuals histogram
-g = ggplot(data = complete) + geom_histogram(aes(residuals)) + theme_classic()
-
-ggsave(filename = 'residuals_cXt2intrXm.jpg', path = figure_main_dir, plot = g)
-
-# residuals over time
-g = ggplot(data = complete, aes(x = datevar, y = residuals)) +
-  geom_point(size = 1, alpha = .3) +
-  geom_hline(yintercept = 0, linewidth = .5, color = "red") +
-  stat_smooth(method = "loess", formula = y ~ x, linewidth = 1) +
-  theme_classic()
-g
-
-ggsave(
-  filename = 'residuals_cXt2intrXm_overtime.jpg',
-  path = figure_main_dir,
-  plot = g
-)
-
-summary(lm(residuals ~ datevar, data = complete)) #uncorrelated with time
-
-# residuals over time by region
-g = ggplot(data = complete, aes(x = datevar, y = residuals)) +
-  geom_point(size = .5, alpha = .3) +
-  geom_hline(yintercept = 0, linewidth = .5, color = "red") +
-  stat_smooth(method = "lm", formula = y ~ poly(x, 3), linewidth = .5) +
-  theme_classic() +
-  facet_wrap(~smllrgn)
-g
-
-ggsave(
-  filename = 'residuals_cXt2intrXm_overtime_by_region.jpg',
-  path = figure_main_dir,
-  plot = g
-)
-
 ################################################################################
 # Temp lags/leads - data prep ----
 # Lags and leads of temperature: Dynamic effects
@@ -264,7 +54,6 @@ ggsave(
 climate_data <- intermediate_CRU_adm1_fp |>
   arrow::read_feather() |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
-  # readr::read_csv(show_col_types = FALSE) |>
   tidyr::unite("monthyr", month:year, sep = ' ', remove = FALSE) |>
   dplyr::mutate(
     monthyr = as.Date(as.yearmon(monthyr)),
@@ -297,10 +86,7 @@ templags = templags |>
   dplyr::select(all_of(tokeep), contains("lag"), contains("lead"))
 
 complete <- complete |>
-  dplyr::left_join(
-    templags
-    # by = c("OBJECTID", "monthyr", "month", "year")
-  )
+  dplyr::left_join(templags, by = c("OBJECTID", "monthyr", "month", "year"))
 
 complete$month = as.factor(complete$month)
 
@@ -347,19 +133,19 @@ for (m in myforms) {
 # Temp lags/leads - table ----
 ################################################################################
 
-stargazer(
-  modellist,
-  title = "Quadratic temperature: Leads and lags",
-  align = TRUE,
-  column.labels = mycollabs,
-  keep = c("temp", "flood", "drought"),
-  out = file.path(table_sens_dir, "panelFE_leads_lags.tex"),
-  omit.stat = c("f", "ser"),
-  out.header = FALSE,
-  type = "latex",
-  float = F,
-  star.cutoffs = table_star_cutoffs
-)
+# stargazer(
+#   modellist,
+#   title = "Quadratic temperature: Leads and lags",
+#   align = TRUE,
+#   column.labels = mycollabs,
+#   keep = c("temp", "flood", "drought"),
+#   out = file.path(table_sens_dir, "panelFE_leads_lags.tex"),
+#   omit.stat = c("f", "ser"),
+#   out.header = FALSE,
+#   type = "latex",
+#   float = F,
+#   star.cutoffs = table_star_cutoffs
+# )
 
 ################################################################################
 # Temp lags/leads - plot ----
@@ -487,18 +273,15 @@ p3 = plotPolynomialResponse(
     size = 6
   )
 
-p3
+p <- (c + p1 + p2 + p3) +
+  patchwork::plot_layout(nrow = 1)
 
-# Combine figs
-p = plot_grid(c, p1, p2, p3, nrow = 1)
-# p
-
-cowplot::save_plot(
+ggplot2::ggsave(
   filename = paste0("ED_Figure_templags_cumulative_effects.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = p,
-  ncol = 1,
-  base_asp = 4
+  width = 16,
+  height = 4
 )
 
 ################################################################################
@@ -578,13 +361,12 @@ for (m in 1:length(modellist)) {
     max_x_size = 4,
     plotmax_x = 4,
     plotmax_y = 5,
-    axis_size = 14,
-    axis_title_size = 16,
+    axis_size = 10,
+    axis_title_size = 12,
     title_size = 18
   ) +
     theme(plot.title = element_text(size = 10))
 }
-
 
 p = plot_grid(
   figList[[1]],
@@ -604,7 +386,6 @@ p = plot_grid(
   figList[[15]],
   nrow = 5
 )
-p
 
 ggsave(
   filename = paste0(
@@ -662,7 +443,6 @@ p = plot_grid(
   figList[[15]],
   nrow = 5
 )
-p
 
 ggsave(
   filename = paste0(
@@ -675,7 +455,10 @@ ggsave(
   height = 10
 )
 
-# All flood figures
+################################################################################
+# Flood figures ----
+################################################################################
+
 figList = list()
 for (m in 1:length(modellist)) {
   isLeftCol <- ((m - 1) %% ncolGrid) == 0
@@ -715,7 +498,6 @@ p = plot_grid(
   figList[[15]],
   nrow = 5
 )
-p
 
 ggsave(
   filename = paste0("Supp_Figure_flood_responses_sensitivity.", fig_file_type),
@@ -727,9 +509,9 @@ ggsave(
 
 ################################################################################
 # Temperature functional form ----
+# estimate polynomial orders up to 5
 ################################################################################
 
-# estimate polynomial orders up to 5
 modellist = list()
 modellist[[1]] = felm(data = complete, formula = cXt2intrXm)
 modellist[[2]] = felm(
@@ -828,7 +610,6 @@ for (m in 1:length(modellist)) {
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
-p
 
 ggsave(
   filename = paste0("Supp_Figure_temperature_poly_order.", fig_file_type),
@@ -922,7 +703,6 @@ for (m in 1:length(modellist)) {
 }
 
 p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
-p
 
 ggsave(
   filename = paste0("Supp_Figure_precipitation_poly_order.", fig_file_type),

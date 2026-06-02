@@ -114,7 +114,7 @@ monthly_diff <- ggplot() +
   ) +
   labs(
     x = NULL,
-    y = "Change in prevalence (%)",
+    y = "Prevalence (%)",
   ) +
   theme_classic() +
   theme(
