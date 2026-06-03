@@ -21,7 +21,8 @@ pacman::p_load(
   zoo,
   lubridate,
   cowplot,
-  multcomp
+  multcomp,
+  patchwork
 )
 
 # source functions for easy plotting and estimation
@@ -273,7 +274,7 @@ p3 = plotPolynomialResponse(
     size = 6
   )
 
-p <- (c + p1 + p2 + p3) +
+p <- (c + p1 + p2 + p3) &
   patchwork::plot_layout(nrow = 1)
 
 ggplot2::ggsave(

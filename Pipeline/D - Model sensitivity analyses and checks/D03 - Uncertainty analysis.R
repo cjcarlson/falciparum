@@ -423,6 +423,7 @@ adm1mod = felm(data = complete, formula = adm1form)
 coefs = summary(adm1mod)$coefficients[1:2]
 # plot relative to max of Quadratic function
 myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 adm1fig = plotPolynomialResponse(
   adm1mod,
   "temp",

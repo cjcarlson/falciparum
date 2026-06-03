@@ -39,8 +39,8 @@ repo_dir <- dplyr::case_when(
 
 print(paste0("repository directory set to: ", repo_dir))
 
-# fig_file_type <- "pdf" # jpg png
-fig_file_type <- "jpg" # pdf png
+fig_file_type <- "pdf" # jpg png
+# fig_file_type <- "jpg" # pdf png
 
 ################################################################################
 # Model formula ----

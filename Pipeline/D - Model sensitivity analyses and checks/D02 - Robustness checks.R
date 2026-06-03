@@ -33,8 +33,8 @@ source(A_utils_plot_fp)
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence and CRU 
-# temperature and precipitation data aggregated to the first level of 
+# Read in the analysis ready data file with malaria prevalence and CRU
+# temperature and precipitation data aggregated to the first level of
 # Administrative division.
 ################################################################################
 
@@ -271,19 +271,37 @@ ggsave(
 # Sensitivity to spatiotemporal controls (tabular output) ----
 ################################################################################
 
-# reference temperature - curve gets recentered to 0 here
-Tref = 25
-# temperature vector for plotting response function
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+## country-5-year clustering ----
+yr_bin_size <- 5
+complete <- complete |>
+  dplyr::mutate(yr_bin5 = floor(yearnum / yr_bin_size) * yr_bin_size) |>
+  dplyr::group_by(country, yr_bin5) |>
+  dplyr::mutate(cntry_yrbin5 = dplyr::cur_group_id()) |>
+  dplyr::ungroup()
+
+## country-decade clustering ----
+yr_bin_size <- 10
+complete <- complete |>
+  dplyr::mutate(yr_bin10 = floor(yearnum / yr_bin_size) * yr_bin_size) |>
+  dplyr::group_by(country, yr_bin10) |>
+  dplyr::mutate(
+    cntry_yrbin10 = dplyr::cur_group_id(),
+    cntry_yrbin5 = as.factor(cntry_yrbin5),
+    cntry_yrbin10 = as.factor(cntry_yrbin10)
+  ) |>
+  dplyr::ungroup()
 
 complete <- complete |>
   dplyr::group_by(as.factor(smllrgn), month) |>
   dplyr::mutate(smllrgnMO = dplyr::cur_group_id()) |>
   dplyr::ungroup() |>
-  dplyr::mutate(
-    smllrgnMO = as.factor(smllrgnMO),
-    cntry_yrbin10 = as.factor(cntry_yrbin10)
-  )
+  dplyr::mutate(smllrgnMO = as.factor(smllrgnMO), )
+
+# reference temperature - curve gets recentered to 0 here
+Tref = 25
+# temperature vector for plotting response function
+plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+
 
 ym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | cntry_yrbin5"))
 cXt2m = as.formula(paste0(
@@ -434,7 +452,7 @@ for (m in 1:length(modellist)) {
     axis_size = 9,
     axis_title_size = 9,
     title_size = 9
-  ) 
+  )
 }
 
 # point estimate and CIs for main spec
@@ -650,14 +668,14 @@ p1loco <- ggplot(data = loco) +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff. p-value") +
   ylab("Count") +
-  theme_classic() 
+  theme_classic()
 
 b2loco <- ggplot(data = loco) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("Quadratic temp. coeff.") +
   ylab("Count") +
-  theme_classic() 
+  theme_classic()
 
 p2loco <- ggplot(data = loco) +
   geom_histogram(
@@ -700,21 +718,21 @@ b1loyo <- ggplot(data = loyo) +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff.") +
   ylab("Count") +
-  theme_classic() 
+  theme_classic()
 
 p1loyo <- ggplot(data = loyo) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
   geom_vline(xintercept = pvalTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff. p-value") +
   ylab("Count") +
-  theme_classic() 
+  theme_classic()
 
 b2loyo <- ggplot(data = loyo) +
   geom_histogram(aes(x = betaT2), color = "seagreen", fill = "seagreen") +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("Quadratic temp. coeff.") +
   ylab("Count") +
-  theme_classic() 
+  theme_classic()
 
 p2loyo <- ggplot(data = loyo) +
   geom_histogram(
@@ -753,7 +771,7 @@ b1lomo <- ggplot(data = lomo) +
   geom_vline(xintercept = betaTmain, color = "darkgrey", linetype = "dashed") +
   xlab("Linear temp. coeff.") +
   ylab("Count") +
-  theme_classic() 
+  theme_classic()
 
 p1lomo <- ggplot(data = lomo) +
   geom_histogram(aes(x = pvalT), bins = 30, color = "wheat2", fill = "wheat2") +
@@ -766,7 +784,7 @@ b2lomo <- ggplot(data = lomo) +
   geom_vline(xintercept = betaT2main, color = "darkgrey", linetype = "dashed") +
   xlab("Quadratic temp. coeff.") +
   ylab("Count") +
-  theme_classic() 
+  theme_classic()
 p2lomo <- ggplot(data = lomo) +
   geom_histogram(
     aes(x = pvalT2),
