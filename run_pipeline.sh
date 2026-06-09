@@ -88,8 +88,7 @@ echo "################################################################"
 
 PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
 run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
-run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
-run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
+run_r_script "${PIPELINE_C_DIR}/C02 - VCOV sampling.R"
 
 ################################################################################
 # Section D: Model sensitivity analyses and checks
@@ -102,13 +101,11 @@ echo "################################################################"
 
 PIPELINE_D_DIR="${PIPELINE_DIR}/D - Model sensitivity analyses and checks"
 run_r_script "${PIPELINE_D_DIR}/D01 - Model sensitivity.R"
-run_r_script "${PIPELINE_D_DIR}/D02 - Randomization tests.R"
-run_r_script "${PIPELINE_D_DIR}/D03 - Additional robustness.R"
-run_r_script "${PIPELINE_D_DIR}/D04 - Uncertainty analysis.R"
-run_r_script "${PIPELINE_D_DIR}/D04b - newrob.R"
-run_r_script "${PIPELINE_D_DIR}/D05 - High resolution model.R"
-run_r_script "${PIPELINE_D_DIR}/D06 - Urbanization.R"
-run_r_script "${PIPELINE_D_DIR}/D07 - ERA5 analysis.R"
+run_r_script "${PIPELINE_D_DIR}/D02 - Robustness checks.R"
+run_r_script "${PIPELINE_D_DIR}/D03 - Uncertainty analysis.R"
+run_r_script "${PIPELINE_D_DIR}/D04 - High resolution model.R"
+run_r_script "${PIPELINE_D_DIR}/D05 - Urbanization.R"
+run_r_script "${PIPELINE_D_DIR}/D06 - ERA5 analysis.R"
 
 ################################################################################
 # Section E: Estimate historical and future prevalence

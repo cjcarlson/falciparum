@@ -62,6 +62,35 @@ boots_2010_2014 <- file.path(
   )
 
 ################################################################################
+# Hist delta high elevation data ----
+################################################################################
+
+boots_2010_2014_high_el_reg <- file.path(
+  hist_sum_dir,
+  "historical_vcov_pred_sum_scen_mod_yr_high_el_reg.feather"
+) |>
+  arrow::read_feather() |>
+  dplyr::mutate(
+    model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
+  ) |>
+  dplyr::select(scenario, model, year, region, Pred, run) |>
+  dplyr::filter(run != "main", year == 2014) |>
+  tidyr::pivot_wider(names_from = scenario, values_from = Pred) |>
+  dplyr::mutate(diff = (historical - `hist-nat`), ) |>
+  dplyr::group_by(region) |>
+  dplyr::summarize(
+    mean.diff = mean(diff),
+    runs.diff = sum(diff > 0),
+    lower.diff = quantile(diff, 0.05, na.rm = TRUE),
+    upper.diff = quantile(diff, 0.95, na.rm = TRUE),
+    prop_positive_diff = mean(diff > 0)
+  ) |>
+  dplyr::mutate(moe = 1 - abs(runs.diff - 5000) / 5000) |>
+  dplyr::filter(
+    region %in% c("Sub-Saharan Africa (East)", "Sub-Saharan Africa (Southern)")
+  )
+
+################################################################################
 # Join to elev and ADM1 data ----
 ################################################################################
 

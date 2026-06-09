@@ -29,8 +29,8 @@ pacman::p_load(
   future.apply
 )
 
-n_cores <- min(2, future::availableCores())
-options(future.globals.maxSize = 6 * 1024^3)
+n_cores <- min(1, future::availableCores())
+options(future.globals.maxSize = 7 * 1024^3)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
@@ -58,8 +58,6 @@ if (model_version == "cru") {
 # Set up logging ----
 ################################################################################
 
-# log_msg <- create_logger(file.path(logs_dir, "E01_pred_prev.log"))
-
 log_msg <- create_logger()
 
 log_msg("Starting script `E01 - Predict prevalence.R`")
@@ -86,6 +84,16 @@ data.table::setnames(
 valid_ids <- unique(precip_dt$OBJECTID)
 
 ################################################################################
+# Elevation data ----
+################################################################################
+
+log_msg("Loading the elevation key")
+
+elev_dt <- elevation_summary_fp |>
+  data.table::fread() |>
+  dplyr::select(OBJECTID, elevmn) 
+
+################################################################################
 # Country data ----
 ################################################################################
 
@@ -99,7 +107,8 @@ country_dt <- ADM1_fp |>
   dplyr::rename(country = NAME_0) |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID)) |>
   dplyr::filter(OBJECTID %in% valid_ids) |>
-  data.table::as.data.table()
+  data.table::as.data.table() |> 
+  dplyr::left_join(elev_dt, by = join_by("OBJECTID"))
 
 ################################################################################
 # Region data ----
@@ -145,19 +154,17 @@ for (mode in c("historical", "future")) {
   if (mode == "historical") {
     start_date <- lubridate::ymd("1900-01-01")
     scen_subset <- names(historical_scenario_names)
-    prediction_dir <- hist_pred_dir
     summary_dir <- hist_sum_dir
     row_years <- c(yr_1901, yr_2014)
   } else {
     start_date <- lubridate::ymd("2015-01-01")
     scen_subset <- names(future_scenario_names)
-    prediction_dir <- fut_pred_dir
     summary_dir <- fut_sum_dir
     row_years <- c(yr_2015, yr_2050, yr_2100)
   }
 
-  log_msg("Predictions will be saved to: ")
-  log_msg(paste0("    ", prediction_dir))
+  log_msg("Predictions summaries will be saved to: ")
+  log_msg(paste0("    ", summary_dir))
 
   files <- vector("character")
 
@@ -240,6 +247,7 @@ for (mode in c("historical", "future")) {
     ISO,
     country,
     OBJECTID,
+    elevmn,
     year,
     month,
     monthyr
@@ -296,8 +304,22 @@ for (mode in c("historical", "future")) {
         ),
         by = .(scenario, model, year, run)
       ]
+
       # Scenario, model, year, and region ----
       scen_mod_yr_reg <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, region, run)
+      ]
+
+      # High elevation regions ----
+      high_el_data <- pred_data[elevmn > 1000]
+      # Scenario, model, year, and high elev region ----
+      scen_mod_yr_high_el_reg <- high_el_data[,
         list(
           Pred = mean(Pred, na.rm = TRUE),
           Pf.temp = mean(Pf.temp, na.rm = TRUE),
@@ -316,6 +338,7 @@ for (mode in c("historical", "future")) {
         ),
         by = .(scenario, model, year, month, region, run)
       ]
+
       # Scenario, model, year, and adm1 ----
       pred_data <- pred_data[rows, ]
       pred_data$year[pred_data$year %in% yr_1901] <- 1901
@@ -342,6 +365,7 @@ for (mode in c("historical", "future")) {
         list(
           scen_mod_yr = scen_mod_yr,
           scen_mod_yr_reg = scen_mod_yr_reg,
+          scen_mod_yr_high_el_reg = scen_mod_yr_high_el_reg,
           scen_mod_yr_mon_reg = scen_mod_yr_mon_reg,
           scen_mod_yr_obj = scen_mod_yr_obj
         )
@@ -353,10 +377,11 @@ for (mode in c("historical", "future")) {
   summaries <- c(
     "scen_mod_yr",
     "scen_mod_yr_reg",
+    "scen_mod_yr_high_el_reg",
     "scen_mod_yr_mon_reg",
     "scen_mod_yr_obj"
   )
-
+  rm(data, dt, meta); gc()
   for (sum_type in summaries) {
     out_path <- file.path(
       summary_dir,
@@ -365,9 +390,8 @@ for (mode in c("historical", "future")) {
     compiled <- rbindlist(lapply(iter.list, `[[`, sum_type))
     arrow::write_feather(compiled, out_path)
     log_msg(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
+    rm(compiled); gc()
   }
-  rm(data, dt, meta, iter.list, compiled)
-  gc()
 }
 
 future::plan(sequential)

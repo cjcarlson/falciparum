@@ -1,0 +1,9 @@
+region,period,mean_diff,lower_diff,upper_diff,prop_positive_diff,scenario_diff
+Sub-Saharan Africa (Central),2048-2052,0.009,-0.313,0.293,0.546,ssp245 - ssp126
+Sub-Saharan Africa (East),2048-2052,0.012,-0.319,0.357,0.53,ssp245 - ssp126
+Sub-Saharan Africa (Southern),2048-2052,0.184,-0.203,0.638,0.756,ssp245 - ssp126
+Sub-Saharan Africa (West),2048-2052,-0.265,-0.623,-0.048,0.007,ssp245 - ssp126
+Sub-Saharan Africa (Central),2096-2100,-0.192,-0.896,0.424,0.281,ssp245 - ssp126
+Sub-Saharan Africa (East),2096-2100,0.018,-0.577,0.608,0.52,ssp245 - ssp126
+Sub-Saharan Africa (Southern),2096-2100,0.497,-0.412,1.41,0.856,ssp245 - ssp126
+Sub-Saharan Africa (West),2096-2100,-1.129,-2.217,-0.354,0,ssp245 - ssp126

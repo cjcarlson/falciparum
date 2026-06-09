@@ -115,7 +115,7 @@ map.rcp45.2100 <- ggplot(sfcont) +
   ) +
   labs(
     title = "Future impact of anthropogenic climate change on prevalence",
-    subtitle = "(2096-2100; SSP2-RPC4.5)"
+    subtitle = "(2096-2100; SSP2-RCP4.5)"
   ) +
   theme_void() +
   theme(
