@@ -296,7 +296,7 @@ print(dji)
 
 future_scen_mod_yr_high_el_reg_pred <- file.path(
   fut_sum_dir,
-  "future_vcov_pred_sum_scen_mod_yr_reg.feather"
+  "future_vcov_pred_sum_scen_mod_yr_high_el_reg.feather"
 ) |>
   arrow::read_feather() |>
   dplyr::mutate(

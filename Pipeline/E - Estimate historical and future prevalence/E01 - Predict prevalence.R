@@ -18,9 +18,9 @@ if (!require("pacman")) {
 }
 
 pacman::p_load(
+  sf,
   zoo,
   here,
-  terra,
   arrow,
   future,
   tidyverse,
@@ -36,25 +36,6 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 ################################################################################
-# Choose model coeffs ----
-################################################################################
-
-# model_version <- "era5"
-model_version <- "vcov"
-# model_version <- "cru"
-
-if (model_version == "cru") {
-  precip_fp <- precip_CRU_adm1_fp
-  boot_fp <- boot_mod_full_fn
-} else if (model_version == "vcov") {
-  precip_fp <- precip_CRU_adm1_fp
-  boot_fp <- vcov_sample_mod_full_fn
-} else if (model_version == "era5") {
-  precip_fp <- precip_ERA5_adm1_fp
-  boot_fp <- boot_mod_full_ERA5_fn
-}
-
-################################################################################
 # Set up logging ----
 ################################################################################
 
@@ -64,15 +45,13 @@ log_msg("Starting script `E01 - Predict prevalence.R`")
 
 log_msg(paste0("Using ", n_cores, " CPUs"))
 
-log_msg(paste0("Predicting with ", model_version, " model"))
-
 ################################################################################
 # Precipitation thresholds ----
 ################################################################################
 
 log_msg("Loading the precipitation key")
 
-precip_dt <- precip_fp |>
+precip_dt <- precip_CRU_adm1_fp |>
   data.table::fread()
 
 data.table::setnames(
@@ -133,9 +112,7 @@ spatial_dt <- gbod_dt[country_dt, on = "country", nomatch = NULL]
 # Coefficients ----
 ################################################################################
 
-log_msg(paste0("Loading ", model_version, " coeffs"))
-
-coeffs_complete <- boot_fp |>
+coeffs_complete <- vcov_sample_mod_full_fn |>
   readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
@@ -385,7 +362,7 @@ for (mode in c("historical", "future")) {
   for (sum_type in summaries) {
     out_path <- file.path(
       summary_dir,
-      paste0(mode, "_", model_version, "_pred_sum_", sum_type, ".feather")
+      paste0(mode, "_vcov_pred_sum_", sum_type, ".feather")
     )
     compiled <- rbindlist(lapply(iter.list, `[[`, sum_type))
     arrow::write_feather(compiled, out_path)
