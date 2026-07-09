@@ -1,8 +1,8 @@
-############################################################
-# This script makes all four panels of Figure S1.
-############################################################
+################################################################################
+# This script makes all four panels of Extended Data Figure 6.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -28,8 +28,6 @@ source(A_utils_plot_fp)
 ################################################################################
 # Historical time series data ----
 ################################################################################
-
-# log_msg("Load and prepare historical projections")
 
 hist_boot <- file.path(
   hist_sum_dir,
@@ -64,17 +62,28 @@ for (i in seq_along(variables)) {
     boot,
     var$label,
     i == 1,
-    legend_position = c(0.15, 0.86),
+    legend_position = c(0.17, 0.86),
     scen_colors = hist_scenario_colors,
     scen_labels = hist_scenario_labels
   )
 }
 
-combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]]
+combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]] &
+  theme(
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 11),
+    legend.text = element_text(size = 11),
+    legend.title = element_blank()
+  ) &
+  scale_x_continuous(
+    limits = c(1900, 2014),
+    breaks = c(1900, 1925, 1950, 1975, 2000), 
+    expand = expansion(add = c(2,2))
+  )
 combined_plot
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_hist_partials.jpg",
+  filename = paste0("ED_Figure_hist_partials.", fig_file_type),
   plot = combined_plot,
   path = here::here("Results", "Figures"),
   width = 7.42,

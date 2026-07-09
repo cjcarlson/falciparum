@@ -1,11 +1,17 @@
 ################################################################################
-# Use the following code to extract GCM data for temperature and precipitation
-# from the CRU-TS4.03 dataset. The code extracts the data for 5 climate 
-# scenarios and 10 climate models. The code extracts the data for each month 
-# from 1901 to 2100. The code saves the data in CSV format for each month and 
-# each model. The code also consolidates the data into a single CSV file for 
-# each scenario and model. The code uses N cores to parallelize, which is chosen 
-# by the user. Finally, the code saves the data in the 'Climate' directory.
+# Extracts GCM data (temperature and precipitation) for 5 climate scenarios and
+# 10 climate models for each month and year from 1901 to 2100. The data is
+# saved in CSV format for each scenario and model.
+# Coupled Model Intercomparison Project (CMIP6) data can be downloaded from:
+# https://cds.climate.copernicus.eu/datasets/projections-cmip6
+# - The following ten models are used:
+#   `ACCESS-CM2`, `ACCESS-ESM1-5`, `BCC-CSM2-MR`, `CanESM5`, `FGOALS-g3`,
+#   `GFDL-ESM4`, `IPSL-CM6A-LR`, `MIROC6`, `MRI-ESM2-0`, and `NorESM2-LM`
+# - Under 5 climate scenarios:
+#   `historical`, `historical-natural`, `SSP1-2.6`, `SSP2-4.5`, and `SSP5-8.5`
+# - Note: CMIP6 data have gone through a bias correction procedure to calibrate
+#   values to CRU 4.03. Pre-extracted BC CMIP6 data can be downloaded from
+#   https://zenodo.org/records/20399793
 ################################################################################
 # Set up ----
 ################################################################################
@@ -21,7 +27,6 @@ pacman::p_load(
   terra,
   future,
   tidyverse,
-  # progressr,
   parallelly,
   data.table,
   future.apply,
@@ -38,8 +43,6 @@ overwrite <- TRUE
 # Set up logging ----
 ################################################################################
 
-# log_msg <- create_logger(file.path(logs_dir, "B02_extract_GCM_ADM1.log"))
-
 log_msg <- create_logger()
 
 log_msg("Starting script `B02 - Extract GCM tmp and prc data ADM1.R`")
@@ -48,20 +51,14 @@ log_msg("Starting script `B02 - Extract GCM tmp and prc data ADM1.R`")
 # Make cluster ----
 ################################################################################
 
-n_cores <- future::availableCores() 
-# n_cores <- min(length(models), availableCores())
+n_cores <- min(10, availableCores())
 future::plan(multicore, workers = n_cores)
-
-# handlers(handler_progress(
-#   format = ":spin :current/:total [:bar] :percent :message"
-# ))
 
 ################################################################################
 # Loop over scenarios ----
 ################################################################################
 
 for (scenario in scenarios) {
-  # scenario = "historical"
   log_msg(sprintf("Starting scenario: %s", scenario))
 
   date_range <- dplyr::case_when(
@@ -80,85 +77,82 @@ for (scenario in scenarios) {
   # Loop over Models ----
   ##############################################################################
 
-  # progressr::with_progress({
-  #   p <- progressr::progressor(along = models)
+  future_lapply(
+    models,
+    function(model) {
+      # ---- Load cont fresh on each worker (avoids sf serialization) ----
+      cont <- sf::read_sf(ADM1_fp)
 
-    future_lapply(
-      models,
-      function(model) {
-        # ---- Load cont fresh on each worker (avoids sf serialization) ----
-        cont <- sf::read_sf(ADM1_fp)
+      grid <- dplyr::case_when(
+        model == "GFDL-ESM4" ~ "gr1",
+        model == "IPSL-CM6A-LR" ~ "gr",
+        TRUE ~ "gn"
+      )
+      prc_fn <- make_filename("pr", model, scenario, grid, date_range)
+      tmp_fn <- make_filename("tas", model, scenario, grid, date_range)
 
-        grid <- dplyr::case_when(
-          model == "GFDL-ESM4" ~ "gr1",
-          model == "IPSL-CM6A-LR" ~ "gr",
-          TRUE ~ "gn"
-        )
-        prc_fn <- make_filename("pr", model, scenario, grid, date_range)
-        tmp_fn <- make_filename("tas", model, scenario, grid, date_range)
+      output_path <- file.path(
+        inter_cmip6_ext_dir,
+        scenario,
+        paste0(model, ".csv")
+      )
+      output_path |>
+        dirname() |>
+        dir.create(showWarnings = FALSE, recursive = TRUE)
 
-        output_path <- file.path(
-          inter_cmip6_ext_dir,
+      if (!file.exists(output_path) | overwrite) {
+        temp_rast <- terra::rast(file.path(
+          climate_bc_cmip6_dir,
           scenario,
-          paste0(model, ".csv")
+          tmp_fn
+        ))
+        rast_times <- as.character(terra::time(temp_rast))
+
+        temp_dt <- extract_clim_data_polygons(
+          rast = temp_rast,
+          polygons = cont,
+          rast_times = rast_times,
+          value_name = "temp"
         )
-        output_path |>
-          dirname() |>
-          dir.create(showWarnings = FALSE, recursive = TRUE)
 
-        if (!file.exists(output_path) | overwrite) {
-          temp_rast <- terra::rast(file.path(
-            climate_bc_cmip6_dir,
-            scenario,
-            tmp_fn
-          ))
-          rast_times <- as.character(terra::time(temp_rast))
+        temp2_dt <- extract_clim_data_polygons(
+          rast = temp_rast * temp_rast,
+          polygons = cont,
+          rast_times = rast_times,
+          value_name = "temp2"
+        )
+        temp_dt[, temp2 := temp2_dt$temp2]
+        rm(temp2_dt)
 
-          temp_dt <- extract_clim_data_polygons(
-            rast = temp_rast,
-            polygons = cont,
-            rast_times = rast_times,
-            value_name = "temp"
-          )
+        precip_rast <- terra::rast(file.path(
+          climate_bc_cmip6_dir,
+          scenario,
+          prc_fn
+        ))
 
-          temp2_dt <- extract_clim_data_polygons(
-            rast = temp_rast * temp_rast,
-            polygons = cont,
-            rast_times = rast_times,
-            value_name = "temp2"
-          )
-          temp_dt[, temp2 := temp2_dt$temp2]
-          rm(temp2_dt)
+        precip_dt <- extract_clim_data_polygons(
+          rast = precip_rast,
+          polygons = cont,
+          rast_times = as.character(terra::time(precip_rast)),
+          value_name = "ppt"
+        )
+        temp_dt[, ppt := precip_dt$ppt]
+        rm(precip_dt)
 
-          precip_rast <- terra::rast(file.path(
-            climate_bc_cmip6_dir,
-            scenario,
-            prc_fn
-          ))
+        data.table::fwrite(temp_dt, output_path)
+      }
 
-          precip_dt <- extract_clim_data_polygons(
-            rast = precip_rast,
-            polygons = cont,
-            rast_times = as.character(terra::time(precip_rast)),
-            value_name = "ppt"
-          )
-          temp_dt[, ppt := precip_dt$ppt]
-          rm(precip_dt)
-
-          data.table::fwrite(temp_dt, output_path)
-        }
-
-        # p(message = sprintf("%s done", model))
-        return(NULL)
-      },
-      future.seed = NULL
-    ) 
-  # })
+      return(NULL)
+    },
+    future.seed = NULL
+  )
   log_msg(sprintf("Finished scenario: %s", scenario))
 }
 future::plan(sequential)
 
-log_msg("Script `B02 - Extract GCM tmp and prc data ADM1.R` completed successfully")
+log_msg(
+  "Script `B02 - Extract GCM tmp and prc data ADM1.R` completed successfully"
+)
 
 ################################################################################
 # End of file ----

@@ -1,7 +1,7 @@
 ################################################################################
-# This script assesses whether urbanization confounds the main empirical 
-# specification by interacting an urban dummy with all climate variables 
-# (temperature, drought, flood) to test whether climate-PfPR2 relationships 
+# This script assesses whether urbanization confounds the main empirical
+# specification by interacting an urban dummy with all climate variables
+# (temperature, drought, flood) to test whether climate-PfPR2 relationships
 # differ between urban and rural survey locations.
 ################################################################################
 # Setup  ----
@@ -51,7 +51,7 @@ print("Loading clean data")
 complete <- analysis_ready_CRU_adm1_fp |>
   readr::read_rds() |>
   dplyr::left_join(urban_summary, by = join_by("OBJECTID", "year", "month")) |>
-  tidyr::drop_na(urban_dummy) 
+  tidyr::drop_na(urban_dummy)
 
 ggplot(data = complete, aes(x = urban_dummy)) +
   geom_histogram(bins = 3)
@@ -79,7 +79,7 @@ model_int <- lfe::felm(
     country:monthyr2 |
     OBJECTID + as.factor(smllrgn):month |
     0 |
-    cntry_yrbin, 
+    cntry_yrbin,
   data = complete
 )
 
@@ -124,7 +124,10 @@ t <- plotPolynomialResponse(
   yLab = "Prevalence (%)",
   title = "Climate × Urbanization interaction effects on PfPR2",
   yLim = c(-30, 10),
-  showYTitle = TRUE
+  showYTitle = TRUE,
+  plotmax_x = 4,
+  plotmax_y = 6,
+  max_x_size = 4,
 ) +
   theme(plot.title = element_text(size = 10))
 
@@ -154,14 +157,20 @@ combined_plot <- t +
   d +
   f +
   plot_layout(ncol = 3, guides = "collect") &
-  theme(legend.position = "bottom", legend.margin = margin(0, 0, 0, 0))
+  theme(
+    legend.position = "bottom",
+    legend.margin = margin(0, 0, 0, 0),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+  )
 
 ################################################################################
 # Save final figure ----
 ################################################################################
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_urban_sensitivity.jpg",
+  filename = paste0("ED_Figure_urban_sensitivity.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = combined_plot,
   width = 7,
@@ -172,4 +181,3 @@ ggplot2::ggsave(
 ################################################################################
 # End of file ----
 ################################################################################
-

@@ -6,6 +6,8 @@
 # shared: crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.03/cruts.1905011326.v4.03
 # <shared>/tmp/cru_ts4.03.1901.2018.tmp.dat.nc.gz
 # <shared>/pre/cru_ts4.03.1901.2018.pre.dat.nc.gz
+# - Note: Pre-extracted CRU data can be downloaded from 
+#   https://zenodo.org/records/20399793
 ################################################################################
 # Set up ----
 ################################################################################
@@ -27,8 +29,6 @@ powers <- 1:5
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "B01_extract_CRU_ADM1.log"))
 
 log_msg <- create_logger()
 

@@ -1,6 +1,5 @@
 ################################################################################
-# This script plots the main prevalence-temperature dose-response function
-# as well as its uncertainty over 1,000 bootstrap samples
+# This script produces Figure 2 of the paper.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -162,7 +161,7 @@ temp_plot <- ggplot() +
     angle = 90,
     vjust = -0.3,
     hjust = 0,
-    size = 2
+    size = 2.75
   ) +
   labs(x = NULL, y = "Prevalence (%)") +
   scale_x_continuous(
@@ -176,7 +175,7 @@ temp_plot <- ggplot() +
     labels = as.character(seq(0, -40, -10)),
     expand = expansion(mult = c(0.0, 0.01))
   ) +
-  theme_bw() +
+  theme_classic() +
   theme(
     axis.title.x = element_blank(),
     axis.text.x = element_blank(),
@@ -230,9 +229,11 @@ temp_w_hist_plot <- temp_plot +
   labs(x = "Mean temperature (\u00B0C)") +
   theme(
     axis.title.x = element_text(vjust = -0.5),
-    plot.title.position = "plot",
     axis.text.x = element_text(),
+    plot.title.position = "plot",
     plot.margin = unit(c(0.0, 0.0, 1, 0), units = "cm"),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.15, 1.05)
   )
 
 temp_w_hist_plot
@@ -335,7 +336,7 @@ min_max <- c(-6.5, 5.3)
 log_msg("Plot the flood ceoffs distribution")
 
 flood_plot = ggplot() +
-  theme_bw() +
+  theme_classic() +
   geom_hline(
     yintercept = 0,
     linetype = "solid",
@@ -374,7 +375,7 @@ flood_plot = ggplot() +
   theme(
     axis.title.x = element_text(vjust = -1),
     axis.title.y = element_text(vjust = 5),
-    plot.margin = unit(c(0.3, 0.3, 1, 0), units = "cm")
+    plot.margin = unit(c(0, 0, 1, 0.2), units = "cm")
   ) +
   scale_y_continuous(
     limits = min_max,
@@ -390,7 +391,7 @@ flood_plot
 log_msg("Plot the drought ceoffs distribution")
 
 drought_plot = ggplot() +
-  theme_bw() +
+  theme_classic() +
   geom_hline(
     yintercept = 0,
     linetype = "solid",
@@ -445,7 +446,7 @@ drought_plot
 log_msg("Plot the intervention ceoffs distribution")
 
 intervention_plot <- ggplot() +
-  theme_bw() +
+  theme_classic() +
   geom_hline(
     yintercept = 0,
     linetype = "solid",
@@ -533,7 +534,7 @@ future_boot <- future_pred[run != "main"] |>
     baseline_years = 2015:2020,
     confidence_level = 0.90
   ) |>
-  dplyr::filter(year > 2016) 
+  dplyr::filter(year >= 2016) 
 
 base_mean <- hist_boot |>
   dplyr::filter(scenario == 'historical', year %in% c(2010:2014)) |>
@@ -556,13 +557,7 @@ log_msg("Combine hist and future")
 graph.data <- hist_boot |>
   dplyr::bind_rows(future_boot) |>
   dplyr::mutate(scenario = factor(scenario, levels = scenarios)) |>
-  # Start plotting in 1902 and 2016 because it's the first full year with lags
-  # incorporated right.
   dplyr::filter(!(year %in% c(1901, 2015))) |>
-  # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
-  # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
-  # to how ggplot does CI's this is for plotting purposes ONLY and text stats
-  # give full CI's
   dplyr::mutate(lower = pmax(lower, -2.2))
 
 ################################################################################
@@ -575,7 +570,6 @@ yearly_ts_plot <- graph.data |>
   ggplot(
     mapping = aes(x = year, y = mean, group = scenario, color = scenario)
   ) +
-  theme_bw() +
   geom_hline(yintercept = 0, color = 'grey30', lwd = 0.2) +
   scale_color_manual(values = scenario_colors, labels = scenario_labels) +
   scale_fill_manual(values = scenario_colors, labels = scenario_labels) +
@@ -598,6 +592,7 @@ yearly_ts_plot <- graph.data |>
     labels = as.character(seq(1900, 2100, by = 50)),
     expand = expansion(mult = c(0.02, 0.01))
   ) +
+  theme_classic() +
   theme(
     axis.title.x = element_text(vjust = -3),
     plot.margin = unit(c(0.0, 0.5, 0.5, 0), "cm"),
@@ -606,6 +601,8 @@ yearly_ts_plot <- graph.data |>
     legend.margin = margin(0, 0, 0, 0),
     legend.text = element_text(size = rel(0.8)),
     legend.title = element_blank(),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.04, 1.05)
   )
 yearly_ts_plot
 
@@ -618,12 +615,19 @@ log_msg("Save the plot")
 top_row <- (temp_w_hist_plot + flood_plot + drought_plot + intervention_plot) +
   plot_layout(ncol = 4, widths = c(5, 5, 5, 2))
 
-f2 <- top_row / yearly_ts_plot + plot_annotation(tag_levels = 'A')
+f2 <- top_row / yearly_ts_plot +
+  plot_annotation(tag_levels = 'A') &
+  theme(
+    plot.tag = element_text(size = 23),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10)
+  )
 
 f2
 
 ggsave(
-  filename = "Figure2_coeffs_and_TS.jpg",
+  filename = paste0("Figure2_coeffs_and_TS.", fig_file_type),
   plot = f2,
   path = here::here("Results", "Figures"),
   width = 10.32,

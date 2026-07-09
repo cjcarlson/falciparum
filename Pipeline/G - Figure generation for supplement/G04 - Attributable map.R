@@ -1,8 +1,8 @@
-############################################################
-# This script makes
-############################################################
+################################################################################
+# This script makes all four panels of Extended Data Figure 7.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -23,7 +23,6 @@ pacman::p_load(
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
-# source(A_utils_plot_fp)
 
 ################################################################################
 # Hist delta map data ----
@@ -56,7 +55,7 @@ cont <- ADM1_fp |>
 
 g1 <- ggplot(cont) +
   geom_sf(aes(fill = mean.diff), color = "gray30", size = 0.05) +
-  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
+  coord_sf(datum = NA, xlim = c(-18, 51.5), ylim = c(-35, 37), expand = FALSE) +
   colorspace::scale_fill_continuous_divergingx(
     palette = "Geyser",
     na.value = "white"
@@ -65,7 +64,9 @@ g1 <- ggplot(cont) +
   theme_void() +
   theme(
     legend.position = "inside",
-    legend.position.inside = c(0.15, 0.25)
+    legend.position.inside = c(0.15, 0.25),
+    legend.title = element_text(hjust = 0.5),
+    plot.margin = margin(0, 0, 0, 0)
   )
 
 cont <- cont |>
@@ -76,7 +77,7 @@ cont <- cont |>
 
 g2 <- ggplot(cont) +
   geom_sf(aes(fill = sign), color = "gray30", size = 0.05) +
-  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
+  coord_sf(datum = NA, xlim = c(-18, 51.5), ylim = c(-35, 37), expand = FALSE) +
   scale_fill_manual(
     values = c("#00AFBB", "grey80", "#fa5340"),
     labels = c('Decline', 'Insignificant', 'Increase'),
@@ -87,12 +88,10 @@ g2 <- ggplot(cont) +
   theme_void() +
   theme(
     legend.position = "inside",
-    legend.position.inside = c(0.15, 0.25)
+    legend.position.inside = c(0.15, 0.25),
+    legend.title = element_text(hjust = 0.5),
+    plot.margin = margin(0, 0, 0, 0)
   )
-
-g1 + g2
-
-### Supplemental Figure 2
 
 cont <- cont |>
   mutate(sign = as.numeric(lower.diff > 0) + as.numeric(upper.diff < 0)) |>
@@ -109,22 +108,27 @@ top <- cont |>
   sf::st_union()
 
 supp_2 <- ggplot(cont) +
-  geom_sf(aes(fill = mean.diff), color = 'grey70', size = 0.05) +
-  coord_sf(datum = NA, xlim = c(-17.5, 52), ylim = c(-35.5, 37.5)) +
-  theme_void() +
+  geom_sf(aes(fill = mean.diff), color = 'grey30', size = 0.05) +
   colorspace::scale_fill_continuous_divergingx(
     palette = "Geyser",
     na.value = "white"
   ) +
   labs(fill = "Prevalence (%)") +
   geom_sf(data = top, color = 'black', size = 0.25, fill = NA) +
+  coord_sf(datum = NA, xlim = c(-18, 51.5), ylim = c(-35, 37), expand = FALSE) +
+  theme_void() +
   theme(
     legend.position = "inside",
-    legend.position.inside = c(0.25, 0.35)
+    legend.position.inside = c(0.25, 0.35),
+    legend.title = element_text(size = 14, hjust = 0.5),
+    legend.text = element_text(size = 12),
+    plot.margin = margin(3, 3, 3, 3, unit = "mm"),
+    legend.key.width = unit(8, "mm"),
+    legend.key.height = unit(8, "mm")
   )
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_attributable_map.jpg",
+  filename = paste0("ED_Figure_attributable_map.", fig_file_type),
   plot = supp_2,
   path = here::here("Results", "Figures"),
   width = 9.53,

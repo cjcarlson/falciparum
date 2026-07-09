@@ -1,8 +1,8 @@
-############################################################
-# This script makes 
-############################################################
+################################################################################
+# This script makes all four panels of Extended Data Figure 8.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -47,7 +47,7 @@ hist_scen_mod_yr_adm1_pred <- file.path(
 ################################################################################
 
 diff_df <- hist_scen_mod_yr_adm1_pred |>
-  dplyr::filter(year >= 2010) |> 
+  dplyr::filter(year >= 2010) |>
   tidyr::pivot_wider(
     id_cols = c(month, year, model, region, run),
     names_from = scenario,
@@ -95,62 +95,50 @@ monthly_diff <- ggplot() +
   geom_hline(data = NULL, yintercept = 0, colour = "black", linewidth = 0.3) +
   geom_line(
     data = rgn_mod_mean_diff_df,
-    aes(
-      x = month_num,
-      # y = median,
-      y = mean,
-      group = model
-    ),
+    mapping = aes(x = month_num, y = mean, group = model),
     alpha = 0.3,
     linewidth = 1.25,
     color = "grey60"
   ) +
   geom_line(
     data = rgn_mean_diff_df,
-    aes(
-      x = month_num,
-      # y = median,
-      y = mean,
-      group = region
-    ),
-    linewidth = 1.5, 
+    mapping = aes(x = month_num, y = mean, group = region),
+    linewidth = 1.5,
     colour = "#287DAB"
   ) +
   facet_wrap(~region, ncol = 1) +
   scale_x_continuous(
     breaks = 1:12,
     labels = month.abb,
-    expand = c(0.02, 0) 
+    expand = c(0.02, 0)
   ) +
   labs(
     x = NULL,
-    y = "Change in prevalence (%)",
+    y = "Prevalence (%)",
   ) +
   theme_classic() +
   theme(
-    plot.title = element_text(face = "bold"),
-    axis.title.y = element_text(vjust = 3),
-    axis.title.x = element_text(vjust = -2),
-    plot.margin = unit(c(0.5, 0.5, 1, 1), "cm"),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14),
+    strip.text = element_text(size = 14),
+    plot.margin = unit(c(3, 3, 3, 3), "mm"),
     legend.position = "none",
   )
 
 monthly_diff
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_monthly-diff.jpg",
+  filename = paste0("ED_Figure_monthly-diff.", fig_file_type),
   plot = monthly_diff,
   path = here::here("Results", "Figures"),
-  width = 7.42,
-  height = 10.07,
+  width = 7.5,
+  height = 9,
   units = "in"
 )
 
 ################################################################################
 # Global time series data ----
 ################################################################################
-
-# log_msg("load the regional time series data")
 
 hist_scen_mod_yr <- file.path(
   hist_sum_dir,
@@ -201,7 +189,17 @@ latex_table <- region_results |>
     )
   ) |>
   dplyr::mutate(
-    row = paste0("    ", RegionTex, " & ", Estimate, " & ", CI, " & ", Pplus, " \\\\")
+    row = paste0(
+      "    ",
+      RegionTex,
+      " & ",
+      Estimate,
+      " & ",
+      CI,
+      " & ",
+      Pplus,
+      " \\\\"
+    )
   )
 
 header <- paste0(

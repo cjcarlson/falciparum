@@ -1,8 +1,8 @@
-############################################################
-# This script makes all
-############################################################
+################################################################################
+# This script generates summary statistics for the future predictions.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -32,7 +32,7 @@ future_scen_mod_yr_pred <- file.path(
   ) |>
   dplyr::select(scenario, model, year, Pred, run)
 
-adm1_results <- calc_future_regional_diff(future_scen_mod_yr_pred)
+reg_results <- calc_future_regional_diff(future_scen_mod_yr_pred)
 
 ################################################################################
 # Future regional delta data ----
@@ -57,7 +57,7 @@ region_results <- names(region_names)[2:5] |>
 ################################################################################
 
 # Prepare the data for output
-output_data <- adm1_results |>
+output_data <- reg_results |>
   dplyr::bind_rows(region_results) |>
   dplyr::select(-n_positive, -n_total) |>
   tidyr::pivot_wider(
@@ -121,25 +121,25 @@ cat(generate_future_latex(output_data))
 ################################################################################
 
 bm <- future_scen_mod_yr_reg_pred |>
-  filter(year %in% 2015:2020) |>
-  group_by(model, scenario, region, run) |>
-  summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
+  dplyr::filter(year %in% 2015:2020) |>
+  dplyr::group_by(model, scenario, region, run) |>
+  dplyr::summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
 
 df <- future_scen_mod_yr_reg_pred |>
-  left_join(bm, by = c("model", "scenario", "region", "run")) |>
-  mutate(Pred = Pred - BetaMean) |>
-  select(-BetaMean)
+  dplyr::left_join(bm, by = c("model", "scenario", "region", "run")) |>
+  dplyr::mutate(Pred = Pred - BetaMean) |>
+  dplyr::select(-BetaMean)
 
 results <- bind_rows(
   df |>
-    filter(year %in% 2048:2052) |>
-    mutate(period = "2048-2052"),
+    dplyr::filter(year %in% 2048:2052) |>
+    dplyr::mutate(period = "2048-2052"),
   df |>
-    filter(year %in% 2096:2100) |>
-    mutate(period = "2096-2100")
+    dplyr::filter(year %in% 2096:2100) |>
+    dplyr::mutate(period = "2096-2100")
 ) |>
-  group_by(run, model, scenario, region, period) |>
-  summarize(Pred = mean(Pred), .groups = "drop")
+  dplyr::group_by(run, model, scenario, region, period) |>
+  dplyr::summarize(Pred = mean(Pred), .groups = "drop")
 
 ################################################################################
 # Mid century ----
@@ -239,7 +239,7 @@ boot_diff <- file.path(
 # Join to elev and ADM1 data ----
 ################################################################################
 
-elev <- elevation_fp |>
+elev <- elevation_summary_fp |>
   readr::read_csv(show_col_types = FALSE) |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID))
 
@@ -250,6 +250,76 @@ sfcont <- ADM1_fp |>
   dplyr::left_join(elev, by = join_by(OBJECTID)) |>
   tibble::as_tibble() |>
   dplyr::select(OBJECTID, NAME_0, NAME_1, elevmin, elevmn, elevmax, mean.diff)
+
+################################################################################
+# Country averages across scenarios (mid century + end of century) ----
+# Builds one summary file with columns:
+# country, ssp126_mc, ssp245_mc, ssp585_mc, ssp126_ec, ssp245_ec, ssp585_ec
+################################################################################
+ 
+adm1_lookup <- sfcont |>
+  dplyr::select(OBJECTID, NAME_0) |>
+  dplyr::distinct()
+ 
+future_scen_mod_yr_obj_pred <- file.path(
+  fut_sum_dir,
+  "future_vcov_pred_sum_scen_mod_yr_obj.feather"
+) |>
+  arrow::read_feather() |>
+  dplyr::filter(run != "main")
+ 
+calc_country_diff <- function(scenario_name, end_year, col_name) {
+  future_scen_mod_yr_obj_pred |>
+    dplyr::filter(scenario == scenario_name) |>
+    tidyr::pivot_wider(
+      id_cols = c(scenario, model, OBJECTID, run),
+      names_from = year,
+      values_from = Pred
+    ) |>
+    dplyr::mutate(diff = .data[[as.character(end_year)]] - `2015`) |>
+    dplyr::group_by(OBJECTID) |>
+    dplyr::summarize(mean.diff = mean(diff), .groups = "drop") |>
+    dplyr::left_join(adm1_lookup, by = "OBJECTID") |>
+    dplyr::group_by(country = NAME_0) |>
+    dplyr::summarise("{col_name}" := mean(mean.diff, na.rm = TRUE), .groups = "drop") |>
+    tidyr::drop_na()
+}
+ 
+scenarios <- c("ssp126", "ssp245", "ssp585")
+ 
+country_mc <- scenarios |>
+  purrr::map(~ calc_country_diff(.x, 2050, paste0(.x, "_mc"))) |>
+  purrr::reduce(dplyr::full_join, by = "country")
+ 
+country_ec <- scenarios |>
+  purrr::map(~ calc_country_diff(.x, 2100, paste0(.x, "_ec"))) |>
+  purrr::reduce(dplyr::full_join, by = "country")
+ 
+country_summary <- country_mc |>
+  dplyr::full_join(country_ec, by = "country") |>
+  dplyr::select(
+    country, ssp126_mc, ssp245_mc, ssp585_mc, ssp126_ec, ssp245_ec, ssp585_ec
+  ) |>
+  dplyr::arrange(country)
+ 
+readr::write_csv(
+  country_summary,
+  here::here("Results", "Tables", "future_country_summary.csv")
+)
+
+
+here::here("Results", "Tables", "historical_country_summary.csv") |>
+  readr::read_csv() |>
+  dplyr::left_join(country_summary) |>
+  dplyr::mutate(
+    across(
+      c(historical, ssp126_mc, ssp245_mc, ssp585_mc, ssp126_ec, ssp245_ec, ssp585_ec),
+      ~ round(.x * 10, 3)
+    )
+  ) |>
+  readr::write_csv(
+    here::here("Results", "Tables", "country_summary.csv")
+  )
 
 ################################################################################
 # Check countries ----
@@ -289,6 +359,109 @@ dji <- sfcont |>
   dplyr::arrange(mean.diff)
 
 print(dji)
+
+################################################################################
+# Compare ssp126 to ssp245 for ADM1 > 1km elevation ----
+################################################################################
+
+future_scen_mod_yr_high_el_reg_pred <- file.path(
+  fut_sum_dir,
+  "future_vcov_pred_sum_scen_mod_yr_high_el_reg.feather"
+) |>
+  arrow::read_feather() |>
+  dplyr::mutate(
+    model = stringr::str_replace_all(model, 'BCC-CSM2-MR', 'BCC-CSM2')
+  ) |>
+  dplyr::select(scenario, model, region, year, Pred, run)
+
+bm <- future_scen_mod_yr_high_el_reg_pred |>
+  dplyr::filter(year %in% 2015:2020) |>
+  dplyr::group_by(model, scenario, region, run) |>
+  dplyr::summarize(BetaMean = mean(Pred, na.rm = TRUE), .groups = "drop")
+
+df <- future_scen_mod_yr_high_el_reg_pred |>
+  dplyr::left_join(bm, by = c("model", "scenario", "region", "run")) |>
+  dplyr::mutate(Pred = Pred - BetaMean) |>
+  dplyr::select(-BetaMean)
+
+results <- bind_rows(
+  df |>
+    dplyr::filter(year %in% 2048:2052) |>
+    dplyr::mutate(period = "2048-2052"),
+  df |>
+    dplyr::filter(year %in% 2096:2100) |>
+    dplyr::mutate(period = "2096-2100")
+) |>
+  dplyr::group_by(run, model, scenario, region, period) |>
+  dplyr::summarize(Pred = mean(Pred), .groups = "drop")
+
+################################################################################
+# Mid century ----
+################################################################################
+
+boot.diff.mid.df <- results |>
+  dplyr::filter(
+    scenario %in% c("ssp126", "ssp245"),
+    period == "2048-2052",
+    run != "main"
+  ) |>
+  dplyr::filter() |>
+  tidyr::pivot_wider(
+    id_cols = c(run, model, region, period),
+    names_from = scenario,
+    values_from = Pred
+  ) |>
+  dplyr::mutate(diff = ssp245 - ssp126) |>
+  dplyr::group_by(region, period) |>
+  dplyr::summarise(
+    mean_diff = mean(diff),
+    lower_diff = quantile(diff, 0.025),
+    upper_diff = quantile(diff, 0.975),
+    prop_positive_diff = mean(diff > 0)
+  ) |>
+  dplyr::mutate(scenario_diff = "ssp245 - ssp126")
+
+################################################################################
+# End of century ----
+################################################################################
+
+boot.diff.end.df <- results |>
+  dplyr::filter(
+    scenario %in% c("ssp126", "ssp245"),
+    period == "2096-2100",
+    run != "main"
+  ) |>
+  tidyr::pivot_wider(
+    id_cols = c(model, region, run, period),
+    names_from = scenario,
+    values_from = Pred
+  ) |>
+  dplyr::mutate(diff = ssp245 - ssp126) |>
+  dplyr::group_by(region, period) |>
+  dplyr::summarise(
+    mean_diff = mean(diff),
+    lower_diff = quantile(diff, 0.025),
+    upper_diff = quantile(diff, 0.975),
+    prop_positive_diff = mean(diff > 0)
+  ) |>
+  dplyr::mutate(scenario_diff = "ssp245 - ssp126")
+
+################################################################################
+# Join mid and end of century ----
+################################################################################
+
+diff.df <- rbind(boot.diff.mid.df, boot.diff.end.df) |>
+  dplyr::mutate(
+    across(
+      c(lower_diff, upper_diff, prop_positive_diff, mean_diff),
+      ~ round(.x, 3)
+    )
+  )
+
+readr::write_csv(
+  diff.df,
+  here::here("Results", "Tables", "future_regional_high_el_diff_summary.csv")
+)
 
 ################################################################################
 # End of file ----

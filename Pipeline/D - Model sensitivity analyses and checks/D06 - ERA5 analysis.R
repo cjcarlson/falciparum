@@ -828,8 +828,7 @@ combined_plot1
 log_msg("Saving CRU vs ERA5 temp, flood, and drought responses")
 
 ggsave(
-  filename = "Supp_Figure_temp_rain_CRU_and_ERA5.jpg",
-  # path = figure_era5_dir,
+  filename = paste0("ED_Figure_temp_rain_CRU_and_ERA5.", fig_file_type),
   path = here::here("Results", "Figures"),
   plot = combined_plot1,
   width = 7,

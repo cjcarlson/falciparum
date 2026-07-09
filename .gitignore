@@ -49,3 +49,9 @@ po/*~
 rsconnect/
 
 *logs
+
+.DS_Store
+
+Rplots.pdf
+
+Results/Figures/*.pdf

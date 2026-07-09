@@ -1,11 +1,10 @@
 ################################################################################
-# Use the following code to predict prevalence based on temperature and
-# precipitation data with coefficients estimated from 1,000 bootstraps.
-# This code makes historical and future predictions based on 5 climate
-# scenarios and 10 climate models. The code uses N cores to parallelize, which
-# is chosen by the user. The code saves the predictions in feather format for
-# fast reading and writing and reduces the size of the data. Additionally,
-# metadata is saved in a separate file to reduce file size.
+# This script predicts childhood malaria prevalence based on temperature and
+# precipitation data with coefficients estimated from 1,000 draws of the
+# variance-covariance matrix. Predictions are made on historical and future data
+# based on 5 climate scenarios and 10 climate models. The code uses N cores to
+# parallelize, which is chosen by the user. Predictions are summarized at several
+# levels for plots and summary statistics.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -18,9 +17,9 @@ if (!require("pacman")) {
 }
 
 pacman::p_load(
+  sf,
   zoo,
   here,
-  terra,
   arrow,
   future,
   tidyverse,
@@ -29,36 +28,15 @@ pacman::p_load(
   future.apply
 )
 
-n_cores <- min(10, future::availableCores())
-options(future.globals.maxSize = 6 * 1024^3)
+n_cores <- min(1, future::availableCores())
+options(future.globals.maxSize = 7 * 1024^3)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 ################################################################################
-# Choose model coeffs ----
-################################################################################
-
-# model_version <- "era5"
-model_version <- "vcov"
-# model_version <- "cru"
-
-if (model_version == "cru") {
-  precip_fp <- precip_CRU_adm1_fp
-  boot_fp <- boot_mod_full_fn
-} else if (model_version == "vcov") {
-  precip_fp <- precip_CRU_adm1_fp
-  boot_fp <- vcov_sample_mod_full_fn
-} else if (model_version == "era5") {
-  precip_fp <- precip_ERA5_adm1_fp
-  boot_fp <- boot_mod_full_ERA5_fn
-}
-
-################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "E01_pred_prev.log"))
 
 log_msg <- create_logger()
 
@@ -66,15 +44,13 @@ log_msg("Starting script `E01 - Predict prevalence.R`")
 
 log_msg(paste0("Using ", n_cores, " CPUs"))
 
-log_msg(paste0("Predicting with ", model_version, " model"))
-
 ################################################################################
 # Precipitation thresholds ----
 ################################################################################
 
 log_msg("Loading the precipitation key")
 
-precip_dt <- precip_fp |>
+precip_dt <- precip_CRU_adm1_fp |>
   data.table::fread()
 
 data.table::setnames(
@@ -84,6 +60,16 @@ data.table::setnames(
 )
 
 valid_ids <- unique(precip_dt$OBJECTID)
+
+################################################################################
+# Elevation data ----
+################################################################################
+
+log_msg("Loading the elevation key")
+
+elev_dt <- elevation_summary_fp |>
+  data.table::fread() |>
+  dplyr::select(OBJECTID, elevmn)
 
 ################################################################################
 # Country data ----
@@ -99,7 +85,8 @@ country_dt <- ADM1_fp |>
   dplyr::rename(country = NAME_0) |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID)) |>
   dplyr::filter(OBJECTID %in% valid_ids) |>
-  data.table::as.data.table()
+  data.table::as.data.table() |>
+  dplyr::left_join(elev_dt, by = join_by("OBJECTID"))
 
 ################################################################################
 # Region data ----
@@ -124,9 +111,7 @@ spatial_dt <- gbod_dt[country_dt, on = "country", nomatch = NULL]
 # Coefficients ----
 ################################################################################
 
-log_msg(paste0("Loading ", model_version, " coeffs"))
-
-coeffs_complete <- boot_fp |>
+coeffs_complete <- vcov_sample_mod_full_fn |>
   readr::read_csv(show_col_types = FALSE)
 
 ################################################################################
@@ -136,8 +121,6 @@ coeffs_complete <- boot_fp |>
 future::plan(multicore, workers = n_cores)
 
 for (mode in c("historical", "future")) {
-  # mode <- "historical"
-
   log_msg(paste0("Starting: ", mode))
 
   ##############################################################################
@@ -145,19 +128,17 @@ for (mode in c("historical", "future")) {
   if (mode == "historical") {
     start_date <- lubridate::ymd("1900-01-01")
     scen_subset <- names(historical_scenario_names)
-    prediction_dir <- hist_pred_dir
     summary_dir <- hist_sum_dir
     row_years <- c(yr_1901, yr_2014)
   } else {
     start_date <- lubridate::ymd("2015-01-01")
     scen_subset <- names(future_scenario_names)
-    prediction_dir <- fut_pred_dir
     summary_dir <- fut_sum_dir
     row_years <- c(yr_2015, yr_2050, yr_2100)
   }
 
-  log_msg("Predictions will be saved to: ")
-  log_msg(paste0("    ", prediction_dir))
+  log_msg("Predictions summaries will be saved to: ")
+  log_msg(paste0("    ", summary_dir))
 
   files <- vector("character")
 
@@ -240,6 +221,7 @@ for (mode in c("historical", "future")) {
     ISO,
     country,
     OBJECTID,
+    elevmn,
     year,
     month,
     monthyr
@@ -296,8 +278,22 @@ for (mode in c("historical", "future")) {
         ),
         by = .(scenario, model, year, run)
       ]
+
       # Scenario, model, year, and region ----
       scen_mod_yr_reg <- pred_data[,
+        list(
+          Pred = mean(Pred, na.rm = TRUE),
+          Pf.temp = mean(Pf.temp, na.rm = TRUE),
+          Pf.flood = mean(Pf.flood, na.rm = TRUE),
+          Pf.drought = mean(Pf.drought, na.rm = TRUE)
+        ),
+        by = .(scenario, model, year, region, run)
+      ]
+
+      # High elevation regions ----
+      high_el_data <- pred_data[elevmn > 1000]
+      # Scenario, model, year, and high elev region ----
+      scen_mod_yr_high_el_reg <- high_el_data[,
         list(
           Pred = mean(Pred, na.rm = TRUE),
           Pf.temp = mean(Pf.temp, na.rm = TRUE),
@@ -316,6 +312,7 @@ for (mode in c("historical", "future")) {
         ),
         by = .(scenario, model, year, month, region, run)
       ]
+
       # Scenario, model, year, and adm1 ----
       pred_data <- pred_data[rows, ]
       pred_data$year[pred_data$year %in% yr_1901] <- 1901
@@ -342,6 +339,7 @@ for (mode in c("historical", "future")) {
         list(
           scen_mod_yr = scen_mod_yr,
           scen_mod_yr_reg = scen_mod_yr_reg,
+          scen_mod_yr_high_el_reg = scen_mod_yr_high_el_reg,
           scen_mod_yr_mon_reg = scen_mod_yr_mon_reg,
           scen_mod_yr_obj = scen_mod_yr_obj
         )
@@ -353,21 +351,23 @@ for (mode in c("historical", "future")) {
   summaries <- c(
     "scen_mod_yr",
     "scen_mod_yr_reg",
+    "scen_mod_yr_high_el_reg",
     "scen_mod_yr_mon_reg",
     "scen_mod_yr_obj"
   )
-
+  rm(data, dt, meta)
+  gc()
   for (sum_type in summaries) {
     out_path <- file.path(
       summary_dir,
-      paste0(mode, "_", model_version, "_pred_sum_", sum_type, ".feather")
+      paste0(mode, "_vcov_pred_sum_", sum_type, ".feather")
     )
     compiled <- rbindlist(lapply(iter.list, `[[`, sum_type))
     arrow::write_feather(compiled, out_path)
     log_msg(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
+    rm(compiled)
+    gc()
   }
-  rm(data, dt, meta, iter.list, compiled)
-  gc()
 }
 
 future::plan(sequential)

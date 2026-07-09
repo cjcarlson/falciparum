@@ -1,8 +1,8 @@
-############################################################
-# This script makes all four panels of Figure S1.
-############################################################
+################################################################################
+# This script makes all four panels of Extended Data Figure 9.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -26,8 +26,6 @@ source(A_utils_plot_fp)
 ################################################################################
 # Future time series data ----
 ################################################################################
-
-# log_msg("Load and prepare future projections")
 
 future_boot <- file.path(
   fut_sum_dir,
@@ -66,7 +64,7 @@ for (i in seq_along(variables)) {
     boot,
     var$label,
     i == 1,
-    legend_position = c(0.175, 0.22),
+    legend_position = c(0.2, 0.22),
     scen_colors = fut_scenario_colors,
     scen_labels = fut_scenario_labels
   )
@@ -76,11 +74,22 @@ for (i in seq_along(variables)) {
 # Combine plots and save ----
 ################################################################################
 
-combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]]
+combined_plot <- plots[[1]] / plots[[2]] / plots[[3]] / plots[[4]] &
+  theme(
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 11),
+    legend.text = element_text(size = 11),
+    legend.title = element_blank()
+  )  &
+  scale_x_continuous(
+    limits = c(2016, 2100),
+    breaks = c(2020, 2040, 2060, 2080, 2100), 
+    expand = expansion(add = c(0,2))
+  )
 combined_plot
 
 ggplot2::ggsave(
-  filename = "Supp_Figure_fut_partials.jpg",
+  filename = paste0("ED_Figure_fut_partials.", fig_file_type),
   plot = combined_plot,
   path = here::here("Results", "Figures"),
   width = 7.42,

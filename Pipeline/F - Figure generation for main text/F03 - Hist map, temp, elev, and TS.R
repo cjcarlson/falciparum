@@ -1,12 +1,6 @@
 ################################################################################
 # This script plots Figure 3, Historical changes in malaria prevalence
 # attributable to anthropogenic climate change from 1901 to 2014.
-# apptainer exec --cleanenv --contain \
-#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
-#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
-#   --pwd /global/home/users/cmolitor/falciparum \
-#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/r-malaria-cru_4.2.3.sif \
-#   Rscript "Pipeline/F - Figure generation for main text/F03 - Hist map, temp, elev, and TS.R"
 ################################################################################
 # Set up ----
 ################################################################################
@@ -21,13 +15,14 @@ if (!require("pacman")) {
 pacman::p_load(
   sf,
   here,
-  # reshape,
   tidyverse,
   lubridate,
-  patchwork
+  patchwork,
+  remotes
 )
 
-pacman::p_load_gh("clauswilke/multiscales")
+# remotes::install_github("clauswilke/multiscales")
+library(multiscales)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
@@ -36,8 +31,6 @@ source(A_utils_plot_fp)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "F03_hist_map_temp_el_ts.log"))
 
 log_msg <- create_logger()
 
@@ -60,8 +53,6 @@ hist_scen_mod_yr_adm1_pred <- file.path(
   dplyr::select(scenario, model, year, OBJECTID, Pred, run) |>
   dplyr::filter(year == 2014)
 
-log_msg("Calculating ADM1 mean difference")
-
 log_msg("Calculating ADM1 confidence interval")
 
 boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
@@ -77,7 +68,6 @@ boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
     lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
   ) |>
-  # dplyr::left_join(main_2010_2014) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5000) / 5000
@@ -106,9 +96,7 @@ colors <- scales::colour_ramp(
 
 map.diff <- ggplot(sfcont) +
   geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", size = 0.05) +
-  scale_x_continuous(limits = c(-17, 52), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(-36, 38), expand = c(0, 0)) +
-  coord_sf(datum = NA) +
+  coord_sf(datum = NA, xlim = c(-18, 51.5), ylim = c(-35, 37), expand = FALSE) +
   multiscales::bivariate_scale(
     "fill",
     multiscales::pal_vsup(
@@ -130,12 +118,14 @@ map.diff <- ggplot(sfcont) +
   ) +
   theme_void() +
   theme(
-    plot.title = element_text(hjust = 0.5, margin = margin(r = 10)),
-    plot.subtitle = element_text(hjust = 0.5),
     legend.title = element_text(hjust = 0.5),
-    legend.position = c(0.18, 0.3),
+    legend.text = element_text(size = 10),
+    legend.position = "inside",
+    legend.position.inside = c(0.18, 0.3),
     legend.key.size = grid::unit(0.8, "cm"),
-    plot.margin = margin(0, 0, 0, 0)
+    plot.margin = margin(0, 0, 0, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.14, 1.055)
   )
 
 ################################################################################
@@ -144,15 +134,14 @@ map.diff <- ggplot(sfcont) +
 
 log_msg("Load elevation and CRU temperature data")
 
-elev <- elevation_fp |>
+elev <- elevation_summary_fp |>
   readr::read_csv(show_col_types = FALSE) |>
   dplyr::select(OBJECTID, elevmn) |>
   dplyr::mutate(OBJECTID = factor(OBJECTID))
 
 tmean <- intermediate_CRU_adm1_fp |>
-  arrow::read_feather() |> 
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
-  # readr::read_csv(show_col_types = FALSE) |>
+  arrow::read_feather() |>
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
   dplyr::filter(year %in% c(1901:1930)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(t = mean(temp, na.rm = TRUE)) |>
@@ -229,16 +218,18 @@ temp_plot <- ggplot() +
   ) +
   geom_point(data = df_sig, aes(x = mean.diff, y = t, color = sign)) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
-  theme_classic() +
   xlab("Prevalence (%)") +
   ylab("Mean temperature (1901-1930)") +
+  scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F")) +
+  theme_classic() +
   theme(
     axis.title.x = element_text(margin = margin(t = 20, b = 10)),
     axis.title.y = element_text(margin = margin(r = 20, l = 10)),
     legend.position = 'n',
-    plot.margin = margin(0, 0, 0, 0)
-  ) +
-  scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
+    plot.margin = margin(0, 0, 0, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.6, 1.06)
+  )
 
 ################################################################################
 # Elevation plot ----
@@ -294,16 +285,18 @@ elev_plot <- ggplot() +
   ) +
   geom_point(data = df_sig, aes(x = mean.diff, y = elevmn, color = sign)) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
-  theme_classic() +
   xlab("Prevalence (%)") +
   ylab("Elevation (m)") +
+  scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F")) +
+  theme_classic() +
   theme(
     axis.title.x = element_text(margin = margin(t = 20, b = 10)),
     axis.title.y = element_text(margin = margin(r = 20, l = 10)),
     legend.position = 'n',
-    plot.margin = margin(0, 0, 10, 0)
-  ) +
-  scale_color_manual(values = c("-1" = "#2265A3", "1" = "#AC202F"))
+    plot.margin = margin(0, 0, 10, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.6, 1.06)
+  )
 
 ################################################################################
 # Regional time series data ----
@@ -328,12 +321,9 @@ hist_boot <- historical_pred[run != "main"] |>
   ) |>
   dplyr::filter(year > 1901) |>
   dplyr::mutate(
+    region = dplyr::recode(region, !!!region_names),
     scenario = factor(scenario, levels = names(historical_scenario_names))
   ) |>
-  # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
-  # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
-  # to how ggplot does CI's this is for plotting purposes ONLY and text stats
-  # give full CI's
   dplyr::mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0))
 
 ################################################################################
@@ -358,7 +348,6 @@ regional_ts_plot <- ggplot(
     alpha = 0.1
   ) +
   geom_line(aes(y = mean), lwd = 1.25) +
-  theme_classic() +
   geom_hline(aes(yintercept = 0), lty = 2, lwd = 0.5) +
   facet_wrap(region ~ ., nrow = 1) +
   xlab(NULL) +
@@ -374,8 +363,13 @@ regional_ts_plot <- ggplot(
     labels = c('Historical counterfactual', 'Historical climate'),
     name = ''
   ) +
-  theme(legend.position = 'bottom') +
-  theme(plot.title = element_text(size = 20))
+  theme_classic() +
+  theme(
+    legend.position = 'bottom',
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.05, 1.1),
+    legend.text = element_text(size = 12)
+  )
 
 ################################################################################
 # Compile and save plot ----
@@ -386,11 +380,19 @@ log_msg("Compile plots and save")
 fig3 <- (map.diff + temp_plot + elev_plot + regional_ts_plot) +
   patchwork::plot_layout(design = fig_3_4_layout) +
   patchwork::plot_annotation(tag_levels = 'A') &
-  theme(plot.tag = element_text(size = 23))
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5, margin = margin(r = 10)),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.tag = element_text(size = 28),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
 
 ggsave(
-  filename = "Figure3_hist_map_tmp_el_and_TS.jpg",
-  plot = last_plot(),
+  filename = paste0("Figure3_hist_map_tmp_el_and_TS.", fig_file_type),
+  plot = fig3,
   path = here::here("Results", "Figures"),
   width = 11.63,
   height = 10.07,

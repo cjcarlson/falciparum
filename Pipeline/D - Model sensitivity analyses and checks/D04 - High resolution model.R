@@ -1,7 +1,7 @@
 ################################################################################
 # This script re-estimates the main empirical specification linking PfPR2 to 
-# drought, flood, and temperature using high-resolution grid-level CRU data as a 
-# robustness check.
+# drought, flood, and temperature using high-resolution grid-level CRU and
+# prevalence data.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -53,28 +53,6 @@ vcov = as.data.frame(highresmod$clustervcv)
 saveRDS(coeffs, file = grid_mod_beta_fn)
 saveRDS(vcov, file = grid_mod_vcov_fn)
 
-#######################################################################
-# Table ----
-################################################################################
-
-mynote = "High Resolution Model: Country-specific quad. trends with intervention FE and country by month FE."
-
-stargazer(
-  highresmod,
-  title = "PfPR2 response to daily avg. temperature",
-  align = TRUE,
-  keep = c("temp", "flood", "drought", "intervention"),
-  out = file.path(table_main_dir, "main_specification_adm1_grid.tex"),
-  omit.stat = c("f", "ser"),
-  out.header = FALSE,
-  type = "latex",
-  float = F,
-  notes.append = TRUE,
-  notes.align = "l",
-  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
-  star.cutoffs = table_star_cutoffs
-)
-
 ################################################################################
 # Main specification model (ADM1) ----
 # Load the main model for comparison and plotting
@@ -120,7 +98,9 @@ t1 = plotPolynomialResponse_2_mod(
   mod2 = highresmod,
   model1_name = "Main",
   model2_name = "Grid level",
-  fillcolor2 = "grey50"
+  fillcolor2 = "grey50",
+  x_adjust = 4.5,
+  max_x_size = 4
 )
 t1
 
@@ -171,9 +151,9 @@ combined_plot1 <- t1 +
   f1 +
   plot_layout(ncol = 3, guides = "collect") &
   theme(
-    axis.text = element_text(size = 8),
-    axis.title = element_text(size = 8),
-    legend.text = element_text(size = 6),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
     legend.position = "bottom",
     legend.margin = margin(0, 0, 0, 0)
   )
@@ -185,7 +165,7 @@ combined_plot1
 ################################################################################
 
 ggsave(
-  filename = "Supp_Figure_temp_rain_adm1_and_grid.jpg",
+  filename = paste0("Supp_Figure_temp_rain_adm1_and_grid.", fig_file_type),
   # path = figure_grid_dir,
   path = here::here("Results", "Figures"),
   plot = combined_plot1,

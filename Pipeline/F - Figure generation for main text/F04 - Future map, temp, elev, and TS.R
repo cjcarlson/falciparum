@@ -1,12 +1,6 @@
 ################################################################################
 # This script plots Figure 4, Projected future changes in malaria prevalence
 # driven by climate change from 2015 to 2100.
-# apptainer exec --cleanenv --contain \
-#   --bind /global/scratch/projects/co_carleton:/global/scratch/projects/co_carleton \
-#   --bind /global/home/users/cmolitor/falciparum:/global/home/users/cmolitor/falciparum \
-#   --pwd /global/home/users/cmolitor/falciparum \
-#   /global/scratch/projects/co_carleton/carleton_colab/software/apptainers/r-malaria-cru_4.2.3.sif Rscript \
-#   "Pipeline/F - Figure generation for main text/F04 - Future map, temp, elev, and TS.R"
 ################################################################################
 # Set up ----
 ################################################################################
@@ -18,16 +12,10 @@ if (!require("pacman")) {
 }
 
 # packages
-pacman::p_load(
-  sf,
-  here,
-  tidyverse,
-  data.table,
-  patchwork,
-  multiscales
-)
+pacman::p_load(sf, here, tidyverse, data.table, patchwork, remotes)
 
-pacman::p_load_gh("clauswilke/multiscales")
+# remotes::install_github("clauswilke/multiscales")
+library(multiscales)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
@@ -36,8 +24,6 @@ source(A_utils_plot_fp)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "F04_future_map_temp_el_ts.log"))
 
 log_msg <- create_logger()
 
@@ -100,14 +86,8 @@ colors <- scales::colour_ramp(
   rev()
 
 map.rcp45.2100 <- ggplot(sfcont) +
-  geom_sf(
-    mapping = aes(fill = zip(mean.diff, moe)),
-    color = "gray30",
-    size = 0.05
-  ) +
-  scale_x_continuous(limits = c(-17, 52), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(-36, 38), expand = c(0, 0)) +
-  coord_sf(datum = NA) +
+  geom_sf(aes(fill = zip(mean.diff, moe)), color = "gray30", linewidth = 0.05) +
+  coord_sf(datum = NA, xlim = c(-18, 51.5), ylim = c(-35, 37), expand = FALSE) +
   multiscales::bivariate_scale(
     "fill",
     pal_vsup(
@@ -118,23 +98,25 @@ map.rcp45.2100 <- ggplot(sfcont) +
       pow_light = 1
     ),
     name = c("Prevalence (%)", "sign uncertainty"),
-    limits = list(c(-3, 3), c(0, 1)),
+    limits = list(c(-3.05, 3), c(0, 1)),
     breaks = list(c(-3, -1.5, 0, 1.5, 3), c(0, 0.25, 0.5, 0.75, 1)),
     labels = list(waiver(), scales::percent),
     guide = "colourfan"
   ) +
   labs(
     title = "Future impact of anthropogenic climate change on prevalence",
-    subtitle = "(2096-2100; SSP2-RPC4.5)"
+    subtitle = "(2096-2100; SSP2-RCP4.5)"
   ) +
   theme_void() +
   theme(
-    plot.title = element_text(hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5),
-    legend.position = c(0.18, 0.3),
-    legend.key.size = grid::unit(0.8, "cm"),
     legend.title = element_text(hjust = 0.5),
-    plot.margin = margin(0, 0, 0, 0)
+    legend.text = element_text(size = 10),
+    legend.position = "inside",
+    legend.position.inside = c(0.18, 0.3),
+    legend.key.size = grid::unit(0.8, "cm"),
+    plot.margin = margin(0, 0, 0, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.14, 1.055)
   )
 
 ################################################################################
@@ -143,15 +125,14 @@ map.rcp45.2100 <- ggplot(sfcont) +
 
 log_msg("Load elevation and CRU temperature data")
 
-elev <- elevation_fp |>
+elev <- elevation_summary_fp |>
   readr::read_csv(show_col_types = FALSE) |>
   dplyr::select(OBJECTID, elevmn) |>
   dplyr::mutate(OBJECTID = as.factor(OBJECTID))
 
 tmean <- intermediate_CRU_adm1_fp |>
-  arrow::read_feather() |> 
-  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |> 
-  # readr::read_csv(show_col_types = FALSE) |>
+  arrow::read_feather() |>
+  dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
   dplyr::filter(year %in% c(1901:1930)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(t = mean(temp, na.rm = TRUE)) |>
@@ -191,7 +172,7 @@ temp_plot <- ggplot() +
     ),
     color = "grey80",
     alpha = 0.3,
-    size = 0.5
+    linewidth = 0.5
   ) +
   geom_errorbar(
     data = df_non_sig,
@@ -203,7 +184,7 @@ temp_plot <- ggplot() +
     ),
     color = "grey80",
     alpha = 0.5,
-    size = 0.7
+    linewidth = 0.7
   ) +
   geom_point(
     data = df_non_sig,
@@ -220,7 +201,7 @@ temp_plot <- ggplot() +
       color = sign
     ),
     alpha = 0.3,
-    size = 0.5
+    linewidth = 0.5
   ) +
   geom_errorbar(
     data = df_sig,
@@ -232,20 +213,21 @@ temp_plot <- ggplot() +
       color = sign
     ),
     alpha = 0.5,
-    size = 0.7
+    linewidth = 0.7
   ) +
   geom_point(data = df_sig, mapping = aes(x = mean.diff, y = t, color = sign)) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
+  labs(x = "Prevalence (%)", y = "Mean temperature (1901-1930)") +
+  scale_color_manual(values = c("#2265A3", "#AC202F")) +
   theme_classic() +
-  xlab("Prevalence (%)") +
-  ylab("Mean temperature (1901-1930)") +
   theme(
     axis.title.x = element_text(margin = margin(t = 20, b = 10)),
     axis.title.y = element_text(margin = margin(r = 20, l = 10)),
     legend.position = 'n',
-    plot.margin = margin(0, 0, 0, 0)
-  ) +
-  scale_color_manual(values = c("#2265A3", "#AC202F"))
+    plot.margin = margin(0, 0, 0, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.6, 1.06)
+  )
 
 ################################################################################
 # Elevation plot ----
@@ -312,16 +294,17 @@ elev_plot <- ggplot() +
     mapping = aes(x = mean.diff, y = elevmn, color = sign)
   ) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
+  labs(x = "Prevalence (%)", y = "Elevation (m)") +
+  scale_color_manual(values = c("#2265A3", "#AC202F")) +
   theme_classic() +
-  xlab("Prevalence (%)") +
-  ylab("Elevation (m)") +
   theme(
     axis.title.x = element_text(margin = margin(t = 20, b = 10)),
     axis.title.y = element_text(margin = margin(r = 20, l = 10)),
     legend.position = 'n',
-    plot.margin = margin(0, 0, 10, 0)
-  ) +
-  scale_color_manual(values = c("#2265A3", "#AC202F"))
+    plot.margin = margin(0, 0, 10, 0),
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.6, 1.06)
+  )
 
 ################################################################################
 # Regional time series data ----
@@ -344,10 +327,6 @@ data.to.graph <- file.path(
   dplyr::mutate(
     region = dplyr::recode(region, !!!region_names),
     scenario = factor(scenario, levels = names(future_scenario_names)),
-    # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
-    # LOOKING CLOSELY. this is a way of hard coding the CI's to still plot
-    # thanks to how ggplot does CI's this is for plotting purposes ONLY and text
-    # stats give full CI's
     lower = pmax(lower, -4.9),
     upper = pmin(upper, 2.1)
   ) |>
@@ -400,7 +379,12 @@ regional_ts_plot <- ggplot(
   geom_hline(mapping = aes(yintercept = 0), lty = 2, lwd = 0.5) +
   facet_wrap(region ~ ., ncol = 4) +
   theme(legend.position = 'bottom') +
-  theme(plot.title = element_text(size = 20))
+  theme(
+    legend.position = 'bottom',
+    plot.tag.location = "panel",
+    plot.tag.position = c(-0.03, 1.15),
+    legend.text = element_text(size = 12)
+  )
 
 ################################################################################
 # Compile and save plot ----
@@ -408,17 +392,25 @@ regional_ts_plot <- ggplot(
 
 log_msg("Compile plots and save")
 
-map.rcp45.2100 +
+fig4 <- map.rcp45.2100 +
   temp_plot +
   elev_plot +
   regional_ts_plot +
   plot_layout(design = fig_3_4_layout) +
   plot_annotation(tag_levels = 'A') &
-  theme(plot.tag = element_text(size = 23))
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5, margin = margin(r = 10)),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.tag = element_text(size = 28),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
 
 ggsave(
-  filename = "Figure4_fut_map_tmp_el_and_TS.jpg",
-  plot = last_plot(),
+  filename = paste0("Figure4_fut_map_tmp_el_and_TS.", fig_file_type),
+  plot = fig4,
   path = here::here("Results", "Figures"),
   width = 11.63,
   height = 10.07,

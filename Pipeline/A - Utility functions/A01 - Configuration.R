@@ -8,7 +8,7 @@
 
 print("Begin loading A01 - Configuration.R")
 
-user = Sys.info()['user']
+user <- Sys.info()['user']
 
 print(paste0("User set to: ", user))
 
@@ -19,6 +19,8 @@ data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "tammacarleton" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
+  user ==
+    "cullenmolitor" ~ "/Users/cullenmolitor/Dropbox/malaria-replication/data",
   user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication/data'),
   TRUE ~ NA_character_
 )
@@ -31,11 +33,15 @@ repo_dir <- dplyr::case_when(
   user == "tammacarleton" ~
     '/Users/tammacarleton/Dropbox/Works_in_progress/git_repos/falciparum',
   user == "cullen_molitor" ~ '/home/cullen_molitor/falciparum',
+  user == "cullenmolitor" ~ '/Users/cullenmolitor/Documents/github/falciparum',
   user == "cmolitor" ~ '/global/home/users/cmolitor/falciparum',
   TRUE ~ NA_character_
 )
 
 print(paste0("repository directory set to: ", repo_dir))
+
+# fig_file_type <- "pdf" # jpg png
+fig_file_type <- "jpg" # pdf png
 
 ################################################################################
 # Model formula ----
@@ -77,8 +83,8 @@ cXt2intrXm <- as.formula(
 # Choose the minimum and maximum for range of temperature for x axis
 ################################################################################
 
-Tmin = 10
-Tmax = 40
+Tmin <- 10
+Tmax <- 40
 
 ################################################################################
 # Utility files ----
@@ -119,11 +125,6 @@ urban_fp <- file.path(
   "GHS_UCDB_REGION_SUB_SAHARAN_AFRICA_R2024A.gpkg"
 )
 
-elevation_fp <- file.path(
-  geo_data_dir,
-  "elevation",
-  "elevation_extracted_all_ADM1.csv"
-)
 ################################################################################
 # Climate data (input) ----
 ################################################################################
@@ -131,7 +132,10 @@ elevation_fp <- file.path(
 climate_dir <- file.path(input_dir, "climate")
 climate_cru_dir <- file.path(climate_dir, "CRU_TS403")
 climate_bc_cmip6_dir <- file.path(climate_dir, "bc_CMIP6")
-climate_era5_dir <- file.path(climate_dir, "ERA5_monthly_single_levels_1940-2026")
+climate_era5_dir <- file.path(
+  climate_dir,
+  "ERA5_monthly_single_levels_1940-2026"
+)
 climate_gwl_dir <- file.path(climate_dir, "GWL")
 
 ################################################################################
@@ -185,6 +189,7 @@ fut_pred_dir <- file.path(inter_cmip6_pred_dir, "future")
 hist_sum_dir <- file.path(inter_cmip6_sum_dir, "historical")
 fut_sum_dir <- file.path(inter_cmip6_sum_dir, "future")
 inter_urban_dir <- file.path(inter_dir, "urban")
+native_rast_pred_dir <- file.path(inter_cmip6_pred_dir, "native_raster")
 
 dir.create(climate_prc_key_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(inter_cru_ext_dir, showWarnings = FALSE, recursive = TRUE)
@@ -218,6 +223,12 @@ precip_CRU_grid_fp <- file.path(climate_prc_key_dir, "PrecipKey_CRU_grid.csv")
 precip_ERA5_adm1_fp <- file.path(climate_prc_key_dir, "PrecipKey_ERA5_adm1.csv")
 
 urban_summary_fp <- file.path(inter_urban_dir, 'urban_summary.csv')
+
+elevation_summary_fp <- file.path(
+  inter_dir,
+  "elevation",
+  "elevation_extracted_all_ADM1.csv"
+)
 
 ################################################################################
 # Analysis ready files (output) ----
@@ -297,7 +308,7 @@ dir.create(model_main_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(model_rand_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(model_grid_dir, showWarnings = FALSE, recursive = TRUE)
 
-main_mod_obj_fn <- file.path(model_main_dir, "model_object_cXt2intrXm..rds")
+main_mod_obj_fn <- file.path(model_main_dir, "model_object_cXt2intrXm.rds")
 main_mod_beta_fn <- file.path(model_main_dir, "coefficients_cXt2intrXm.rds")
 main_mod_vcov_fn <- file.path(model_main_dir, "vcv_cXt2intrXm.rds")
 
@@ -443,7 +454,7 @@ future_scenario_formulas <- purrr::map2(
 
 yr_1901 <- 1901:1905
 yr_2014 <- 2010:2014
-yr_2015 <- 2015:2019
+yr_2015 <- 2015:2020
 yr_2050 <- 2048:2052
 yr_2100 <- 2096:2100
 
