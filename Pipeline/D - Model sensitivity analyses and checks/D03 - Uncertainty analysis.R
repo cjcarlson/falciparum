@@ -42,9 +42,9 @@ sf::sf_use_s2(FALSE)
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence
-# and CRU temperature and precipitation data aggregated to
-# the first level of Administrative division.
+# Read in the analysis ready data file with malaria prevalence and CRU
+# temperature and precipitation data aggregated to the first level of
+# Administrative division.
 ################################################################################
 
 print("Loading clean data")
@@ -55,7 +55,7 @@ complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
 ################################################################################
 
 # Estimation & residuals
-mainmod = readRDS(main_mod_obj_fn)
+mainmod <- readRDS(main_mod_obj_fn)
 
 complete <- complete |> mutate(res = c(residuals(mainmod)))
 
@@ -70,10 +70,10 @@ g <- ggplot(data = complete) +
   xlab("Model residuals") +
   ylab("Count") +
   theme_classic() +
-    theme(
-      axis.text = element_text(size = 12),
-      axis.title = element_text(size = 14)
-    )
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14)
+  )
 g
 
 ## Q-Q plot
@@ -83,10 +83,10 @@ p <- ggplot(complete, aes(sample = res)) +
   xlab("Normal distribution quantiles") +
   ylab("Model residuals quantiles") +
   theme_classic() +
-    theme(
-      axis.text = element_text(size = 12),
-      axis.title = element_text(size = 14)
-    )
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14)
+  )
 p
 
 grid <- plot_grid(g, p, nrow = 1)
@@ -99,192 +99,28 @@ ggsave(
 )
 
 ################################################################################
-# A: Correlation across ADM1s within a country (same year-month) ----
-################################################################################
-
-# Regress residuals on country dummies, control for month and year
-resCntry = felm(res ~ I(country) | month + year | 0 | 0, data = complete)
-
-# Histogram of p-values on each country's coefficient
-pvals = summary(resCntry)$coefficients[, "Pr(>|t|)"]
-ph = ggplot() +
-  geom_histogram(aes(x = pvals), color = "seagreen", fill = "seagreen") +
-  geom_vline(xintercept = 0.05, color = "grey") +
-  xlab("country p-value (null: no correlation within country)") +
-  ylab("# countries") +
-  theme_classic(base_size = 12)
-ph
-
-# Boxplot of residuals by country
-g = ggplot(complete, aes(x = country, y = res)) +
-  geom_boxplot() +
-  theme_classic(base_size = 12) +
-  ylab("residuals") +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-g
-
-# Fstatistic
-df = data.frame(
-  stat = c("F stat", "p value"),
-  value = c(summary(resCntry)$P.fstat[5], summary(resCntry)$P.fstat[1])
-)
-write.csv(df, file.path(table_res_dir, "residuals_country_Fstat.csv"))
-
-################################################################################
-# B: Correlation across ADM1s within a GBOD region (same year-month) ----
-################################################################################
-
-# Regress residuals on country dummies, control for month and year
-resGBOD = felm(res ~ I(smllrgn) | month + year | 0 | 0, data = complete)
-
-# Histogram of p-values on each region's coefficient
-pvalsR = summary(resGBOD)$coefficients[, "Pr(>|t|)"]
-pr = ggplot() +
-  geom_histogram(aes(x = pvalsR), color = "seagreen", fill = "seagreen") +
-  geom_vline(xintercept = 0.05, color = "grey") +
-  xlab("region p-value (null: no correlation within region)") +
-  ylab("# regions") +
-  theme_classic(base_size = 12)
-pr
-
-# Boxplot of residuals by region
-gr = ggplot(complete, aes(x = as.factor(smllrgn), y = res)) +
-  geom_boxplot() +
-  theme_classic(base_size = 12) +
-  ylab("residuals") +
-  xlab("region") +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-gr
-
-# Fstatistic
-df = data.frame(
-  stat = c("F stat", "p value"),
-  value = c(summary(resGBOD)$P.fstat[5], summary(resGBOD)$P.fstat[1])
-)
-write.csv(df, file.path(table_res_dir, "residuals_GBOD_Fstat.csv"))
-
-################################################################################
-# C: Correlation across months (same location) ----
-################################################################################
-
-# Regress residuals on country dummies, control for OBJECTID
-resMonth = felm(res ~ I(month) | OBJECTID | 0 | 0, data = complete)
-
-complete = complete %>%
-  mutate(monthord = factor(month, levels = month.abb))
-
-# Histogram of p-values on each region's coefficient
-pvalsM = summary(resMonth)$coefficients[, "Pr(>|t|)"]
-pm = ggplot() +
-  geom_histogram(aes(x = pvalsM), color = "seagreen", fill = "seagreen") +
-  geom_vline(xintercept = 0.05, color = "grey") +
-  xlab("monthly p-value (null: no correlation within months)") +
-  ylab("# months") +
-  theme_classic(base_size = 12)
-pm
-
-# Boxplot of residuals by month
-gm = ggplot(complete, aes(x = as.factor(monthord), y = res)) +
-  geom_boxplot() +
-  theme_classic(base_size = 12) +
-  ylab("residuals") +
-  xlab("month")
-gm
-
-# Fstatistic
-df = data.frame(
-  stat = c("F stat", "p value"),
-  value = c(summary(resMonth)$P.fstat[5], summary(resMonth)$P.fstat[1])
-)
-write.csv(df, file.path(table_res_dir, "residuals_Month_Fstat.csv"))
-
-# combine all boxplots
-box = ggarrange(g, gr, gm, ncol = 1, nrow = 3, labels = "auto")
-box
-
-ggsave(
-  filename = "residuals_ALL_boxplot.jpg",
-  path = figure_res_dir,
-  plot = box,
-  width = 5,
-  height = 5
-)
-
-# combine all pval hists
-hists = ggarrange(ph, pr, pm, ncol = 1, nrow = 3, labels = "auto")
-hists
-
-ggsave(
-  filename = "pvals_ALL_correlations.jpg",
-  path = figure_res_dir,
-  plot = hists,
-  width = 5,
-  height = 5
-)
-
-################################################################################
-# D: General correlation over space -- distributions of correlations ----
+# General correlation over space -- distributions of correlations ----
 ################################################################################
 
 ##### Temporal Correlation Matrix ----
-residual_wide_yr_mn <- complete |> 
-  dplyr::select(OBJECTID,monthyr,res) |> 
-  arrange(monthyr) |> 
-  pivot_wider(names_from=monthyr, values_from=res) |> 
+residual_wide_yr_mn <- complete |>
+  dplyr::select(OBJECTID, monthyr, res) |>
+  arrange(monthyr) |>
+  pivot_wider(names_from = monthyr, values_from = res) |>
   arrange(OBJECTID)
 
 corr_matrix_yr_mn <- cor(
-  residual_wide_yr_mn |> dplyr::select(-OBJECTID), 
-  use = "pairwise.complete.obs")
+  residual_wide_yr_mn |> dplyr::select(-OBJECTID),
+  use = "pairwise.complete.obs"
+)
 
 ##### Pairwise N Temporal Matrix ----
-count_matrix_yr_mn <- residual_wide_yr_mn |> 
-  dplyr::select(-OBJECTID) |> 
+count_matrix_yr_mn <- residual_wide_yr_mn |>
+  dplyr::select(-OBJECTID) |>
   count_pairwise_obs()
 
 ##### Spatial Correlation Matrix ----
-residual_wide_location <- complete |> 
-  dplyr::mutate(
-    short_region = case_match(
-      smllrgn,
-      "Sub-Saharan Africa (Central)"~ "C",
-      "Sub-Saharan Africa (West)"~"W",
-      "Sub-Saharan Africa (Southern)" ~ "S",
-      "Sub-Saharan Africa (East)"~"E",
-      .default = NA_character_     
-    ),
-    location = paste(short_region, ISO, OBJECTID, sep = ".")
-  ) |>
-  dplyr::select(location, monthyr, res) |> 
-  arrange(monthyr) |> 
-  pivot_wider(names_from = location, values_from = res) |> 
-  arrange(monthyr)
-
-corr_matrix_location <- cor(
-  residual_wide_location |> dplyr::select(-monthyr), 
-  use = "pairwise.complete.obs") 
-
-##### Pairwise N Spatial Matrix ----
-count_matrix_location <- residual_wide_location |> 
-  dplyr::select(-monthyr) |> 
-  count_pairwise_obs()
-
-##### Mean N per ObjectID ---- 
-complete |> 
-  dplyr::group_by(OBJECTID, smllrgn) |> 
-  dplyr::summarize(
-    n = n()
-  ) |> 
-  dplyr::ungroup() |> 
-  # dplyr::group_by(smllrgn) |>
-  dplyr::summarise(
-    mean = mean(n),
-    median = median(n)
-  ) 
-
-##### Distance Matrix ----
-location_simple <- complete |>
-  dplyr::distinct(OBJECTID, smllrgn, ISO) |> 
+residual_wide_location <- complete |>
   dplyr::mutate(
     short_region = case_match(
       smllrgn,
@@ -292,10 +128,49 @@ location_simple <- complete |>
       "Sub-Saharan Africa (West)" ~ "W",
       "Sub-Saharan Africa (Southern)" ~ "S",
       "Sub-Saharan Africa (East)" ~ "E",
-      .default = NA_character_     
+      .default = NA_character_
     ),
     location = paste(short_region, ISO, OBJECTID, sep = ".")
-  ) 
+  ) |>
+  dplyr::select(location, monthyr, res) |>
+  arrange(monthyr) |>
+  pivot_wider(names_from = location, values_from = res) |>
+  arrange(monthyr)
+
+corr_matrix_location <- cor(
+  residual_wide_location |> dplyr::select(-monthyr),
+  use = "pairwise.complete.obs"
+)
+
+##### Pairwise N Spatial Matrix ----
+count_matrix_location <- residual_wide_location |>
+  dplyr::select(-monthyr) |>
+  count_pairwise_obs()
+
+##### Mean N per ObjectID ----
+complete |>
+  dplyr::group_by(OBJECTID, smllrgn) |>
+  dplyr::summarize(n = n()) |>
+  dplyr::ungroup() |>
+  dplyr::summarise(
+    mean = mean(n),
+    median = median(n)
+  )
+
+##### Distance Matrix ----
+location_simple <- complete |>
+  dplyr::distinct(OBJECTID, smllrgn, ISO) |>
+  dplyr::mutate(
+    short_region = case_match(
+      smllrgn,
+      "Sub-Saharan Africa (Central)" ~ "C",
+      "Sub-Saharan Africa (West)" ~ "W",
+      "Sub-Saharan Africa (Southern)" ~ "S",
+      "Sub-Saharan Africa (East)" ~ "E",
+      .default = NA_character_
+    ),
+    location = paste(short_region, ISO, OBJECTID, sep = ".")
+  )
 
 centroids <- ADM1_fp |>
   sf::read_sf() |>
@@ -305,8 +180,8 @@ centroids <- ADM1_fp |>
     OBJECTID = as.numeric(OBJECTID)
   ) |>
   sf::st_drop_geometry() |>
-  dplyr::select(OBJECTID, lon, lat) |> 
-  dplyr::filter(OBJECTID %in% unique(complete$OBJECTID)) |> 
+  dplyr::select(OBJECTID, lon, lat) |>
+  dplyr::filter(OBJECTID %in% unique(complete$OBJECTID)) |>
   dplyr::left_join(location_simple, by = join_by(OBJECTID))
 
 centers <- sf::st_as_sf(centroids, coords = c("lon", "lat"), crs = 4326)
@@ -322,32 +197,40 @@ distanceMatrix_km <- dist_matrix / 1000
 upper_triangle <- upper.tri(distanceMatrix_km, diag = FALSE)
 distances_km <- distanceMatrix_km[upper_triangle]
 cat(
-  "Mean distance:", mean(distances_km), "km\n",
-  "Median distance:", median(distances_km), "km\n",
-  "Minimum distance:", min(distances_km), "km\n",
-  "Maximum distance:", max(distances_km), "km\n"
+  "Mean distance:",
+  mean(distances_km),
+  "km\n",
+  "Median distance:",
+  median(distances_km),
+  "km\n",
+  "Minimum distance:",
+  min(distances_km),
+  "km\n",
+  "Maximum distance:",
+  max(distances_km),
+  "km\n"
 )
 ggplot(data.frame(distances = distances_km), aes(x = distances)) +
   geom_histogram(bins = 100) +
   labs(x = "Distance (km)", y = "Frequency")
 
 ##### Correlation Data ----
-sel <- upper.tri(corr_matrix_yr_mn, diag=FALSE)
+sel <- upper.tri(corr_matrix_yr_mn, diag = FALSE)
 corrVecYear <- corr_matrix_yr_mn[sel]
-timeDiff <- (col(corr_matrix_yr_mn)-row(corr_matrix_yr_mn))[sel]
+timeDiff <- (col(corr_matrix_yr_mn) - row(corr_matrix_yr_mn))[sel]
 obsCountVecYearMon <- count_matrix_yr_mn[sel]
 
-sel <- upper.tri(corr_matrix_location, diag=FALSE)
+sel <- upper.tri(corr_matrix_location, diag = FALSE)
 corrVecGid1 <- corr_matrix_location[sel]
 distVecGid1 <- dist_matrix[sel]
-obsCountVecGid1 <- count_matrix_location[sel]  
+obsCountVecGid1 <- count_matrix_location[sel]
 
 colGid1 <- colnames(corr_matrix_location)[col(corr_matrix_location)[sel]]
 rowGid1 <- rownames(corr_matrix_location)[row(corr_matrix_location)[sel]]
-colGid0 <- str_sub(colGid1, start = 3, end=5)
-rowGid0 <- str_sub(rowGid1, start = 3, end=5)
-colReg <- str_sub(colGid1, end=1)
-rowReg <- str_sub(rowGid1, end=1)
+colGid0 <- str_sub(colGid1, start = 3, end = 5)
+rowGid0 <- str_sub(rowGid1, start = 3, end = 5)
+colReg <- str_sub(colGid1, end = 1)
+rowReg <- str_sub(rowGid1, end = 1)
 
 ##### Same month, different year ----
 base_date <- as.Date("1900-01-01")
@@ -377,23 +260,95 @@ corrData <- bind_rows(
   analyze_corr("temporal", corrVecYear, timeDiff == 1, "1", obsCountVecYearMon),
   analyze_corr("temporal", corrVecYear, timeDiff == 2, "2", obsCountVecYearMon),
   analyze_corr("temporal", corrVecYear, timeDiff == 3, "3", obsCountVecYearMon),
-  analyze_corr("temporal", corrVecYear, abs(yearDiff) <= 5, "within 5 years", obsCountVecYearMon),
-  analyze_corr("temporal", corrVecYear, abs(yearDiff) > 5, "> 5 years", obsCountVecYearMon),
+  analyze_corr(
+    "temporal",
+    corrVecYear,
+    abs(yearDiff) <= 5,
+    "within 5 years",
+    obsCountVecYearMon
+  ),
+  analyze_corr(
+    "temporal",
+    corrVecYear,
+    abs(yearDiff) > 5,
+    "> 5 years",
+    obsCountVecYearMon
+  ),
   ##### Basic spatial patterns ----
   analyze_corr("spatial", corrVecGid1, TRUE, "all", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, colGid0 == rowGid0, "same country", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0, "different country", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg == rowReg, "same region", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, colGid0 != rowGid0 & colReg != rowReg, "different region", obsCountVecGid1),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    colGid0 == rowGid0,
+    "same country",
+    obsCountVecGid1
+  ),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    colGid0 != rowGid0,
+    "different country",
+    obsCountVecGid1
+  ),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    colGid0 != rowGid0 & colReg == rowReg,
+    "same region",
+    obsCountVecGid1
+  ),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    colGid0 != rowGid0 & colReg != rowReg,
+    "different region",
+    obsCountVecGid1
+  ),
   # ##### thresholds (less than) ----
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5, "< 500km", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 != rowGid0, "< 500km and different country", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 < 5e5 & colGid0 == rowGid0, "< 500km and same country", obsCountVecGid1),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    distVecGid1 < 5e5,
+    "< 500km",
+    obsCountVecGid1
+  ),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    distVecGid1 < 5e5 & colGid0 != rowGid0,
+    "< 500km and different country",
+    obsCountVecGid1
+  ),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    distVecGid1 < 5e5 & colGid0 == rowGid0,
+    "< 500km and same country",
+    obsCountVecGid1
+  ),
   ##### thresholds (greater than) ----
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 1e6, "> 1000km", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 != rowGid0, "> 500km and different country", obsCountVecGid1),
-  analyze_corr("spatial", corrVecGid1, distVecGid1 > 5e5 & colGid0 == rowGid0, "> 500km and same country", obsCountVecGid1)
-) |> 
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    distVecGid1 > 1e6,
+    "> 1000km",
+    obsCountVecGid1
+  ),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    distVecGid1 > 5e5 & colGid0 != rowGid0,
+    "> 500km and different country",
+    obsCountVecGid1
+  ),
+  analyze_corr(
+    "spatial",
+    corrVecGid1,
+    distVecGid1 > 5e5 & colGid0 == rowGid0,
+    "> 500km and same country",
+    obsCountVecGid1
+  )
+) |>
   dplyr::select(kind, group, mean, q25, q75, n)
 
 corrData
@@ -406,11 +361,11 @@ writeLines(
 )
 
 ################################################################################
-# E. Sensitivity to clustering  ----
+# Sensitivity to clustering  ----
 ################################################################################
 
 ## ADM1 clustering ----
-adm1form = as.formula(
+adm1form <- as.formula(
   paste0(
     common,
     " + I(intervention) + ",
@@ -418,13 +373,13 @@ adm1form = as.formula(
     " | OBJECTID + as.factor(smllrgn):month | 0 | OBJECTID"
   )
 )
-adm1mod = felm(data = complete, formula = adm1form)
+adm1mod <- felm(data = complete, formula = adm1form)
 # only need to compute this and the next line once, all specs have same coeffs but different CIs
-coefs = summary(adm1mod)$coefficients[1:2]
+coefs <- summary(adm1mod)$coefficients[1:2]
 # plot relative to max of Quadratic function
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
-adm1fig = plotPolynomialResponse(
+myrefT <- max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+plotXtemp <- cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+adm1fig <- plotPolynomialResponse(
   adm1mod,
   "temp",
   plotXtemp,
@@ -446,7 +401,7 @@ adm1fig = plotPolynomialResponse(
 )
 
 ## country clustering ----
-isoform = as.formula(
+isoform <- as.formula(
   paste0(
     common,
     " + I(intervention) + ",
@@ -454,8 +409,8 @@ isoform = as.formula(
     " | OBJECTID + as.factor(smllrgn):month | 0 | country"
   )
 )
-isomod = felm(data = complete, formula = isoform)
-isofig = plotPolynomialResponse(
+isomod <- felm(data = complete, formula = isoform)
+isofig <- plotPolynomialResponse(
   isomod,
   "temp",
   plotXtemp,
@@ -478,12 +433,12 @@ isofig = plotPolynomialResponse(
 
 ## country x year clustering ----
 # (no correlation over years)
-complete = complete |>
+complete <- complete |>
   group_by(country, year) |>
   mutate(cntryyr = cur_group_id()) |>
   ungroup()
 
-isoyrform = as.formula(
+isoyrform <- as.formula(
   paste0(
     common,
     " + I(intervention) + ",
@@ -491,8 +446,8 @@ isoyrform = as.formula(
     " | OBJECTID + as.factor(smllrgn):month | 0 | cntryyr"
   )
 )
-isoyrmod = felm(data = complete, formula = isoyrform)
-isoyrfig = plotPolynomialResponse(
+isoyrmod <- felm(data = complete, formula = isoyrform)
+isoyrfig <- plotPolynomialResponse(
   isoyrmod,
   "temp",
   plotXtemp,
@@ -514,7 +469,7 @@ isoyrfig = plotPolynomialResponse(
 )
 
 ## year clustering ----
-yrform = as.formula(
+yrform <- as.formula(
   paste0(
     common,
     " + I(intervention) + ",
@@ -522,8 +477,8 @@ yrform = as.formula(
     " | OBJECTID + as.factor(smllrgn):month | 0 | year"
   )
 )
-yrmod = felm(data = complete, formula = yrform)
-yrfig = plotPolynomialResponse(
+yrmod <- felm(data = complete, formula = yrform)
+yrfig <- plotPolynomialResponse(
   yrmod,
   "temp",
   plotXtemp,
@@ -552,7 +507,7 @@ complete <- complete |>
   dplyr::mutate(cntry_yrbin5 = dplyr::cur_group_id()) |>
   dplyr::ungroup()
 
-iso5form = as.formula(
+iso5form <- as.formula(
   paste0(
     common,
     " + I(intervention) + ",
@@ -560,8 +515,8 @@ iso5form = as.formula(
     " | OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin5"
   )
 )
-iso5mod = felm(data = complete, formula = iso5form)
-iso5fig = plotPolynomialResponse(
+iso5mod <- felm(data = complete, formula = iso5form)
+iso5fig <- plotPolynomialResponse(
   iso5mod,
   "temp",
   plotXtemp,
@@ -590,7 +545,7 @@ complete <- complete |>
   dplyr::mutate(cntry_yrbin10 = dplyr::cur_group_id()) |>
   dplyr::ungroup()
 
-iso10form = as.formula(
+iso10form <- as.formula(
   paste0(
     common,
     " + I(intervention) + ",
@@ -598,8 +553,8 @@ iso10form = as.formula(
     " | OBJECTID + as.factor(smllrgn):month | 0 | cntry_yrbin10"
   )
 )
-iso10mod = felm(data = complete, formula = iso10form)
-iso10fig = plotPolynomialResponse(
+iso10mod <- felm(data = complete, formula = iso10form)
+iso10fig <- plotPolynomialResponse(
   iso10mod,
   "temp",
   plotXtemp,
@@ -621,7 +576,6 @@ iso10fig = plotPolynomialResponse(
 )
 
 ## Conley standard errors ----
-
 centroids <- ADM1_fp |>
   sf::read_sf() |>
   dplyr::mutate(
@@ -635,7 +589,7 @@ centroids <- ADM1_fp |>
 spdf <- complete |>
   dplyr::left_join(centroids, by = join_by(OBJECTID))
 
-conleyform = as.formula(
+conleyform <- as.formula(
   paste0(
     common,
     " + I(intervention) + ",
@@ -647,20 +601,20 @@ conleyform = as.formula(
 conley_dist_1 <- 200
 conley_dist_2 <- 500
 
-conleymod1 = feols(
+conleymod1 <- feols(
   conleyform,
   data = spdf,
   conley(conley_dist_1, distance = "spherical")
 )
-conleymod2 = feols(
+conleymod2 <- feols(
   conleyform,
   data = spdf,
   conley(conley_dist_2, distance = "spherical")
 )
 
-coefs = summary(conleymod1)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-conleyfig1 = plotPolynomialResponse(
+coefs <- summary(conleymod1)$coefficients[1:2]
+myrefT <- max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+conleyfig1 <- plotPolynomialResponse(
   conleymod1,
   "temp",
   plotXtemp,
@@ -681,9 +635,9 @@ conleyfig1 = plotPolynomialResponse(
   title_size = 22
 )
 
-coefs = summary(conleymod2)$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of Quadratic function
-conleyfig2 = plotPolynomialResponse(
+coefs <- summary(conleymod2)$coefficients[1:2]
+myrefT <- max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10) # plot relative to max of Quadratic function
+conleyfig2 <- plotPolynomialResponse(
   conleymod2,
   "temp",
   plotXtemp,
@@ -702,7 +656,7 @@ conleyfig2 = plotPolynomialResponse(
   axis_size = 20,
   axis_title_size = 22,
   title_size = 22
-) 
+)
 
 ## merged plot
 uncert <- plot_grid(
@@ -731,7 +685,7 @@ ggsave(
 # then combined manually
 
 # tabular output
-modellist = list(
+modellist <- list(
   adm1mod,
   isomod,
   yrmod,
@@ -739,7 +693,7 @@ modellist = list(
   iso5mod,
   iso10mod
 )
-mycollabs = c(
+mycollabs <- c(
   "Adm1 clust.",
   "Country clust.",
   "Year clust.",
@@ -748,7 +702,7 @@ mycollabs = c(
   "Country-decade clust."
 )
 
-mynote = "Column specifications: (1) standard errors clustered at ADM1 level; (2) standard errors clustered at country level; (3) standard errors clustered at year level; (4) standard errors clustered at country-year level; (5) standard errors clustered at country-5-year level (main specification); (6) standard errors clustered at country-decade level; (7) standard errors estimated following Conley (2008) using 200km cutoff; (6) standard errors estimated following Conley (2008) using a 500km cutoff."
+mynote <- "Column specifications: (1) standard errors clustered at ADM1 level; (2) standard errors clustered at country level; (3) standard errors clustered at year level; (4) standard errors clustered at country-year level; (5) standard errors clustered at country-5-year level (main specification); (6) standard errors clustered at country-decade level; (7) standard errors estimated following Conley (2008) using 200km cutoff; (6) standard errors estimated following Conley (2008) using a 500km cutoff."
 
 tex <- stargazer(
   modellist,
@@ -758,7 +712,6 @@ tex <- stargazer(
   covariate.labels = my_covariate_labels,
   dep.var.labels = "$Pf$PR$_{2-10}$",
   keep = c("temp", "flood", "drought", "intervention"),
-  # out = here::here("Results", "Tables", "uncertainty.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",

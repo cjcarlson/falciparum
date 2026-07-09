@@ -1,5 +1,7 @@
 ################################################################################
-# This script
+# This script generates the temperature response curve and calculates the 
+# temperature at which the maximum response occurs for each model then prints 
+# summary statistics that are used in the manuscript. 
 ################################################################################
 # Set up ----
 ################################################################################
@@ -58,7 +60,7 @@ for (mod in seq_len(nrow(all_mods))) {
 plotData <- data.table::rbindlist(boot_list)
 
 ########################################################################
-#
+# Print summary stats ----
 ########################################################################
 
 temps <- plotData |>
@@ -66,7 +68,6 @@ temps <- plotData |>
   dplyr::filter(response == max(response))
 
 print(temps)
-
 
 temps <- temps |>
   dplyr::filter(model != "main") |>

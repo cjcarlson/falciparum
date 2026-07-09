@@ -1,7 +1,9 @@
 ################################################################################
-# This script prepares the climate and prevalence data for estimation. It 
-# calculates the drought and flood variables and makes the categorical variables 
+# This script prepares the climate and prevalence data for estimation. It
+# calculates the drought and flood variables and makes the categorical variables
 # into factors where necessary.
+# - Note: The analysis ready data produced by this script can be downloaded from
+#   https://zenodo.org/records/20399793
 ################################################################################
 # Set up ----
 ################################################################################
@@ -24,8 +26,6 @@ sf::sf_use_s2(FALSE)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "B04_join_prev_cru.log"))
 
 log_msg <- create_logger()
 
@@ -77,9 +77,8 @@ log_msg(sprintf("  Loaded ADM1 units: %d regions", nrow(cont)))
 log_msg("  Loading intermediate climate data (ADM1)")
 
 climate_data <- intermediate_CRU_adm1_fp |>
-  arrow::read_feather() |> 
+  arrow::read_feather() |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year))
-  # readr::read_csv(show_col_types = FALSE)
 
 log_msg(sprintf("  Climate data loaded: %d rows", nrow(climate_data)))
 
@@ -327,15 +326,6 @@ urban_summary <- prev_df |>
 readr::write_csv(urban_summary, urban_summary_fp)
 log_msg(sprintf("  Urban summary saved: %d rows", nrow(urban_summary)))
 
-# complete <- readr::read_rds(analysis_ready_CRU_adm1_fp)
-
-# cols_to_check <- c("PfPR2", "temp", "temp2", "ppt")
-
-# for (col in cols_to_check) {
-#   result <- all.equal(complete[[col]], replication[[col]], tolerance = 1e-8)
-#   cat(col, ":", if (isTRUE(result)) "MATCH" else result, "\n")
-# }
-
 ################################################################################
 # Grid level data ----
 ################################################################################
@@ -377,7 +367,6 @@ log_msg(sprintf(
 
 log_msg("  Loading grid-level climate data")
 
-# climate_grid_data <- data.table::fread(intermediate_CRU_grid_fp)
 climate_grid_data <- arrow::read_feather(intermediate_CRU_grid_fp) |>
   data.table::as.data.table()
 

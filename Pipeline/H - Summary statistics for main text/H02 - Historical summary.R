@@ -1,8 +1,8 @@
-############################################################
-# This script makes all
-############################################################
+################################################################################
+# This script generates summary statistics for the historical predictions.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -115,6 +115,15 @@ sfcont <- ADM1_fp |>
     prop_positive_diff
   ) |>
   tidyr::drop_na()
+
+sfcont |>
+  dplyr::group_by(country = NAME_0) |>
+  dplyr::summarise(
+    historical = mean(mean.diff, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  tidyr::drop_na() |>
+  readr::write_csv(here::here("Results", "Tables", "historical_country_summary.csv"))
 
 ################################################################################
 # Check countries ----

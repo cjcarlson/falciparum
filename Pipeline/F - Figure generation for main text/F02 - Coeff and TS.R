@@ -1,6 +1,5 @@
 ################################################################################
-# This script plots the main prevalence-temperature dose-response function
-# as well as its uncertainty over 1,000 bootstrap samples
+# This script produces Figure 2 of the paper.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -230,6 +229,7 @@ temp_w_hist_plot <- temp_plot +
   labs(x = "Mean temperature (\u00B0C)") +
   theme(
     axis.title.x = element_text(vjust = -0.5),
+    axis.text.x = element_text(),
     plot.title.position = "plot",
     plot.margin = unit(c(0.0, 0.0, 1, 0), units = "cm"),
     plot.tag.location = "panel",
@@ -534,7 +534,7 @@ future_boot <- future_pred[run != "main"] |>
     baseline_years = 2015:2020,
     confidence_level = 0.90
   ) |>
-  dplyr::filter(year > 2016) 
+  dplyr::filter(year >= 2016) 
 
 base_mean <- hist_boot |>
   dplyr::filter(scenario == 'historical', year %in% c(2010:2014)) |>
@@ -557,13 +557,7 @@ log_msg("Combine hist and future")
 graph.data <- hist_boot |>
   dplyr::bind_rows(future_boot) |>
   dplyr::mutate(scenario = factor(scenario, levels = scenarios)) |>
-  # Start plotting in 1902 and 2016 because it's the first full year with lags
-  # incorporated right.
   dplyr::filter(!(year %in% c(1901, 2015))) |>
-  # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
-  # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
-  # to how ggplot does CI's this is for plotting purposes ONLY and text stats
-  # give full CI's
   dplyr::mutate(lower = pmax(lower, -2.2))
 
 ################################################################################

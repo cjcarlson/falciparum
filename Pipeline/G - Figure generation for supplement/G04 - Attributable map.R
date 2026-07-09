@@ -1,8 +1,8 @@
-############################################################
-# This script makes
-############################################################
+################################################################################
+# This script makes all four panels of Extended Data Figure 7.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -23,7 +23,6 @@ pacman::p_load(
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
-# source(A_utils_plot_fp)
 
 ################################################################################
 # Hist delta map data ----
@@ -93,10 +92,6 @@ g2 <- ggplot(cont) +
     legend.title = element_text(hjust = 0.5),
     plot.margin = margin(0, 0, 0, 0)
   )
-
-# g1 + g2
-
-### Supplemental Figure 2
 
 cont <- cont |>
   mutate(sign = as.numeric(lower.diff > 0) + as.numeric(upper.diff < 0)) |>

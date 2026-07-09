@@ -1,11 +1,10 @@
 ################################################################################
-# Use the following code to predict prevalence based on temperature and
-# precipitation data with coefficients estimated from 1,000 bootstraps.
-# This code makes historical and future predictions based on 5 climate
-# scenarios and 10 climate models. The code uses N cores to parallelize, which
-# is chosen by the user. The code saves the predictions in feather format for
-# fast reading and writing and reduces the size of the data. Additionally,
-# metadata is saved in a separate file to reduce file size.
+# This script predicts childhood malaria prevalence based on temperature and
+# precipitation data with coefficients estimated from 1,000 draws of the
+# variance-covariance matrix. Predictions are made on historical and future data
+# based on 5 climate scenarios and 10 climate models. The code uses N cores to
+# parallelize, which is chosen by the user. Predictions are summarized at several
+# levels for plots and summary statistics.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -70,7 +69,7 @@ log_msg("Loading the elevation key")
 
 elev_dt <- elevation_summary_fp |>
   data.table::fread() |>
-  dplyr::select(OBJECTID, elevmn) 
+  dplyr::select(OBJECTID, elevmn)
 
 ################################################################################
 # Country data ----
@@ -86,7 +85,7 @@ country_dt <- ADM1_fp |>
   dplyr::rename(country = NAME_0) |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID)) |>
   dplyr::filter(OBJECTID %in% valid_ids) |>
-  data.table::as.data.table() |> 
+  data.table::as.data.table() |>
   dplyr::left_join(elev_dt, by = join_by("OBJECTID"))
 
 ################################################################################
@@ -122,8 +121,6 @@ coeffs_complete <- vcov_sample_mod_full_fn |>
 future::plan(multicore, workers = n_cores)
 
 for (mode in c("historical", "future")) {
-  # mode <- "historical"
-
   log_msg(paste0("Starting: ", mode))
 
   ##############################################################################
@@ -358,7 +355,8 @@ for (mode in c("historical", "future")) {
     "scen_mod_yr_mon_reg",
     "scen_mod_yr_obj"
   )
-  rm(data, dt, meta); gc()
+  rm(data, dt, meta)
+  gc()
   for (sum_type in summaries) {
     out_path <- file.path(
       summary_dir,
@@ -367,7 +365,8 @@ for (mode in c("historical", "future")) {
     compiled <- rbindlist(lapply(iter.list, `[[`, sum_type))
     arrow::write_feather(compiled, out_path)
     log_msg(sprintf("Wrote %s: %d rows\n", out_path, nrow(compiled)))
-    rm(compiled); gc()
+    rm(compiled)
+    gc()
   }
 }
 

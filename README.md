@@ -42,25 +42,25 @@ Pipeline
 │   ├── A02 - Utility code for calculations.R
 │   └── A03 - Utility code for plotting.R
 ├── B - Extract climate and prevalence data
+│   ├── B00 - QQ Biascorrect.py
 │   ├── B01 - Extract CRU tmp and prc data ADM1.R
 │   ├── B02 - Extract GCM tmp and prc data ADM1.R
 │   ├── B03 - Extract CRU tmp and prc data grid.R
 │   ├── B04 - Join prev and CRU data.R
 │   ├── B05 - Extract ERA5 tmp and prc data ADM1.R
 │   └── B06 - Join prev and ERA5 data.R
+│   └── run_BC_pr.sbatch
+│   └── run_BC_tas.sbatch
 ├── C - Model estimation
 │   ├── C01 - Main specification.R
-│   ├── C02 - Bootstrap estimation.R
-│   └── C03 - VCOV sampling.R
+│   ├── C02 - VCOV sampling.R
 ├── D - Model sensitivity analyses and checks
 │   ├── D01 - Model sensitivity.R
-│   ├── D02 - Randomization tests.R
-│   ├── D03 - Additional robustness.R
-│   ├── D04 - Uncertainty analysis.R
-│   ├── D04b - newrob.R
-│   ├── D05 - High resolution model.R
-│   ├── D06 - Urbanization.R
-│   └── D07 - ERA5 analysis.R
+│   ├── D02 - Robustness checks.R
+│   ├── D03 - Uncertainty analysis.R
+│   ├── D04 - High resolution model.R
+│   ├── D05 - Urbanization.R
+│   └── D06 - ERA5 analysis.R
 ├── E - Estimate historical and future prevalence
 │   └── E01 - Predict prevalence.R
 ├── F - Figure generation for main text
@@ -75,13 +75,14 @@ Pipeline
 │   ├── G04 - Attributable map.R
 │   ├── G05 - Projection maps.R
 │   ├── G06 - Monthly time series.R
-│   └── G07 - vcov sample.R
 └── H - Summary statistics for main text
     ├── H01 - Thermal responses.R
     ├── H02 - Historical summary.R
     ├── H03 - Future summary.R
     └── H04 - Global warming levels.R
 ```
+
+**Note:** The files `B00 - QQ Biascorrect.py`, `run_BC_pr.sbatch`, and `run_BC_tas.sbatch` are used to bias correct the CMIP6 data. These files were included late into development as the bias correction procedure was carried out on a separate system and will therefore not work without some modifications. The bias correction procedure is not necessary to replicate the results, as the bias corrected data are provided in the replication package.
 
 ## Results
 

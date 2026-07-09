@@ -1,6 +1,7 @@
 ################################################################################
-# This script conducts a variety of robustness checks on the main empirical
-# specification linking PfPR2 to drought, flood, and temperature.
+# This script conducts a variety of model sensitivity checks on the main
+# empirical specification linking PfPR2 to drought, flood, and temperature for
+# the extended data and supplementary materials.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -15,11 +16,9 @@ if (!require("pacman")) {
 pacman::p_load(
   here,
   lfe,
-  reshape,
   stargazer,
   tidyverse,
   zoo,
-  lubridate,
   cowplot,
   multcomp,
   patchwork
@@ -34,7 +33,7 @@ source(A_utils_plot_fp)
 # Plotting toggles ----
 ################################################################################
 
-Tref = 25 # reference temperature - curve gets recentered to 0 here
+Tref <- 25 # reference temperature - curve gets recentered to 0 here
 
 ################################################################################
 # Load data ----
@@ -57,14 +56,14 @@ climate_data <- intermediate_CRU_adm1_fp |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
   tidyr::unite("monthyr", month:year, sep = ' ', remove = FALSE) |>
   dplyr::mutate(
-    monthyr = as.Date(as.yearmon(monthyr)),
+    monthyr = as.Date(zoo::as.yearmon(monthyr)),
     monthyr = as.numeric(ymd(monthyr) - ymd("1900-01-01")),
     yearnum = as.numeric(year),
     year = as.factor(year)
   ) |>
   dplyr::arrange(OBJECTID, monthyr)
 
-templags = climate_data %>%
+templags <- climate_data %>%
   dplyr::group_by(OBJECTID) %>%
   dplyr::mutate(
     temp.lag = lag(temp, order_by = monthyr),
@@ -82,14 +81,14 @@ templags = climate_data %>%
   )
 
 # merge back into main dataset
-tokeep = c("OBJECTID", "monthyr", "month", "year")
-templags = templags |>
+tokeep <- c("OBJECTID", "monthyr", "month", "year")
+templags <- templags |>
   dplyr::select(all_of(tokeep), contains("lag"), contains("lead"))
 
 complete <- complete |>
   dplyr::left_join(templags, by = c("OBJECTID", "monthyr", "month", "year"))
 
-complete$month = as.factor(complete$month)
+complete$month <- as.factor(complete$month)
 
 ################################################################################
 # Temp lags/leads - formulas ----
@@ -107,7 +106,7 @@ myforms <- list(
   ld1lg3 = make_lag_form(n_lags = 3, n_leads = 1)
 )
 
-mycollabs = c(
+mycollabs <- c(
   "cont",
   "lg1",
   "lg2",
@@ -123,38 +122,20 @@ mycollabs = c(
 ################################################################################
 
 # Run all models
-modellist = list()
-i = 0
+modellist <- list()
+i <- 0
 for (m in myforms) {
-  i = i + 1
-  modellist[[i]] = lfe::felm(data = complete, formula = m)
+  i <- i + 1
+  modellist[[i]] <- lfe::felm(data = complete, formula = m)
 }
-
-################################################################################
-# Temp lags/leads - table ----
-################################################################################
-
-# stargazer(
-#   modellist,
-#   title = "Quadratic temperature: Leads and lags",
-#   align = TRUE,
-#   column.labels = mycollabs,
-#   keep = c("temp", "flood", "drought"),
-#   out = file.path(table_sens_dir, "panelFE_leads_lags.tex"),
-#   omit.stat = c("f", "ser"),
-#   out.header = FALSE,
-#   type = "latex",
-#   float = F,
-#   star.cutoffs = table_star_cutoffs
-# )
 
 ################################################################################
 # Temp lags/leads - plot ----
 ################################################################################
 
 # Plot main model with SEs
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
-c = plotPolynomialResponse(
+plotXtemp <- cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+c <- plotPolynomialResponse(
   modellist[[1]],
   "temp",
   plotXtemp,
@@ -176,7 +157,7 @@ c = plotPolynomialResponse(
 )
 
 # Plot with one lag
-p1 = plotPolynomialResponse(
+p1 <- plotPolynomialResponse(
   modellist[[2]],
   "temp",
   plotXtemp,
@@ -209,7 +190,7 @@ p1 = plotPolynomialResponse(
   )
 
 # Plot with two lags
-p2 = plotPolynomialResponse(
+p2 <- plotPolynomialResponse(
   modellist[[3]],
   "temp",
   plotXtemp,
@@ -242,7 +223,7 @@ p2 = plotPolynomialResponse(
   )
 
 # Plot with three lags
-p3 = plotPolynomialResponse(
+p3 <- plotPolynomialResponse(
   modellist[[4]],
   "temp",
   plotXtemp,
@@ -291,35 +272,35 @@ ggplot2::ggsave(
 ################################################################################
 
 # Loop over drought/flood function
-dlist = c(0.01, 0.05, 0.1, 0.15, 0.2)
-flist = c(0.85, 0.9, 0.95)
+dlist <- c(0.01, 0.05, 0.1, 0.15, 0.2)
+flist <- c(0.85, 0.9, 0.95)
 
-modellist = list()
-modellabs = list()
-i = 0
+modellist <- list()
+modellabs <- list()
+i <- 0
 for (dd in dlist) {
   for (ff in flist) {
-    i = i + 1
+    i <- i + 1
 
     # compute drought and flood variables
-    dropcols = grep(
+    dropcols <- grep(
       "flood|drought|ppt_pctile",
       colnames(complete),
       value = TRUE
     )
-    newdf = computePrcpExtremes(
+    newdf <- computePrcpExtremes(
       dfclimate = climate_data,
       dfoutcome = complete[, !(names(complete) %in% dropcols)],
       pctdrought = dd,
       pctflood = ff,
       yearcutoff = NA
     )
-    newdf = newdf %>% dplyr::arrange(OBJECTID, monthyr)
-    newdf$month = as.factor(newdf$month)
+    newdf <- newdf %>% dplyr::arrange(OBJECTID, monthyr)
+    newdf$month <- as.factor(newdf$month)
 
     # run regression, store results
-    modellist[[i]] = felm(data = newdf, formula = cXt2intrXm)
-    modellabs[[i]] = paste0("drought:", dd, " flood:", ff)
+    modellist[[i]] <- felm(data = newdf, formula = cXt2intrXm)
+    modellabs[[i]] <- paste0("drought:", dd, " flood:", ff)
 
     print(paste0(
       '----------- Regression run for drought pctile ',
@@ -337,16 +318,16 @@ for (dd in dlist) {
 # For each model, plot temperature response
 ################################################################################
 
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+plotXtemp <- cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 nrowGrid <- 5
 ncolGrid <- ceiling(length(modellist) / nrowGrid)
-figList = list()
+figList <- list()
 for (m in 1:length(modellist)) {
   isLeftCol <- ((m - 1) %% ncolGrid) == 0
   isBottomRow <- m > ncolGrid * (nrowGrid - 1)
-  coefs = summary(modellist[[m]])$coefficients[1:2]
-  myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-  figList[[m]] = plotPolynomialResponse(
+  coefs <- summary(modellist[[m]])$coefficients[1:2]
+  myrefT <- max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+  figList[[m]] <- plotPolynomialResponse(
     modellist[[m]],
     "temp",
     plotXtemp,
@@ -369,7 +350,7 @@ for (m in 1:length(modellist)) {
     theme(plot.title = element_text(size = 10))
 }
 
-p = plot_grid(
+p <- cowplot::plot_grid(
   figList[[1]],
   figList[[2]],
   figList[[3]],
@@ -405,11 +386,11 @@ ggsave(
 ################################################################################
 
 # All drought figures
-figList = list()
+figList <- list()
 for (m in 1:length(modellist)) {
   isLeftCol <- ((m - 1) %% ncolGrid) == 0
   isBottomRow <- m > ncolGrid * (nrowGrid - 1)
-  figList[[m]] = plotLinearLags(
+  figList[[m]] <- plotLinearLags(
     mod = modellist[[m]],
     patternForPlotVars = "drought",
     cluster = T,
@@ -426,7 +407,7 @@ for (m in 1:length(modellist)) {
   )
 }
 
-p = plot_grid(
+p <- cowplot::plot_grid(
   figList[[1]],
   figList[[2]],
   figList[[3]],
@@ -460,11 +441,11 @@ ggsave(
 # Flood figures ----
 ################################################################################
 
-figList = list()
+figList <- list()
 for (m in 1:length(modellist)) {
   isLeftCol <- ((m - 1) %% ncolGrid) == 0
   isBottomRow <- m > ncolGrid * (nrowGrid - 1)
-  figList[[m]] = plotLinearLags(
+  figList[[m]] <- plotLinearLags(
     mod = modellist[[m]],
     patternForPlotVars = "flood",
     cluster = T,
@@ -481,7 +462,7 @@ for (m in 1:length(modellist)) {
   )
 }
 
-p = plot_grid(
+p <- cowplot::plot_grid(
   figList[[1]],
   figList[[2]],
   figList[[3]],
@@ -513,9 +494,9 @@ ggsave(
 # estimate polynomial orders up to 5
 ################################################################################
 
-modellist = list()
-modellist[[1]] = felm(data = complete, formula = cXt2intrXm)
-modellist[[2]] = felm(
+modellist <- list()
+modellist[[1]] <- felm(data = complete, formula = cXt2intrXm)
+modellist[[2]] <- felm(
   data = complete,
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + temp3 +",
@@ -528,7 +509,7 @@ modellist[[2]] = felm(
     clustering
   ))
 )
-modellist[[3]] = felm(
+modellist[[3]] <- felm(
   data = complete,
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + temp3 + temp4 +",
@@ -541,7 +522,7 @@ modellist[[3]] = felm(
     clustering
   ))
 )
-modellist[[4]] = felm(
+modellist[[4]] <- felm(
   data = complete,
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + temp3 + temp4 + temp5 +",
@@ -555,29 +536,28 @@ modellist[[4]] = felm(
   ))
 )
 # plot
-plotXtemp = cbind(
+plotXtemp <- cbind(
   seq(Tmin, Tmax),
   seq(Tmin, Tmax)^2,
   seq(Tmin, Tmax)^3,
   seq(Tmin, Tmax)^4,
   seq(Tmin, Tmax)^5
 )
-modellabs = c("Quadratic", "Cubic", "Quartic", "Quintic")
+modellabs <- c("Quadratic", "Cubic", "Quartic", "Quintic")
 
 # get ref T for quadratic model
-coefs = summary(modellist[[1]])$coefficients[1:2]
-myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-
+coefs <- summary(modellist[[1]])$coefficients[1:2]
+myrefT <- max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 
 nrowGrid <- 2
 ncolGrid <- ceiling(length(modellist) / nrowGrid)
 
-figList = list()
+figList <- list()
 for (m in 1:length(modellist)) {
   isLeftCol <- ((m - 1) %% ncolGrid) == 0
   isBottomRow <- m > ncolGrid * (nrowGrid - 1)
-  end = m + 1
-  figList[[m]] = plotPolynomialResponse(
+  end <- m + 1
+  figList[[m]] <- plotPolynomialResponse(
     mod = modellist[[m]],
     patternForPlotVars = "temp",
     xVals = plotXtemp[, 1:end],
@@ -610,7 +590,13 @@ for (m in 1:length(modellist)) {
     )
 }
 
-p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
+p <- cowplot::plot_grid(
+  figList[[1]],
+  figList[[2]],
+  figList[[3]],
+  figList[[4]],
+  nrow = 2
+)
 
 ggsave(
   filename = paste0("Supp_Figure_temperature_poly_order.", fig_file_type),
@@ -625,8 +611,8 @@ ggsave(
 ################################################################################
 
 # estimate polynomial orders up to 5
-modellist = list()
-modellist[[1]] = felm(
+modellist <- list()
+modellist[[1]] <- felm(
   data = complete,
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + I(intervention) + ",
@@ -635,7 +621,7 @@ modellist[[1]] = felm(
     clustering
   ))
 )
-modellist[[2]] = felm(
+modellist[[2]] <- felm(
   data = complete,
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + I(intervention) + ",
@@ -644,7 +630,7 @@ modellist[[2]] = felm(
     clustering
   ))
 )
-modellist[[3]] = felm(
+modellist[[3]] <- felm(
   data = complete,
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + I(intervention) + ",
@@ -653,7 +639,7 @@ modellist[[3]] = felm(
     clustering
   ))
 )
-modellist[[4]] = felm(
+modellist[[4]] <- felm(
   data = complete,
   formula = as.formula(paste0(
     "PfPR2 ~ temp + temp2 + ppt + ppt2 + ppt3 + ppt4 + ppt5 + I(intervention) + ",
@@ -663,26 +649,26 @@ modellist[[4]] = felm(
   ))
 )
 # plot
-Tmin = 0
-Tmax = 600
-plotXprcp = cbind(
+Tmin <- 0
+Tmax <- 600
+plotXprcp <- cbind(
   seq(Tmin, Tmax),
   seq(Tmin, Tmax)^2,
   seq(Tmin, Tmax)^3,
   seq(Tmin, Tmax)^4,
   seq(Tmin, Tmax)^5
 )
-modellabs = c("Quadratic", "Cubic", "Quartic", "Quintic")
+modellabs <- c("Quadratic", "Cubic", "Quartic", "Quintic")
 
 # get ref P
-myrefP = 0
+myrefP <- 0
 
-figList = list()
+figList <- list()
 for (m in 1:length(modellist)) {
   isLeftCol <- ((m - 1) %% ncolGrid) == 0
   isBottomRow <- m > ncolGrid * (nrowGrid - 1)
-  end = m + 1
-  figList[[m]] = plotPolynomialResponse(
+  end <- m + 1
+  figList[[m]] <- plotPolynomialResponse(
     mod = modellist[[m]],
     patternForPlotVars = "ppt",
     xVals = plotXprcp[, 1:end],
@@ -703,7 +689,13 @@ for (m in 1:length(modellist)) {
   )
 }
 
-p = plot_grid(figList[[1]], figList[[2]], figList[[3]], figList[[4]], nrow = 2)
+p <- cowplot::plot_grid(
+  figList[[1]],
+  figList[[2]],
+  figList[[3]],
+  figList[[4]],
+  nrow = 2
+)
 
 ggsave(
   filename = paste0("Supp_Figure_precipitation_poly_order.", fig_file_type),

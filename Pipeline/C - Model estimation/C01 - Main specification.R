@@ -1,9 +1,9 @@
 ################################################################################
 # This script estimates the main empirical specification linking PfPR2 to 
-# drought, flood, and temperature.
-#
-# CLUSTERING: Standard errors are clustered at the
-# country × N-year level (set yr_bin_size in config).
+# drought, flood, and temperature. Standard errors are clustered at the 
+# country × 5-year level.
+# - Note: The analysis ready data used by this script can be downloaded from
+#   https://zenodo.org/records/20399793
 ################################################################################
 # Set up ----
 ################################################################################
@@ -26,17 +26,15 @@ source(A_utils_plot_fp)
 # Set up logging ----
 ################################################################################
 
-# log_msg <- create_logger(file.path(logs_dir, "C01_main_spec.log"))
-
 log_msg <- create_logger()
 
 log_msg("Starting script C01 - MainSpec")
 
 ################################################################################
 # Load data ----
-# Read in the analysis ready data file with malaria prevalence
-# and CRU temperature and precipitation data aggregated to
-# the first level of Administrative division.
+# Read in the analysis ready data file with malaria prevalence and CRU 
+# temperature and precipitation data aggregated to the first level of 
+# Administrative division.
 ################################################################################
 
 log_msg("Loading analysis ready data")

@@ -12,7 +12,7 @@
 #SBATCH --error=./logs/pipeline_%j.err
 
 ################################################################################
-# SLURM Pipeline Orchestration Script for Malaria Attribution Analysis
+# SLURM Pipeline orchestration script for malaria attribution analysis
 # This script runs the complete pipeline from data extraction through figure
 # generation in sequential order.
 ################################################################################
@@ -47,10 +47,7 @@ module purge
 
 # Default apptainer image for most scripts
 APPTAINER_DIR="/global/scratch/projects/co_carleton/carleton_colab/software/apptainers"
-DEFAULT_APPTAINER="${APPTAINER_DIR}/rocker-geospatial.sif"
-
-# Special apptainer for B01, F03, F04 (requires old R packages)
-OLD_R_APPTAINER="${APPTAINER_DIR}/r-malaria-cru_4.2.3.sif"
+APPTAINER="${APPTAINER_DIR}/geospatial_4.6.0.sif"
 
 ################################################################################
 # Helper function to run R scripts with error handling
@@ -70,7 +67,7 @@ run_r_script() {
 
     # Run the script using default apptainer container
     if apptainer exec \
-        "${DEFAULT_APPTAINER}" Rscript "${script_path}" 2>&1 \
+        "${APPTAINER}" Rscript "${script_path}" 2>&1 \
         | tee "${log_file}"; then
         echo "✓ SUCCESS: ${script_name}"
     else
@@ -107,8 +104,7 @@ echo "################################################################"
 
 PIPELINE_C_DIR="${PIPELINE_DIR}/C - Model estimation"
 run_r_script "${PIPELINE_C_DIR}/C01 - Main specification.R"
-run_r_script "${PIPELINE_C_DIR}/C02 - Bootstrap estimation.R"
-run_r_script "${PIPELINE_C_DIR}/C03 - VCOV sampling.R"
+run_r_script "${PIPELINE_C_DIR}/C02 - VCOV sampling.R"
 
 ################################################################################
 # Section D: Model sensitivity analyses and checks
@@ -121,12 +117,11 @@ echo "################################################################"
 
 PIPELINE_D_DIR="${PIPELINE_DIR}/D - Model sensitivity analyses and checks"
 run_r_script "${PIPELINE_D_DIR}/D01 - Model sensitivity.R"
-run_r_script "${PIPELINE_D_DIR}/D02 - Randomization tests.R"
-run_r_script "${PIPELINE_D_DIR}/D03 - Additional robustness.R"
-run_r_script "${PIPELINE_D_DIR}/D04 - Uncertainty analysis.R"
-run_r_script "${PIPELINE_D_DIR}/D05 - High resolution model.R"
-run_r_script "${PIPELINE_D_DIR}/D06 - Urbanization.R"
-run_r_script "${PIPELINE_D_DIR}/D07 - ERA5 analysis.R"
+run_r_script "${PIPELINE_D_DIR}/D02 - Robustness checks.R"
+run_r_script "${PIPELINE_D_DIR}/D03 - Uncertainty analysis.R"
+run_r_script "${PIPELINE_D_DIR}/D04 - High resolution model.R"
+run_r_script "${PIPELINE_D_DIR}/D05 - Urbanization.R"
+run_r_script "${PIPELINE_D_DIR}/D06 - ERA5 analysis.R"
 
 ################################################################################
 # Section E: Estimate historical and future prevalence

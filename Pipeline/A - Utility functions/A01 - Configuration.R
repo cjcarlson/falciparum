@@ -8,7 +8,7 @@
 
 print("Begin loading A01 - Configuration.R")
 
-user = Sys.info()['user']
+user <- Sys.info()['user']
 
 print(paste0("User set to: ", user))
 
@@ -19,7 +19,8 @@ data_dir <- dplyr::case_when(
   user == "Colin" ~ 'C:/Users/cjcar/Dropbox/MalariaAttribution/Data/',
   user == "tammacarleton" ~ '/Users/tammacarleton/Dropbox/MalariaAttribution',
   user == "cullen_molitor" ~ '/home/emlab/data/malaria-attribution',
-  user == "cullenmolitor" ~ "/Users/cullenmolitor/Dropbox/malaria-replication/data",
+  user ==
+    "cullenmolitor" ~ "/Users/cullenmolitor/Dropbox/malaria-replication/data",
   user == "cmolitor" ~ paste0(savio_dir, 'malaria-replication/data'),
   TRUE ~ NA_character_
 )
@@ -39,8 +40,8 @@ repo_dir <- dplyr::case_when(
 
 print(paste0("repository directory set to: ", repo_dir))
 
-fig_file_type <- "pdf" # jpg png
-# fig_file_type <- "jpg" # pdf png
+# fig_file_type <- "pdf" # jpg png
+fig_file_type <- "jpg" # pdf png
 
 ################################################################################
 # Model formula ----
@@ -82,8 +83,8 @@ cXt2intrXm <- as.formula(
 # Choose the minimum and maximum for range of temperature for x axis
 ################################################################################
 
-Tmin = 10
-Tmax = 40
+Tmin <- 10
+Tmax <- 40
 
 ################################################################################
 # Utility files ----
@@ -131,7 +132,10 @@ urban_fp <- file.path(
 climate_dir <- file.path(input_dir, "climate")
 climate_cru_dir <- file.path(climate_dir, "CRU_TS403")
 climate_bc_cmip6_dir <- file.path(climate_dir, "bc_CMIP6")
-climate_era5_dir <- file.path(climate_dir, "ERA5_monthly_single_levels_1940-2026")
+climate_era5_dir <- file.path(
+  climate_dir,
+  "ERA5_monthly_single_levels_1940-2026"
+)
 climate_gwl_dir <- file.path(climate_dir, "GWL")
 
 ################################################################################
@@ -225,6 +229,7 @@ elevation_summary_fp <- file.path(
   "elevation",
   "elevation_extracted_all_ADM1.csv"
 )
+
 ################################################################################
 # Analysis ready files (output) ----
 ################################################################################
@@ -449,7 +454,7 @@ future_scenario_formulas <- purrr::map2(
 
 yr_1901 <- 1901:1905
 yr_2014 <- 2010:2014
-yr_2015 <- 2015:2019
+yr_2015 <- 2015:2020
 yr_2050 <- 2048:2052
 yr_2100 <- 2096:2100
 

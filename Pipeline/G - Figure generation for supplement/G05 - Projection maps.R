@@ -1,8 +1,8 @@
-############################################################
-# This script makes all four panels of
-############################################################
+################################################################################
+# This script makes all four panels of Extended Data Figure 10.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -105,9 +105,6 @@ map_grid <- ((plots[[1]] + plots[[2]]) /
     legend.text = element_text(size = 12),
     legend.box.spacing = unit(0, "pt"),
     legend.box.margin = margin(0, 0, 10, -15, "mm"),
-    # plot.margin = margin(3, 0, 3, 3, unit = "mm"),
-    # legend.key.width = unit(8, "mm"),
-    # legend.key.height = unit(8, "mm")
   )
 
 ggplot2::ggsave(

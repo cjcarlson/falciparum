@@ -2,6 +2,8 @@
 # Use the following code to extract ERA5 data for temperature and precipitation
 # from the dataset:
 # https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means
+# - Note: Pre-extracted ERA5 data can be downloaded from 
+#   https://zenodo.org/records/20399793
 ################################################################################
 # Set up ----
 ################################################################################
@@ -23,8 +25,6 @@ overwrite <- TRUE
 ################################################################################
 # Logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "B05_extract_ERA5_ADM1.log"))
 
 log_msg <- create_logger()
 
@@ -106,9 +106,6 @@ pre_df <- extract_clim_data_polygons(
   rast_times = rast_times,
   value_name = "ppt"
 )
-
-# temp_df[, ppt := precip_dt$ppt]
-# rm(precip_dt)
 
 ################################################################################
 # Save intermediate climate data ----

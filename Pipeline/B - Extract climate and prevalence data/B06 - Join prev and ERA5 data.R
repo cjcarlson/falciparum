@@ -1,7 +1,9 @@
 ################################################################################
-# This script prepares the climate and prevalence data for estimation. It 
-# calculates the drought and flood variables and makes the categorical variables 
+# This script prepares the climate and prevalence data for estimation. It
+# calculates the drought and flood variables and makes the categorical variables
 # into factors where necessary.
+# - Note: The analysis ready data produced by this script can be downloaded from
+#   https://zenodo.org/records/20399793
 ################################################################################
 # Set up ----
 ################################################################################
@@ -24,8 +26,6 @@ sf::sf_use_s2(FALSE)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "B06_join_prev_era5.log"))
 
 log_msg <- create_logger()
 
@@ -83,9 +83,8 @@ log_msg("Processing ADM1 level data")
 log_msg("  Loading intermediate climate data (ADM1)")
 
 climate_data <- intermediate_ERA_adm1_fp |>
-  arrow::read_feather() |> 
+  arrow::read_feather() |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year))
-  # readr::read_csv(show_col_types = FALSE)
 
 log_msg(sprintf("  Climate data loaded: %d rows", nrow(climate_data)))
 
@@ -220,7 +219,7 @@ complete <- computePrcpExtremes(
   pctflood = pct_flood,
   yearcutoff = year_cutoff
 )
-complete <- complete |> 
+complete <- complete |>
   dplyr::arrange(OBJECTID, monthyr)
 
 log_msg("  Saving precipitation percentiles to file")
@@ -272,7 +271,7 @@ log_msg("  Preparing and saving replication dataset (ADM1)")
 location_cols <- c("region", "smllrgn", "country", "ISO", "OBJECTID")
 time_cols <- c("monthyr", "monthyr2", "month", "year", "yearnum")
 prev_cols <- c("PfPR2", "Pf")
-temp_cols <- c("temp", "temp2" ) # , "temp3", "temp4", "temp5"
+temp_cols <- c("temp", "temp2") # , "temp3", "temp4", "temp5"
 prec_cols <- c("ppt") # , "ppt2", "ppt3", "ppt4", "ppt5"
 flood_cols <- c("flood", "flood.lag", "flood.lag2", "flood.lag3")
 drought_cols <- c("drought", "drought.lag", "drought.lag2", "drought.lag3")

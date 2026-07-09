@@ -1,8 +1,8 @@
-############################################################
-# This script makes all
-############################################################
+################################################################################
+# This script generates summary statistics for the future predictions.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -250,6 +250,76 @@ sfcont <- ADM1_fp |>
   dplyr::left_join(elev, by = join_by(OBJECTID)) |>
   tibble::as_tibble() |>
   dplyr::select(OBJECTID, NAME_0, NAME_1, elevmin, elevmn, elevmax, mean.diff)
+
+################################################################################
+# Country averages across scenarios (mid century + end of century) ----
+# Builds one summary file with columns:
+# country, ssp126_mc, ssp245_mc, ssp585_mc, ssp126_ec, ssp245_ec, ssp585_ec
+################################################################################
+ 
+adm1_lookup <- sfcont |>
+  dplyr::select(OBJECTID, NAME_0) |>
+  dplyr::distinct()
+ 
+future_scen_mod_yr_obj_pred <- file.path(
+  fut_sum_dir,
+  "future_vcov_pred_sum_scen_mod_yr_obj.feather"
+) |>
+  arrow::read_feather() |>
+  dplyr::filter(run != "main")
+ 
+calc_country_diff <- function(scenario_name, end_year, col_name) {
+  future_scen_mod_yr_obj_pred |>
+    dplyr::filter(scenario == scenario_name) |>
+    tidyr::pivot_wider(
+      id_cols = c(scenario, model, OBJECTID, run),
+      names_from = year,
+      values_from = Pred
+    ) |>
+    dplyr::mutate(diff = .data[[as.character(end_year)]] - `2015`) |>
+    dplyr::group_by(OBJECTID) |>
+    dplyr::summarize(mean.diff = mean(diff), .groups = "drop") |>
+    dplyr::left_join(adm1_lookup, by = "OBJECTID") |>
+    dplyr::group_by(country = NAME_0) |>
+    dplyr::summarise("{col_name}" := mean(mean.diff, na.rm = TRUE), .groups = "drop") |>
+    tidyr::drop_na()
+}
+ 
+scenarios <- c("ssp126", "ssp245", "ssp585")
+ 
+country_mc <- scenarios |>
+  purrr::map(~ calc_country_diff(.x, 2050, paste0(.x, "_mc"))) |>
+  purrr::reduce(dplyr::full_join, by = "country")
+ 
+country_ec <- scenarios |>
+  purrr::map(~ calc_country_diff(.x, 2100, paste0(.x, "_ec"))) |>
+  purrr::reduce(dplyr::full_join, by = "country")
+ 
+country_summary <- country_mc |>
+  dplyr::full_join(country_ec, by = "country") |>
+  dplyr::select(
+    country, ssp126_mc, ssp245_mc, ssp585_mc, ssp126_ec, ssp245_ec, ssp585_ec
+  ) |>
+  dplyr::arrange(country)
+ 
+readr::write_csv(
+  country_summary,
+  here::here("Results", "Tables", "future_country_summary.csv")
+)
+
+
+here::here("Results", "Tables", "historical_country_summary.csv") |>
+  readr::read_csv() |>
+  dplyr::left_join(country_summary) |>
+  dplyr::mutate(
+    across(
+      c(historical, ssp126_mc, ssp245_mc, ssp585_mc, ssp126_ec, ssp245_ec, ssp585_ec),
+      ~ round(.x * 10, 3)
+    )
+  ) |>
+  readr::write_csv(
+    here::here("Results", "Tables", "country_summary.csv")
+  )
 
 ################################################################################
 # Check countries ----

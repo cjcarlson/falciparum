@@ -12,17 +12,9 @@ if (!require("pacman")) {
 }
 
 # packages
-pacman::p_load(
-  sf,
-  here,
-  tidyverse,
-  data.table,
-  patchwork,
-  multiscales,
-  remotes
-)
+pacman::p_load(sf, here, tidyverse, data.table, patchwork, remotes)
 
-remotes::install_github("clauswilke/multiscales")
+# remotes::install_github("clauswilke/multiscales")
 library(multiscales)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
@@ -32,8 +24,6 @@ source(A_utils_plot_fp)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "F04_future_map_temp_el_ts.log"))
 
 log_msg <- create_logger()
 
@@ -143,7 +133,6 @@ elev <- elevation_summary_fp |>
 tmean <- intermediate_CRU_adm1_fp |>
   arrow::read_feather() |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
-  # readr::read_csv(show_col_types = FALSE) |>
   dplyr::filter(year %in% c(1901:1930)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(t = mean(temp, na.rm = TRUE)) |>
@@ -338,10 +327,6 @@ data.to.graph <- file.path(
   dplyr::mutate(
     region = dplyr::recode(region, !!!region_names),
     scenario = factor(scenario, levels = names(future_scenario_names)),
-    # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
-    # LOOKING CLOSELY. this is a way of hard coding the CI's to still plot
-    # thanks to how ggplot does CI's this is for plotting purposes ONLY and text
-    # stats give full CI's
     lower = pmax(lower, -4.9),
     upper = pmin(upper, 2.1)
   ) |>

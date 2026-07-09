@@ -1,7 +1,7 @@
 ################################################################################
 # This script re-estimates the main empirical specification linking PfPR2 to 
-# drought, flood, and temperature using high-resolution grid-level CRU data as a 
-# robustness check.
+# drought, flood, and temperature using high-resolution grid-level CRU and
+# prevalence data.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -52,28 +52,6 @@ vcov = as.data.frame(highresmod$clustervcv)
 
 saveRDS(coeffs, file = grid_mod_beta_fn)
 saveRDS(vcov, file = grid_mod_vcov_fn)
-
-#######################################################################
-# Table ----
-################################################################################
-
-mynote = "High Resolution Model: Country-specific quad. trends with intervention FE and country by month FE."
-
-stargazer(
-  highresmod,
-  title = "PfPR2 response to daily avg. temperature",
-  align = TRUE,
-  keep = c("temp", "flood", "drought", "intervention"),
-  out = file.path(table_main_dir, "main_specification_adm1_grid.tex"),
-  omit.stat = c("f", "ser"),
-  out.header = FALSE,
-  type = "latex",
-  float = F,
-  notes.append = TRUE,
-  notes.align = "l",
-  notes = paste0("\\parbox[t]{\\textwidth}{", mynote, "}"),
-  star.cutoffs = table_star_cutoffs
-)
 
 ################################################################################
 # Main specification model (ADM1) ----

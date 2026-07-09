@@ -1,7 +1,6 @@
 ################################################################################
-# This script conducts additional robustness checks. This script should be
-# incorporated into D01 when a subset of tests are included in the main text
-# and/or Supplement.
+# This script conducts additional model robustness checks for the extended data
+# and supplementary materials.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -49,17 +48,17 @@ complete_dm <- complete |>
   dplyr::mutate(microscopy = simplified_METHOD == "MICROSCOPY") |>
   dplyr::filter(dominant_METHOD != "LAMP")
 
-complete_dm$dominant_METHOD = as.factor(complete_dm$dominant_METHOD)
-complete_dm$simplified_METHOD = as.factor(complete_dm$simplified_METHOD)
+complete_dm$dominant_METHOD <- as.factor(complete_dm$dominant_METHOD)
+complete_dm$simplified_METHOD <- as.factor(complete_dm$simplified_METHOD)
 
-complete_dm$month = as.factor(complete_dm$month)
-complete_dm$year = as.factor(complete_dm$year)
+complete_dm$month <- as.factor(complete_dm$month)
+complete_dm$year <- as.factor(complete_dm$year)
 
 ################################################################################
 # Control for diagnostic method ----
 ################################################################################
 
-cXt2intrXmDM = as.formula(
+cXt2intrXmDM <- as.formula(
   paste0(
     common,
     " + dominant_METHOD + I(intervention) + ",
@@ -68,7 +67,7 @@ cXt2intrXmDM = as.formula(
     clustering
   )
 )
-cXt2intrXmSM = as.formula(
+cXt2intrXmSM <- as.formula(
   paste0(
     common,
     " + simplified_METHOD + I(intervention) + ",
@@ -78,22 +77,22 @@ cXt2intrXmSM = as.formula(
   )
 )
 
-myforms = c(cXt2intrXm, cXt2intrXmDM, cXt2intrXmSM)
+myforms <- c(cXt2intrXm, cXt2intrXmDM, cXt2intrXmSM)
 
-mycollabs = c(
+mycollabs <- c(
   "main specification", # Main Spec
   "+ diag. method (full set)", # Main Spec with dominant method
   "+ diag. method (small set)" # Main Spec with simplified method
 )
 
-modellist = list()
-i = 0
+modellist <- list()
+i <- 0
 for (m in myforms) {
-  i = i + 1
-  modellist[[i]] = felm(data = complete_dm, formula = m)
+  i <- i + 1
+  modellist[[i]] <- felm(data = complete_dm, formula = m)
 }
 
-mynote = "Column specifications: (1) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (2) same as (1), but with additional controls for diagnostic method: Microscopy, Microcscopy/PCR Confirmed, PCR, RDT, RDT/PCR Confirmed, and RDT/SLIDE Confirmed; (3) same as (2) but using simplified diagnostic method control set: Microscopy, PCR, RDT."
+mynote <- "Column specifications: (1) country-specific quad. trends, intervention year FE, GBOD region-by-month FE; (2) same as (1), but with additional controls for diagnostic method: Microscopy, Microcscopy/PCR Confirmed, PCR, RDT, RDT/PCR Confirmed, and RDT/SLIDE Confirmed; (3) same as (2) but using simplified diagnostic method control set: Microscopy, PCR, RDT."
 
 tex <- stargazer(
   modellist,
@@ -120,8 +119,8 @@ writeLines(tex, here::here("Results", "Tables", "Diagnostic_method.tex"))
 # Data imbalance: responses on temporal subsamples ----
 ################################################################################
 
-complete = complete |> mutate(yearnum = as.numeric(as.character(year)))
-g = ggplot(complete) +
+complete <- complete |> mutate(yearnum = as.numeric(as.character(year)))
+g <- ggplot(complete) +
   geom_histogram(aes(x = yearnum), color = "seagreen", fill = "seagreen") +
   xlab("year") +
   ylab("count of observations") +
@@ -129,11 +128,11 @@ g = ggplot(complete) +
 g
 
 # obs by group
-complete = complete |> mutate(post1995 = (yearnum >= 1995))
+complete <- complete |> mutate(post1995 = (yearnum >= 1995))
 complete %>% count(post1995)
 
 # formula (different intervention dummies for each temporal subsample)
-cXt2rXm = as.formula(paste0(
+cXt2rXm <- as.formula(paste0(
   common,
   " + I(intervention) +  ",
   country_time,
@@ -144,17 +143,17 @@ cXt2rXm = as.formula(paste0(
 pre_data <- subset(complete, post1995 == FALSE)
 pos_data <- subset(complete, post1995 == TRUE)
 
-pre1995 = felm(data = pre_data, formula = cXt2rXm)
-post1995 = felm(data = pos_data, formula = cXt2rXm)
+pre1995 <- felm(data = pre_data, formula = cXt2rXm)
+post1995 <- felm(data = pos_data, formula = cXt2rXm)
 
 # plot temperature responses
-modellist = list(pre1995, post1995)
-mycollabs = c(
+modellist <- list(pre1995, post1995)
+mycollabs <- c(
   "Early sample (1901-1994)",
   "Late sample (1995-2016)"
 )
 
-percentiles_list = list()
+percentiles_list <- list()
 pre_post <- c(F, T)
 for (i in 1:length(pre_post)) {
   # i <- 1
@@ -168,14 +167,14 @@ for (i in 1:length(pre_post)) {
   )
 }
 
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
-figList = list()
+plotXtemp <- cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+figList <- list()
 for (m in 1:length(modellist)) {
-  coefs = summary(modellist[[m]])$coefficients[1:2]
-  myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+  coefs <- summary(modellist[[m]])$coefficients[1:2]
+  myrefT <- max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
 
   showtitle <- ifelse(m == 1, T, F)
-  figList[[m]] = plotPolynomialResponse(
+  figList[[m]] <- plotPolynomialResponse(
     modellist[[m]],
     "temp",
     plotXtemp,
@@ -298,64 +297,67 @@ complete <- complete |>
   dplyr::mutate(smllrgnMO = as.factor(smllrgnMO), )
 
 # reference temperature - curve gets recentered to 0 here
-Tref = 25
+Tref <- 25
 # temperature vector for plotting response function
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+plotXtemp <- cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
 
-ym = as.formula(paste0(common, " | OBJECTID + year + month | 0 | cntry_yrbin5"))
-cXt2m = as.formula(paste0(
+ym <- as.formula(paste0(
+  common,
+  " | OBJECTID + year + month | 0 | cntry_yrbin5"
+))
+cXt2m <- as.formula(paste0(
   common,
   " + ",
   country_time,
   " | OBJECTID + month | 0 | cntry_yrbin5"
 ))
-cXt2cXm = as.formula(paste0(
+cXt2cXm <- as.formula(paste0(
   common,
   " + ",
   country_time,
   " | OBJECTID + country:month | 0 | cntry_yrbin5"
 ))
-cXt2intm = as.formula(paste0(
+cXt2intm <- as.formula(paste0(
   common,
   " + ",
   country_time,
   " | OBJECTID + intervention + month | 0 | cntry_yrbin5"
 ))
 # cXt2intrXm is main, called from config
-cXt2intcXm = as.formula(paste0(
+cXt2intcXm <- as.formula(paste0(
   common,
   " + I(intervention) + ",
   country_time,
   " | OBJECTID + country:month | 0 | cntry_yrbin5"
 ))
-cXt2rXmyXm = as.formula(paste0(
+cXt2rXmyXm <- as.formula(paste0(
   common,
   " + ",
   country_time,
   " | OBJECTID + as.factor(smllrgn):month + year:month | 0 | cntry_yrbin5"
 ))
-rXmcXy = as.formula(paste0(
+rXmcXy <- as.formula(paste0(
   common,
   " | OBJECTID + as.factor(smllrgn):month + country:year | 0 | cntry_yrbin5"
 ))
-rXyrXm = as.formula(paste0(
+rXyrXm <- as.formula(paste0(
   common,
   " | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | cntry_yrbin5"
 ))
-rXycXm = as.formula(paste0(
+rXycXm <- as.formula(paste0(
   common,
   " | OBJECTID + country:month + as.factor(smllrgn):year | 0 | cntry_yrbin5"
 ))
-aXdrXmd = as.formula(paste0(
+aXdrXmd <- as.formula(paste0(
   common,
   " | as.factor(OBJECTID):cntry_yrbin10  + smllrgnMO:cntry_yrbin10 | 0 | cntry_yrbin5"
 ))
-rXyrXmcXt = as.formula(paste0(
+rXyrXmcXt <- as.formula(paste0(
   common,
   " + country:monthyr | OBJECTID + as.factor(smllrgn):month + as.factor(smllrgn):year | 0 | cntry_yrbin5"
 ))
-myforms = c(
+myforms <- c(
   ym,
   cXt2m,
   cXt2cXm,
@@ -370,7 +372,7 @@ myforms = c(
   rXyrXmcXt
 )
 
-mycollabs = c(
+mycollabs <- c(
   "yr + mo FEs.", # 1
   "cntry trd, mo FEs.", #2
   "cntry trd, cntry-mo FEs.", #3
@@ -386,15 +388,15 @@ mycollabs = c(
 )
 
 ## Run all models
-modellist = list()
-i = 0
+modellist <- list()
+i <- 0
 for (m in myforms) {
-  i = i + 1
-  modellist[[i]] = felm(data = complete, formula = m)
+  i <- i + 1
+  modellist[[i]] <- felm(data = complete, formula = m)
 }
 
 ## Combine into a single stargazer plot
-mynote = "Column specifications: (1) year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends, intervention year and month FE; (5) country-specific quad. trends, intervention year FE, GBD region-month FE; (6) country-specific quad. trends with intervention FE and country-month FE; (7) country-specific quad. trends with year-month and GBD region-mont FE; (8) country-year and GBD region-month FE; (9) GBD region-year and regin-month FEs; (10) GBD region-year + country-month FE; (11) ADM1-decade and GBD region-month-decade FE; (12) country-specific quad. trends and GBD region-year and region-month FE."
+mynote <- "Column specifications: (1) year and month FE; (2) country-specific quad. trends and month FE; (3) country-specific quad. trends and country-by-month FE; (4) country-specific quad. trends, intervention year and month FE; (5) country-specific quad. trends, intervention year FE, GBD region-month FE; (6) country-specific quad. trends with intervention FE and country-month FE; (7) country-specific quad. trends with year-month and GBD region-mont FE; (8) country-year and GBD region-month FE; (9) GBD region-year and regin-month FEs; (10) GBD region-year + country-month FE; (11) ADM1-decade and GBD region-month-decade FE; (12) country-specific quad. trends and GBD region-year and region-month FE."
 
 tex <- stargazer(
   modellist,
@@ -404,7 +406,6 @@ tex <- stargazer(
   covariate.labels = my_covariate_labels,
   dep.var.labels = "$Pf$PR$_{2-10}$",
   keep = c("temp", "flood", "drought", "intervention", "METHOD"),
-  # out = here::here("Results", "Tables", "FixedEffects_sensitivity.tex"),
   omit.stat = c("f", "ser"),
   out.header = FALSE,
   type = "latex",
@@ -422,18 +423,18 @@ writeLines(tex, here::here("Results", "Tables", "FixedEffects_sensitivity.tex"))
 # Sensitivity to spatiotemporal controls (figure output) ----
 ################################################################################
 
-plotXtemp = cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
+plotXtemp <- cbind(seq(Tmin, Tmax), seq(Tmin, Tmax)^2)
 
 nrowGrid <- 4
 ncolGrid <- ceiling(length(modellist) / nrowGrid)
-figList = list()
+figList <- list()
 for (m in 1:length(modellist)) {
   isLeftCol <- ((m - 1) %% ncolGrid) == 0
   isBottomRow <- m > ncolGrid * (nrowGrid - 1)
   # get max of response function
-  coefs = summary(modellist[[m]])$coefficients[1:2]
-  myrefT = max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
-  figList[[m]] = plotPolynomialResponse(
+  coefs <- summary(modellist[[m]])$coefficients[1:2]
+  myrefT <- max(round(-1 * coefs[1] / (2 * coefs[2]), digits = 0), 10)
+  figList[[m]] <- plotPolynomialResponse(
     modellist[[m]],
     "temp",
     plotXtemp,
@@ -456,29 +457,29 @@ for (m in 1:length(modellist)) {
 }
 
 # point estimate and CIs for main spec
-xValsT = genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
-mainmod = modellist[[5]]
-beta = mainmod$coefficients
-vars = rownames(beta)
-plotVars = vars[grepl(pattern = "temp", x = vars)]
-b = as.matrix(beta[rownames(beta) %in% plotVars])
-vcov = getVcov(mainmod$clustervcv, plotVars)
-response = as.matrix(xValsT) %*% b #Prediction
-length = 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
-lb = response - length
-ub = response + length
+xValsT <- genRecenteredXVals_polynomial(plotXtemp, Tref, 2)
+mainmod <- modellist[[5]]
+beta <- mainmod$coefficients
+vars <- rownames(beta)
+plotVars <- vars[grepl(pattern = "temp", x = vars)]
+b <- as.matrix(beta[rownames(beta) %in% plotVars])
+vcov <- getVcov(mainmod$clustervcv, plotVars)
+response <- as.matrix(xValsT) %*% b #Prediction
+length <- 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
+lb <- response - length
+ub <- response + length
 
 #Plotting dataframe -- add back in the reference temperature so it's centered at xRef
-plotData = data.frame(
+plotData <- data.frame(
   x = xValsT[, 1] + Tref,
   response = response,
   lb = lb,
   ub = ub
 )
-sub = plotData[plotData$x >= 10 & plotData$x <= 30, ]
-maxX = max(sub$x[sub$response == max(sub$response)])
+sub <- plotData[plotData$x >= 10 & plotData$x <= 30, ]
+maxX <- max(sub$x[sub$response == max(sub$response)])
 
-mycollabs = c(
+mycollabs <- c(
   "ym",
   "cXt2m",
   "cXt2cXm",
@@ -495,23 +496,23 @@ mycollabs = c(
 
 # loop over all other FE models, add to plotting dataframe
 for (mod in 1:length(modellist)) {
-  beta = modellist[[mod]]$coefficients
-  vars = rownames(beta)
-  plotVars = vars[grepl(pattern = "temp", x = vars)]
-  b = as.matrix(beta[rownames(beta) %in% plotVars])
-  response = as.data.frame(as.matrix(xValsT) %*% b)
-  colnames(response) = paste0(mycollabs[mod])
-  plotData = cbind(plotData, response)
+  beta <- modellist[[mod]]$coefficients
+  vars <- rownames(beta)
+  plotVars <- vars[grepl(pattern = "temp", x = vars)]
+  b <- as.matrix(beta[rownames(beta) %in% plotVars])
+  response <- as.data.frame(as.matrix(xValsT) %*% b)
+  colnames(response) <- paste0(mycollabs[mod])
+  plotData <- cbind(plotData, response)
 }
 
 # reshape
-plotmain = plotData %>% dplyr::select(x, response, lb, ub)
-plotFE = plotData %>% dplyr::select(x, ym:rXyrXmcXt)
-plotFE = plotFE %>% gather(plotFE, response, ym:rXyrXmcXt)
-colnames(plotFE) = c("x", "model", "response")
+plotmain <- plotData %>% dplyr::select(x, response, lb, ub)
+plotFE <- plotData %>% dplyr::select(x, ym:rXyrXmcXt)
+plotFE <- plotFE %>% gather(plotFE, response, ym:rXyrXmcXt)
+colnames(plotFE) <- c("x", "model", "response")
 
 ## plot
-g = ggplot() +
+g <- ggplot() +
   geom_hline(yintercept = 0, color = "darkgrey", alpha = .5) +
   geom_ribbon(
     data = plotmain, # CIs main spec
@@ -595,7 +596,7 @@ g = ggplot() +
     axis.text = element_text(size = 9)
   )
 
-p = plot_grid(
+p <- plot_grid(
   figList[[1]],
   figList[[2]],
   figList[[3]],
@@ -625,14 +626,14 @@ ggsave(
 ################################################################################
 
 ## main model
-betaTmain = mainmod$coefficients[1]
-pvalTmain = summary(mainmod)$coefficients[1, 4]
-betaT2main = mainmod$coefficients[2]
-pvalT2main = summary(mainmod)$coefficients[2, 4]
+betaTmain <- mainmod$coefficients[1]
+pvalTmain <- summary(mainmod)$coefficients[1, 4]
+betaT2main <- mainmod$coefficients[2]
+pvalT2main <- summary(mainmod)$coefficients[2, 4]
 
 ## Leave one country out
 cntrs <- unique(complete$country)
-loco = data.frame(
+loco <- data.frame(
   country = "",
   betaT = NA,
   pvalT = NA,
@@ -642,14 +643,14 @@ loco = data.frame(
 for (c in 1:length(cntrs)) {
   df <- complete |> dplyr::filter(country != cntrs[c])
   mod <- felm(df, formula = cXt2intrXm)
-  mydat = data.frame(
+  mydat <- data.frame(
     country = as.character(cntrs[c]),
     betaT = mod$coefficients[1],
     pvalT = summary(mod)$coefficients[1, 4],
     betaT2 = mod$coefficients[2],
     pvalT2 = summary(mod)$coefficients[2, 4]
   )
-  loco = rbind(loco, mydat)
+  loco <- rbind(loco, mydat)
   rm(df, mod, mydat)
 }
 
@@ -695,18 +696,18 @@ p2loco <- ggplot(data = loco) +
 
 ## Leave one year out ----
 years <- unique(complete$yearnum)
-loyo = data.frame(year = NA, betaT = NA, pvalT = NA, betaT2 = NA, pvalT2 = NA)
+loyo <- data.frame(year = NA, betaT = NA, pvalT = NA, betaT2 = NA, pvalT2 = NA)
 for (c in 1:length(years)) {
   df <- complete |> dplyr::filter(yearnum != years[c])
   mod <- felm(df, formula = cXt2intrXm)
-  mydat = data.frame(
+  mydat <- data.frame(
     year = as.character(years[c]),
     betaT = mod$coefficients[1],
     pvalT = summary(mod)$coefficients[1, 4],
     betaT2 = mod$coefficients[2],
     pvalT2 = summary(mod)$coefficients[2, 4]
   )
-  loyo = rbind(loyo, mydat)
+  loyo <- rbind(loyo, mydat)
   rm(df, mod, mydat)
 }
 
@@ -748,18 +749,18 @@ p2loyo <- ggplot(data = loyo) +
 
 ## Leave one month out ----
 months <- unique(complete$month)
-lomo = data.frame(month = NA, betaT = NA, pvalT = NA, betaT2 = NA, pvalT2 = NA)
+lomo <- data.frame(month = NA, betaT = NA, pvalT = NA, betaT2 = NA, pvalT2 = NA)
 for (c in 1:length(months)) {
   df <- complete |> dplyr::filter(month != months[c])
   mod <- felm(df, formula = cXt2intrXm)
-  mydat = data.frame(
+  mydat <- data.frame(
     month = months[c],
     betaT = mod$coefficients[1],
     pvalT = summary(mod)$coefficients[1, 4],
     betaT2 = mod$coefficients[2],
     pvalT2 = summary(mod)$coefficients[2, 4]
   )
-  lomo = rbind(lomo, mydat)
+  lomo <- rbind(lomo, mydat)
   rm(df, mod, mydat)
 }
 

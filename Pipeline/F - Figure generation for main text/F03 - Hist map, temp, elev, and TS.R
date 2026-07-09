@@ -21,7 +21,7 @@ pacman::p_load(
   remotes
 )
 
-remotes::install_github("clauswilke/multiscales")
+# remotes::install_github("clauswilke/multiscales")
 library(multiscales)
 
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
@@ -31,8 +31,6 @@ source(A_utils_plot_fp)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "F03_hist_map_temp_el_ts.log"))
 
 log_msg <- create_logger()
 
@@ -70,7 +68,6 @@ boots_2010_2014 <- hist_scen_mod_yr_adm1_pred |>
     lower.diff.95 = quantile(diff, 0.025, na.rm = TRUE),
     upper.diff.95 = quantile(diff, 0.975, na.rm = TRUE)
   ) |>
-  # dplyr::left_join(main_2010_2014) |>
   dplyr::mutate(
     OBJECTID = factor(OBJECTID),
     moe = 1 - abs(runs.diff - 5000) / 5000
@@ -145,7 +142,6 @@ elev <- elevation_summary_fp |>
 tmean <- intermediate_CRU_adm1_fp |>
   arrow::read_feather() |>
   dplyr::mutate(OBJECTID = as.numeric(OBJECTID), year = as.numeric(year)) |>
-  # readr::read_csv(show_col_types = FALSE) |>
   dplyr::filter(year %in% c(1901:1930)) |>
   dplyr::group_by(OBJECTID) |>
   dplyr::summarize(t = mean(temp, na.rm = TRUE)) |>
@@ -328,10 +324,6 @@ hist_boot <- historical_pred[run != "main"] |>
     region = dplyr::recode(region, !!!region_names),
     scenario = factor(scenario, levels = names(historical_scenario_names))
   ) |>
-  # radioactive code!! BE CAREFUL!! DO NOT LEAVE IN FUTURE VERSIONS WITHOUT
-  # LOOKING CLOSELY this is a way of hard coding the CI's to still plot thanks
-  # to how ggplot does CI's this is for plotting purposes ONLY and text stats
-  # give full CI's
   dplyr::mutate(lower = pmax(lower, -0.6), upper = pmin(upper, 1.0))
 
 ################################################################################

@@ -1,8 +1,8 @@
-############################################################
-# This script makes all four panels of Figure S1.
-############################################################
+################################################################################
+# This script makes all four panels of Extended Data Figure 1.
+################################################################################
 # Set up ----
-############################################################
+################################################################################
 
 rm(list = ls())
 
@@ -23,9 +23,9 @@ source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 source(A_utils_plot_fp)
 
-#######################################################################
+################################################################################
 # S1A: Theoretical ----
-#######################################################################
+################################################################################
 
 print("Loading clean data")
 
@@ -57,9 +57,9 @@ g1 <- ggplot(data = data, aes(x = temp, y = predR0)) +
   theme_classic()
 
 
-#######################################################################
+################################################################################
 # S1B: GAMS on raw data ----
-#######################################################################
+################################################################################
 
 g2 <- ggplot(data = data, aes(x = temp, y = predR0)) +
   geom_vline(
@@ -107,9 +107,9 @@ g2 <- ggplot(data = data, aes(x = temp, y = predR0)) +
   ) +
   theme_classic()
 
-#######################################################################
+################################################################################
 # S1C: Econometric model + uncertainty ----
-#######################################################################
+################################################################################
 # Formula & estimation
 
 mainmod <- readRDS(main_mod_obj_fn)
@@ -122,13 +122,14 @@ plotVars <- vars[grepl(pattern = "temp", x = vars)]
 Tref <- 24
 int <- 0.1
 plotXtemp <- cbind(seq(Tmin, Tmax, by = int), seq(Tmin, Tmax, by = int)^2)
-myrefT <- max(round(-1 * beta[1] / (2 * beta[2]), digits = 0), 10) # plot relative to max of quadratic function
+# plot relative to max of quadratic function
+myrefT <- max(round(-1 * beta[1] / (2 * beta[2]), digits = 0), 10)
 optg3 <- -1 * beta[1] / (2 * beta[2])
 xValsT <- genRecenteredXVals_polynomial(plotXtemp, myrefT, 2, NA)
 vcov <- getVcov(mainmod$clustervcv, plotVars)
 b <- as.matrix(beta[rownames(beta) %in% plotVars])
-
-response <- as.matrix(xValsT) %*% b #Prediction
+#Prediction
+response <- as.matrix(xValsT) %*% b
 length <- 1.96 * sqrt(apply(X = xValsT, FUN = calcVariance, MARGIN = 1, vcov))
 lb <- response - length
 ub <- response + length
@@ -171,9 +172,9 @@ g3 <- ggplot(data = plotData) +
   theme_classic()
 g3
 
-#######################################################################
+################################################################################
 # S1D: Distribution of peak temperatures in econometric model ----
-#######################################################################
+################################################################################
 
 # upload bootstraps
 boots <- coeffs_fn |>
@@ -216,9 +217,9 @@ g4 <- ggplot(data = boots) +
 g4
 
 
-#######################################################################
+################################################################################
 # Combine and save ----
-#######################################################################
+################################################################################
 
 p <- (g1 + g2 + g3 + g4) +
   patchwork::plot_layout(nrow = 2) +

@@ -16,9 +16,10 @@ print("Begin loading A03 - Utility code for plotting.R")
 ############## plot a polynomial response curve ##############
 ##### CalcVariance and getVcov are helper functions to plotPolynomialResponse
 calcVariance = function(cvec, vcovMat) {
-  ##Calculate the variance:
-  #cvec is a vector of climate variables (k by 1), coming from the GCM
-  #vcov is a variance covariance matrix with the same column order as cvec. This comes from our empirical estimation.
+  ## Calculate the variance:
+  # cvec is a vector of climate variables (k by 1), coming from the GCM
+  # vcov is a variance covariance matrix with the same column order as cvec. This 
+  # comes from our empirical estimation.
   return(t(cvec) %*% vcovMat %*% cvec)
 }
 
@@ -27,7 +28,8 @@ calcVariance = function(cvec, vcovMat) {
 ################################################################################
 
 getVcov = function(vcv, vars) {
-  #from the entire variance covariance matrix, select the portion corresponding to the variable you're interested in.
+  # from the entire variance covariance matrix, select the portion corresponding 
+  # to the variable you're interested in.
   return(vcv[vars, vars])
 }
 
@@ -99,13 +101,21 @@ plotPolynomialResponse <- function(
   title_size = 12
 ) {
   ### mod is a model regression model object (e.g. mod = lm(y~x) or mode = felm(y~x)).
-  ### patternForPlotVars is a string that is in the variables from the model that you want to plot but not in the ones you don't want to plot.
-  ### xVals is a matrix of dataframe that corresponds to the variables you're plotting. e.g. if b1 was for T and b2 for T2 then xVals[,1] would be T and xVals[,2] would be T2. NOTE: Do not pass the function recentered xVals, the function recenters for you!
+  ### patternForPlotVars is a string that is in the variables from the model that you 
+  ###   want to plot but not in the ones you don't want to plot.
+  ### xVals is a matrix of dataframe that corresponds to the variables you're plotting. 
+  ###   e.g. if b1 was for T and b2 for T2 then xVals[,1] would be T and xVals[,2] would 
+  ###   be T2. NOTE: Do not pass the function recentered xVals, the function recenters 
+  ###   for you!
   ### polyOrder is the order of polynomial contained within xVals.
-  ### lag is either NA or a scalar of the number of lags in regression. Make sure to order variables in the regression as all polynomial orders of a given lag before the next lag.
-  ### plotmax = T will plot a vertical line at the maximum of the estimated response function
+  ### lag is either NA or a scalar of the number of lags in regression. Make sure to 
+  ###   order variables in the regression as all polynomial orders of a given lag before 
+  ###   the next lag.
+  ### plotmax = T will plot a vertical line at the maximum of the estimated response 
+  ###   function
   ### cluster = T if clustering (need clustervcv), cluster = F if not clustering SEs
-  ### xRef is the reference value for the x-axis. If you are passing the function recentered xVals, this is the value where you want y to be equal to zero.
+  ### xRef is the reference value for the x-axis. If you are passing the function 
+  ###   recentered xVals, this is the value where you want y to be equal to zero.
   ### xLab is x-axis label
   ### yLab is y-axis label
   ### title is graph title

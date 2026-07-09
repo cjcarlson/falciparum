@@ -1,7 +1,9 @@
 ################################################################################
-# Extract temperature and precipitation data from CRU-TS4.XX at point locations
+# Extract temperature and precipitation data from CRU-TS4.03 at point locations
 # This modified version extracts climate data at specific survey lat/lon points
 # rather than averaging across administrative units
+# - Note: Pre-extracted CRU data can be downloaded from
+#   https://zenodo.org/records/20399793
 ################################################################################
 # Set up ----
 ################################################################################
@@ -23,8 +25,6 @@ sf::sf_use_s2(FALSE)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "B03_extract_CRU_grid.log"))
 
 log_msg <- create_logger()
 
@@ -50,10 +50,7 @@ prev_df <- prev_DB_fp |>
     col_types = readr::cols(Long = col_double(), Lat = col_double(), )
   ) |>
   dplyr::distinct(Lat, Long) |>
-  dplyr::mutate(
-    # METHOD = str_to_upper(METHOD),
-    point_id = row_number() # Add unique point identifier
-  ) |>
+  dplyr::mutate(point_id = row_number()) |>
   sf::st_as_sf(
     coords = c("Long", "Lat"),
     crs = 4326,
@@ -167,17 +164,23 @@ complete_df <- dplyr::left_join(
     tidyselect::starts_with("ppt"),
   )
 
-log_msg(sprintf("  Combined data: %d rows, %d columns", nrow(complete_df), ncol(complete_df)))
+log_msg(sprintf(
+  "  Combined data: %d rows, %d columns",
+  nrow(complete_df),
+  ncol(complete_df)
+))
 
 ################################################################################
 # Save data ----
 ################################################################################
 
 log_msg(sprintf("Saving grid climate data to: %s", intermediate_CRU_grid_fp))
-# readr::write_csv(complete_df, intermediate_CRU_grid_fp)
+
 arrow::write_feather(x = complete_df, intermediate_CRU_grid_fp)
 
-log_msg("Script `B03 - Extract CRU tmp and prc data grid.R` completed successfully")
+log_msg(
+  "Script `B03 - Extract CRU tmp and prc data grid.R` completed successfully"
+)
 
 ################################################################################
 # End of file ----

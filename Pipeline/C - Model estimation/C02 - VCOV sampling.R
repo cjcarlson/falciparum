@@ -1,6 +1,7 @@
 ################################################################################
-# This script estimates the main empirical specification linking PfPR2 to
-# drought, flood, and temperature via sampling the variance-covariance matrix 
+# This script loads the main empirical specification linking PfPR2 to drought, 
+# flood, and temperature and samples 1,000 estimates of the empirical 
+# relationship from the analytical variance-covariance matrix.
 ################################################################################
 # Set up ----
 ################################################################################
@@ -12,25 +13,14 @@ if (!require("pacman")) {
 }
 
 # packages
-pacman::p_load(
-  lfe,
-  here,
-  # zoo,
-  MASS,
-  # future,
-  tidyverse
-  # ,
-  # lubridate,
-  # data.table
-  # future.apply
-)
+pacman::p_load(lfe, here, MASS, tidyverse)
 
 # source functions for easy plotting and estimation
 source(here::here("Pipeline", "A - Utility functions", "A01 - Configuration.R"))
 source(A_utils_calc_fp)
 
 # Set number of vcov samples
-S = 1000
+S <- 1000
 
 # Set seed for reproducible output
 set.seed(11235)
@@ -38,8 +28,6 @@ set.seed(11235)
 ################################################################################
 # Set up logging ----
 ################################################################################
-
-# log_msg <- create_logger(file.path(logs_dir, "C03_vcov_sample.log"))
 
 log_msg <- create_logger()
 
@@ -67,7 +55,7 @@ column_names <- c(
 # Sampling directly from vcov instead of bootstraping
 ################################################################################
 
-model = readRDS(main_mod_obj_fn)
+model <- readRDS(main_mod_obj_fn)
 
 vcov <- model$clustervcv
 
